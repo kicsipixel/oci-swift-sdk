@@ -163,9 +163,9 @@ public struct GenerateText {
     }
     
     public struct GenerateTextResult: Decodable {
-        let inferenceResponse: LlmInferenceResponse
-        let modelId: String
-        let modelVersion: String
+        public let inferenceResponse: LlmInferenceResponse
+        public let modelId: String
+        public let modelVersion: String
         
         enum CodingKeys: String, CodingKey {
             case inferenceResponse
@@ -204,42 +204,42 @@ public struct GenerateText {
     
     public struct CohereLlmInferenceResponse: LlmInferenceResponse {
         public let runtimeType: String
-        let generatedTexts: [GeneratedText]
-        let prompt: String?
-        let timeCreated: String
+        public let generatedTexts: [GeneratedText]
+        public let prompt: String?
+        public let timeCreated: String
     }
     
     public struct GeneratedText: Codable {
-        let finishReason: String?
-        let id: String
-        let likelihood: Double?
-        let text: String
-        let tokenLikelihoods: [TokenLikelihood]?
+        public let finishReason: String?
+        public let id: String
+        public let likelihood: Double?
+        public let text: String
+        public let tokenLikelihoods: [TokenLikelihood]?
     }
     
     public struct TokenLikelihood: Codable {
-        let likelihood: Double?
-        let token: String?
+        public let likelihood: Double?
+        public let token: String?
     }
     
     public struct LlamaLlmInferenceResponse: LlmInferenceResponse {
         public let runtimeType: String
-        let choices: [Choice]
-        let created: String
+        public let choices: [Choice]
+        public let created: String
     }
     
     public struct Choice: Codable {
-        let finishReason: String?
-        let index: Int
-        let logprobs: Logprobs?
-        let text: String
+        public let finishReason: String?
+        public let index: Int
+        public let logprobs: Logprobs?
+        public let text: String
     }
     
     public struct Logprobs: Codable {
-        let textOffset: [Int]?
-        let tokenLogprobs: [Double]?
-        let tokens: [String]?
-        let topLogprobs: [Double]?
+        public let textOffset: [Int]?
+        public let tokenLogprobs: [Double]?
+        public let tokens: [String]?
+        public let topLogprobs: [Double]?
     }
     
     public enum APIError: Error {
