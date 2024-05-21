@@ -7,9 +7,11 @@
 
 import Foundation
 import INIParser
-import CryptoKit
+import Crypto
 import _CryptoExtras
-import OSLog
+import Logging
+
+public let logger = Logger(label: "OCIKit")
 
 // Linux compatibility
 #if canImport(FoundationNetworking)
@@ -39,7 +41,6 @@ public enum ConfigErrors: Error {
 }
 
 public struct APIKeySigner: Signer {
-    let logger: Logger
     struct Configuration {
         let name: String
         let privateKey: _RSA.Signing.PrivateKey
@@ -122,7 +123,6 @@ public struct APIKeySigner: Signer {
     
     public init(configFilePath: String, configName: String = "DEFAULT") throws {
         let configs = try INIParser(configFilePath)
-        self.logger = Logger(subsystem: "OCIKit", category: "signer")
         if configs.sections.keys.contains(configName) {
             guard let config = configs.sections[configName] else { throw ConfigErrors.missingConfig }
             guard let fingerprint = config["fingerprint"] else { throw ConfigErrors.missingFingerprint }
@@ -145,7 +145,6 @@ public struct APIKeySigner: Signer {
     
     init(_ config: Configuration) {
         self.config = config
-        self.logger = Logger(subsystem: "OCIKit", category: "signer")
     }
 }
 

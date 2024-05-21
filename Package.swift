@@ -13,6 +13,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.2.0"),
         .package(url: "https://github.com/PerfectlySoft/Perfect-INIParser.git", from: "3.0.0"),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
     ],
     targets: [
         .target(
@@ -21,6 +22,7 @@ let package = Package(
                 .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "_CryptoExtras", package: "swift-crypto"),
                 .product(name: "INIParser", package: "Perfect-INIParser"),
+                .product(name: "Logging", package: "swift-log"),
             ]
         ),
         .testTarget(name: "OCIKItTests",
