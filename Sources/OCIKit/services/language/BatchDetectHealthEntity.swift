@@ -6,18 +6,16 @@
 //
 
 import Foundation
-import OSLog
+import Logging
 
 public struct BatchDetectHealthEntity {
     let urlPath = "/20221001/actions/batchDetectHealthEntities"
     let host: String
     let signer: Signer
-    let logger: Logger
     
     public init(region: Region, signer: Signer) {
         self.host = Service.language.getHost(in: region)
         self.signer = signer
-        self.logger = Logger(subsystem: "OCIKit", category: "BatchDetectHealthEntity")
     }
     
     public struct BatchDetectHealthEntityDetails: Codable {

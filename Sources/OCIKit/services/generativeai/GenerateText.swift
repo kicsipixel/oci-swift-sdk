@@ -6,18 +6,16 @@
 //
 
 import Foundation
-import OSLog
+import Logging
 
 public struct GenerateText {
     let urlPath = "/20231130/actions/generateText"
     let host: String
     let signer: Signer
-    let logger: Logger
     
     public init(region: Region, signer: Signer) {
         self.host = Service.generativeai.getHost(in: region)
         self.signer = signer
-        self.logger = Logger(subsystem: "OCIKit", category: "GenerateText")
 
     }
 
