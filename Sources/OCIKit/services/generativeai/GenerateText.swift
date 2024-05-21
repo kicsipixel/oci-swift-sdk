@@ -43,6 +43,12 @@ public struct GenerateText {
         let compartmentId: String
         let inferenceRequest: LlmInferenceRequest
         let servingMode: ServingMode
+        
+        public init(compartmentId: String, inferenceRequest: LlmInferenceRequest, servingMode: ServingMode) {
+            self.compartmentId = compartmentId
+            self.inferenceRequest = inferenceRequest
+            self.servingMode = servingMode
+        }
 
         enum CodingKeys: String, CodingKey {
             case compartmentId, inferenceRequest, servingMode
@@ -89,6 +95,22 @@ public struct GenerateText {
         public let topK: Int?
         public let topP: Double?
         let truncate: String?
+        
+        public init(frequencyPenalty: Int?, isEcho: Bool, isStream: Bool?, maxTokens: Int?, numGenerations: Int?, presencePenalty: Int?, prompt: String, returnLikelihoods: String?, stopSequences: [String]?, temperature: Double?, topK: Int?, topP: Double?, truncate: String?) {
+            self.frequencyPenalty = frequencyPenalty
+            self.isEcho = isEcho
+            self.isStream = isStream
+            self.maxTokens = maxTokens
+            self.numGenerations = numGenerations
+            self.presencePenalty = presencePenalty
+            self.prompt = prompt
+            self.returnLikelihoods = returnLikelihoods
+            self.stopSequences = stopSequences
+            self.temperature = temperature
+            self.topK = topK
+            self.topP = topP
+            self.truncate = truncate
+        }
     }
     
     public struct LlamaLlmInferenceRequest: LlmInferenceRequest {
@@ -105,16 +127,39 @@ public struct GenerateText {
         public let temperature: Double?
         public let topK: Int?
         public let topP: Double?
+        
+        public init(frequencyPenalty: Int?, isEcho: Bool, isStream: Bool?, logProbs: Int?, maxTokens: Int?, numGenerations: Int?, presencePenalty: Int?, prompt: String, stop: [String]?, temperature: Double?, topK: Int?, topP: Double?) {
+            self.frequencyPenalty = frequencyPenalty
+            self.isEcho = isEcho
+            self.isStream = isStream
+            self.logProbs = logProbs
+            self.maxTokens = maxTokens
+            self.numGenerations = numGenerations
+            self.presencePenalty = presencePenalty
+            self.prompt = prompt
+            self.stop = stop
+            self.temperature = temperature
+            self.topK = topK
+            self.topP = topP
+        }
     }
     
     public struct DedicatedServingMode: ServingMode {
         public let servingType = "DEDICATED"
         let endpointId: String
+        
+        public init(endpointId: String) {
+            self.endpointId = endpointId
+        }
     }
     
     public struct OnDemandServingMode: ServingMode {
         public let servingType = "ON_DEMAND"
         public let modelId: String
+        
+        public init(modelId: String) {
+            self.modelId = modelId
+        }
     }
     
     public struct GenerateTextResult: Decodable {
