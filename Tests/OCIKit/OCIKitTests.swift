@@ -41,7 +41,6 @@ final class OCIKitTests: XCTestCase {
     }
     
     func testGenAICohere() async throws {
-        let endpoint = ProcessInfo.processInfo.environment["HEALTH_NER_ENDPOINT"] ?? "none"
         let compartment = ProcessInfo.processInfo.environment["GENAI_COMPARTMENT_OCID"] ?? "none"
         let modelId = ProcessInfo.processInfo.environment["GENAI_COHERE_MODEL_OCID"] ?? "none"
         let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
@@ -70,7 +69,6 @@ final class OCIKitTests: XCTestCase {
     }
     
     func testGenAILlama() async throws {
-        let endpoint = ProcessInfo.processInfo.environment["HEALTH_NER_ENDPOINT"] ?? "none"
         let compartment = ProcessInfo.processInfo.environment["GENAI_COMPARTMENT_OCID"] ?? "none"
         let modelId = ProcessInfo.processInfo.environment["GENAI_LLAMA_MODEL_OCID"] ?? "none"
         let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
