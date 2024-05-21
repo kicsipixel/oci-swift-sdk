@@ -8,6 +8,10 @@
 import Foundation
 import Logging
 
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
 public struct BatchDetectHealthEntity {
     let urlPath = "/20221001/actions/batchDetectHealthEntities"
     let host: String

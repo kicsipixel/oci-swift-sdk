@@ -63,7 +63,7 @@ public struct APIKeySigner: Signer {
         let verb = req.httpMethod?.lowercased() ?? ""
         let encodedPath = req.url?.relativePath.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         // add required headers
-        req.addValue(req.url?.host() ?? "", forHTTPHeaderField: "host")
+        req.addValue(req.url?.host ?? "", forHTTPHeaderField: "host")
         // compose date header
         let currentDate = Date()
         let timezoneOffset =  TimeZone.current.secondsFromGMT()
@@ -94,7 +94,7 @@ public struct APIKeySigner: Signer {
             authHeader.append(#"headers="date (request-target) host content-length content-type x-content-sha256""#)
             signingString.append("date: \(dateString)")
             signingString.append("(request-target): \(verb) \(encodedPath)")
-            signingString.append("host: \(req.url?.host() ?? "")")
+            signingString.append("host: \(req.url?.host ?? "")")
             signingString.append("content-length: \(contentLength)")
             signingString.append("content-type: \(contentType)")
             signingString.append("x-content-sha256: \(xContentSHA256)")
@@ -106,7 +106,7 @@ public struct APIKeySigner: Signer {
             authHeader.append(#"headers="date (request-target) host""#)
             signingString.append("date: \(dateString)")
             signingString.append("(request-target): \(verb) \(encodedPath)")
-            signingString.append("host: \(req.url?.host() ?? "")")
+            signingString.append("host: \(req.url?.host ?? "")")
         }
         authHeader.append(#"keyId="\#(config.tenancyOCID)/\#(config.userOCID)/\#(config.fingerprint)""#)
         authHeader.append(#"algorithm="rsa-sha256""#)

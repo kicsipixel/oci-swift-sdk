@@ -8,6 +8,10 @@
 import Foundation
 import Logging
 
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
 public struct GenerateText {
     let urlPath = "/20231130/actions/generateText"
     let host: String
