@@ -10,18 +10,31 @@ import XCTest
 @testable import OCIKit
 
 final class OCIKitTests: XCTestCase {
-    let ociConfigFilePath = ProcessInfo.processInfo.environment["OCI_CONFIG_FILE"] ?? "/Users/<user>/.oci/config"
+    let ociConfigFilePath = ProcessInfo.processInfo.environment["OCI_CONFIG_FILE"] ?? "\(NSHomeDirectory())/.oci/config"
     let ociProfileName = ProcessInfo.processInfo.environment["OCI_PROFILE"] ?? "DEFAULT"
     
-    func testConfig() async throws {
+    func test_if_config_file_exists() {
+        let fileExists = FileManager.default.fileExists(atPath: ociConfigFilePath)
+        XCTAssertTrue(fileExists, "OCI config file does not exist at path: \(ociConfigFilePath)")
+    }
+    
+    func test_if_config_file_is_valid() async throws {
         let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
         var req = URLRequest(url: URL(string: "https://objectstorage.us-ashburn-1.oraclecloud.com/n")!)
         try signer.sign(&req)
-        print(">>> All Headers: >>> \n\(req.allHTTPHeaderFields)\n>>>>>>>>\n")
+        print(">>> All Headers: >>> \n\(req.allHTTPHeaderFields ?? [:])\n>>>>>>>>\n")
         
-        let (data, _) = try await URLSession.shared.data(for: req)
-        let response = String(data: data, encoding: .utf8)
-        print("reponse: \(response)")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            XCTFail("Invalid HTTP response")
+            return
+        }
+        
+        XCTAssertEqual(httpResponse.statusCode, 200, "Expected HTTP 200 OK, got \(httpResponse.statusCode)")
+        
+        let responseBody = String(data: data, encoding: .utf8)
+        print("Response: \(responseBody ?? "<no body>")")
     }
     
     func testHealthNER() async throws {
@@ -83,7 +96,7 @@ final class OCIKitTests: XCTestCase {
                 numGenerations: nil,
                 presencePenalty: nil,
                 prompt: "tell me about LLMs",
-                stop: nil, 
+                stop: nil,
                 temperature: nil,
                 topK: nil,
                 topP: nil
