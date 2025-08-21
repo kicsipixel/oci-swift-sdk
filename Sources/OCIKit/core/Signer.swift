@@ -128,8 +128,8 @@ public struct APIKeySigner: Signer {
             guard let fingerprint = config["fingerprint"] else { throw ConfigErrors.missingFingerprint }
             guard let userOCID = config["user"] else { throw ConfigErrors.missingUser }
             guard let tenancyOCID = config["tenancy"] else { throw ConfigErrors.missingTenancy }
-            guard let keyfilePath = config["key_file"] else { throw ConfigErrors.missingKeyfile }
-            guard let keyFileContents = try? String(contentsOfFile: keyfilePath, encoding: .utf8) else { throw ConfigErrors.badKeyfile }
+            guard let keyfilePath = config["key_file"] else { throw ConfigErrors.missingKeyfile }         
+            guard let keyFileContents = try? String(contentsOfFile: (keyfilePath as NSString).expandingTildeInPath, encoding: .utf8) else { throw ConfigErrors.badKeyfile }
             guard let privateKey = try? _RSA.Signing.PrivateKey(pemRepresentation: keyFileContents) else { throw ConfigErrors.notPemFormat }
             self.config = Configuration(
                 name: configName,
