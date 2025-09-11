@@ -20,7 +20,12 @@ final class OCIKitTests: XCTestCase {
     
     func test_if_config_file_is_valid() async throws {
         let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
-        var req = URLRequest(url: URL(string: "https://objectstorage.us-ashburn-1.oraclecloud.com/n")!)
+        guard let userRegion = try extractUserRegion(from: ociConfigFilePath) else {
+            XCTFail("Could not extract user region from config file")
+            return
+        }
+        
+        var req = URLRequest(url: URL(string: "https://objectstorage.\(userRegion).oraclecloud.com/n")!)
         try signer.sign(&req)
         print(">>> All Headers: >>> \n\(req.allHTTPHeaderFields ?? [:])\n>>>>>>>>\n")
         
