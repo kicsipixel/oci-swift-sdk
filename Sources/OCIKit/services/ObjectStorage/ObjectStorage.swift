@@ -29,21 +29,56 @@ public struct ObjectStorageClient {
             }
             self.region = region
             let host = Service.objectstorage.getHost(in: region)
-            self.endpoint = URL(string: "https://\(host)")
+            self.endpoint = URL(string: "https://\(host)/n")
         }
     }
     
-    public func makeRequest(path: String) throws -> URLRequest {
+    // MARK: - Makes request
+    public func makeRequest() throws -> URLRequest {
         guard let endpoint else {
             throw ObjectStorageError.missingRequiredParameter("No endpoint available")
         }
-        var req = URLRequest(url: endpoint.appendingPathComponent(path))
-        try signer.sign(&req)
-        return req
+        
+        return URLRequest(url: endpoint)
     }
-
     
-    // MARK: - List buckets
+    // MARK: - Gets namespace
+    /// Each Oracle Cloud Infrastructure tenant is assigned one unique and uneditable Object Storage namespace. The namespace
+    /// is a system-generated string assigned during account creation. For some older tenancies, the namespace string may be
+    /// the tenancy name in all lower-case letters. You cannot edit a namespace.
+    ///
+    /// GetNamespace returns the name of the Object Storage namespace for the user making the request.
+    /// If an optional compartmentId query parameter is provided, GetNamespace returns the namespace name of the corresponding
+    /// tenancy, provided the user has access to it.
+    ///
+    /// Parameters:
+    ///   - compartmentId: his is an optional field representing either the tenancy [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) or the compartment [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) within the tenancy whose Object Storage namespace is to be retrieved.
+    ///   - opcClientRequestId: Optional client request ID for tracing.
+    ///   - retryConfig: Optional retry configuration to apply to this operation. If `nil`, the default service-level retry configuration is used. If explicitly set to `nil`, the operation will not retry.
+    ///
+    /// Returns: A `String` containing the Object Storage namespace.
+    public func getNameSpace(compartmentId: String? = nil) async throws -> String {
+        var req = try makeRequest()
+        try signer.sign(&req)
+        
+        let (data, response) = try await URLSession.shared.data(for: req)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+        }
+        
+        if httpResponse.statusCode != 200 {
+            throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        }
+        
+        guard let responseBody = String(data: data, encoding: .utf8) else {
+            throw ObjectStorageError.invalidUTF8
+        }
+        return responseBody
+    }
+    
+    
+    // MARK: - Lists buckets
     /// Gets a list of all BucketSummary items in a compartment. A BucketSummary contains only summary fields for the bucket
     /// and does not contain fields like the user-defined metadata.
     ///
@@ -69,4 +104,7 @@ public struct RetryConfig {
 // Error types
 public enum ObjectStorageError: Error {
     case missingRequiredParameter(String)
+    case invalidURL(String)
+    case invalidResponse(String)
+    case invalidUTF8
 }
