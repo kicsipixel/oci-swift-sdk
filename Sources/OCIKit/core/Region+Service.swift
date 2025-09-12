@@ -67,7 +67,7 @@ public enum Service: String {
         case .language:
             "language.aiservice.\(region.urlPart).oci.oraclecloud.com"
         case .objectstorage:
-            "objectstorage.\(region.urlPart).oci.oraclecloud.com"
+            "objectstorage.\(region.urlPart).oraclecloud.com"
         case .generativeai:
             "inference.generativeai.\(region.urlPart).oci.oraclecloud.com"
         }
