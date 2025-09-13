@@ -33,15 +33,6 @@ public struct ObjectStorageClient {
         }
     }
     
-    // MARK: - Makes request
-    public func makeRequest() throws -> URLRequest {
-        guard let endpoint else {
-            throw ObjectStorageError.missingRequiredParameter("No endpoint available")
-        }
-        
-        return URLRequest(url: endpoint)
-    }
-    
     // MARK: - Gets namespace
     /// Each Oracle Cloud Infrastructure tenant is assigned one unique and uneditable Object Storage namespace. The namespace
     /// is a system-generated string assigned during account creation. For some older tenancies, the namespace string may be
@@ -57,8 +48,26 @@ public struct ObjectStorageClient {
     ///   - retryConfig: Optional retry configuration to apply to this operation. If `nil`, the default service-level retry configuration is used. If explicitly set to `nil`, the operation will not retry.
     ///
     /// Returns: A `String` containing the Object Storage namespace.
-    public func getNameSpace(compartmentId: String? = nil) async throws -> String {
-        var req = try makeRequest()
+    public func getNamespace(compartmentId: String? = nil) async throws -> String {
+        guard let endpoint else {
+            throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+        }
+        
+        guard var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else {
+            throw ObjectStorageError.invalidURL("")
+        }
+        components.path = "/n"
+        
+        //        components.queryItems = [
+        //                URLQueryItem(name: "compartmentId", value: "....")
+        //            ]
+        
+        guard let url = components.url else {
+            throw ObjectStorageError.invalidURL("URL components could not be converted to a valid URL")
+        }
+        
+        var req = URLRequest(url: url)
+        
         try signer.sign(&req)
         
         let (data, response) = try await URLSession.shared.data(for: req)
@@ -74,6 +83,7 @@ public struct ObjectStorageClient {
         guard let responseBody = String(data: data, encoding: .utf8) else {
             throw ObjectStorageError.invalidUTF8
         }
+        
         return responseBody
     }
     
@@ -92,7 +102,7 @@ public struct ObjectStorageClient {
     /// Parameters:
     ///     - namespaceName: The Object Storage namespace used for the request.
     ///     - compartmentId: The ID of the compartment in which to list buckets
-    public func listBuckets(namespaceName: String, compartmentId: String) throws { }
+    public func listBuckets(namespaceName: String, compartmentId: String? = nil) async throws {}
 }
 
 // Retry configuration

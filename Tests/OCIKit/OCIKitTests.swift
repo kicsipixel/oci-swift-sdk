@@ -18,6 +18,14 @@ final class OCIKitTests: XCTestCase {
         XCTAssertTrue(fileExists, "OCI config file does not exist at path: \(ociConfigFilePath)")
     }
     
+    func test_if_namespace_returns_valid_string() async throws {
+        let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+        let objectStorage = try ObjectStorageClient(region: .fra, signer: signer)
+        let namespace = try await objectStorage.getNamespace()
+    
+        XCTAssertFalse(namespace.isEmpty, "Namespace should not be empty")
+    }
+    
     func test_if_config_file_is_valid() async throws {
         let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
         guard let userRegion = try extractUserRegion(from: ociConfigFilePath) else {
