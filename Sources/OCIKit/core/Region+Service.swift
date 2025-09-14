@@ -60,7 +60,7 @@ public enum Region {
 }
 
 public enum Service: String {
-    case language, objectstorage, generativeai
+    case language, objectstorage, generativeai, iam
 
     func getHost(in region: Region) -> String {
         switch self {
@@ -70,6 +70,8 @@ public enum Service: String {
             "objectstorage.\(region.urlPart).oci.oraclecloud.com"
         case .generativeai:
             "inference.generativeai.\(region.urlPart).oci.oraclecloud.com"
+        case .iam:
+            "identity.\(region.urlPart).oci.oraclecloud.com"
         }
     }
 }
