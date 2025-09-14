@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum Region {
+public enum Region: CaseIterable {
     case syd, mel, gru, vcp, yul, yyz, scl, vap, bog, cdg, mrs, fra, hyd, bom,
         hsg, mtz, lin, kix, nrt, qro, mty, ams, ruh, jed, beg, sin, xsp, jnb,
         icn, yny, mad, arn, zrh, auh, dxb, lhr, cwl, iad, ord, phx, sjc
@@ -57,6 +57,10 @@ public enum Region {
         case .sjc: "us-sanjose-1"
         }
     }
+
+    public static func from(regionId: String) -> Region? {
+        allCases.first { $0.urlPart == regionId }
+    }
 }
 
 public enum Service: String {
@@ -67,7 +71,7 @@ public enum Service: String {
         case .language:
             "language.aiservice.\(region.urlPart).oci.oraclecloud.com"
         case .objectstorage:
-            "objectstorage.\(region.urlPart).oci.oraclecloud.com"
+            "objectstorage.\(region.urlPart).oraclecloud.com"
         case .generativeai:
             "inference.generativeai.\(region.urlPart).oci.oraclecloud.com"
         }
@@ -95,4 +99,3 @@ public func extractUserRegion(from configPath: String, profile: String = "DEFAUL
 
     return nil
 }
-
