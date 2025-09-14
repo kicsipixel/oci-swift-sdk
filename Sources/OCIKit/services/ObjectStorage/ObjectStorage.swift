@@ -58,9 +58,11 @@ public struct ObjectStorageClient {
         }
         components.path = "/n"
         
-        //        components.queryItems = [
-        //                URLQueryItem(name: "compartmentId", value: "....")
-        //            ]
+        if let compartmentId = compartmentId  {
+            components.queryItems = [
+                URLQueryItem(name: "compartmentId", value: compartmentId)
+            ]
+        }
         
         guard let url = components.url else {
             throw ObjectStorageError.invalidURL("URL components could not be converted to a valid URL")
