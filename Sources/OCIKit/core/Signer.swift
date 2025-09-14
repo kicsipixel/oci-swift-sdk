@@ -61,7 +61,12 @@ public struct APIKeySigner: Signer {
     
     public func sign(_ req: inout URLRequest) throws {
         let verb = req.httpMethod?.lowercased() ?? ""
-        let encodedPath = req.url?.relativePath.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let path = req.url?.path ?? "/"
+        let query = req.url?.query
+        let fullPath = query != nil ? "\(path)?\(query!)" : path
+        let encodedPath = fullPath.addingPercentEncoding(
+            withAllowedCharacters: .urlPathAllowed.union(.urlQueryAllowed)
+        ) ?? ""
         // add required headers
         req.addValue(req.url?.host ?? "", forHTTPHeaderField: "host")
         // compose date header
