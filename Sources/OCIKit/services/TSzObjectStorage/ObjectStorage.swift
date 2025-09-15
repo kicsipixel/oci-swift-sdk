@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ObjectStorageClient {
+public struct TSzObjectStorageClient {
     let endpoint: URL?
     let region: Region?
     let retryConfig: RetryConfig?
