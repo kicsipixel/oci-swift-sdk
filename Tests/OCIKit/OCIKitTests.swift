@@ -51,10 +51,14 @@ final class OCIKitTests: XCTestCase {
     }
     
     func testHealthNER() async throws {
-        let endpoint = ProcessInfo.processInfo.environment["HEALTH_NER_ENDPOINT"] ?? "none"
+        guard let endpoint = ProcessInfo.processInfo.environment["HEALTH_NER_ENDPOINT"], !endpoint.isEmpty else {
+            print("testHealthNER not configured")
+            return
+        }
+        print("ociProfileName: \(ociProfileName)")
         let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
         let healthNER = BatchDetectHealthEntity(region: .iad, signer: signer)
-        var req = BatchDetectHealthEntity.BatchDetectHealthEntityDetails(
+        let req = BatchDetectHealthEntity.BatchDetectHealthEntityDetails(
             documents: [TextDocument(
                 key: UUID().uuidString,
                 languageCode: "en",
@@ -67,8 +71,13 @@ final class OCIKitTests: XCTestCase {
     }
     
     func testGenAICohere() async throws {
-        let compartment = ProcessInfo.processInfo.environment["GENAI_COMPARTMENT_OCID"] ?? "none"
-        let modelId = ProcessInfo.processInfo.environment["GENAI_COHERE_MODEL_OCID"] ?? "none"
+        guard
+            let compartment = ProcessInfo.processInfo.environment["GENAI_COMPARTMENT_OCID"], !compartment.isEmpty,
+            let modelId = ProcessInfo.processInfo.environment["GENAI_COHERE_MODEL_OCID"], !modelId.isEmpty
+        else {
+            print("testGenAICohere not configured")
+            return
+        }
         let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
         let getText = GenerateText(region: .ord, signer: signer)
         let req = GenerateText.GenerateTextDetails(
@@ -95,8 +104,13 @@ final class OCIKitTests: XCTestCase {
     }
     
     func testGenAILlama() async throws {
-        let compartment = ProcessInfo.processInfo.environment["GENAI_COMPARTMENT_OCID"] ?? "none"
-        let modelId = ProcessInfo.processInfo.environment["GENAI_LLAMA_MODEL_OCID"] ?? "none"
+        guard
+            let compartment = ProcessInfo.processInfo.environment["GENAI_COMPARTMENT_OCID"], !compartment.isEmpty,
+            let modelId = ProcessInfo.processInfo.environment["GENAI_LLAMA_MODEL_OCID"], !modelId.isEmpty
+        else {
+            print("testGenAILlama not configured")
+            return
+        }
         let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
         let getText = GenerateText(region: .ord, signer: signer)
         let req = GenerateText.GenerateTextDetails(
