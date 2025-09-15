@@ -1,3 +1,17 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the oci-swift-sdk open source project
+//
+// Copyright (c) 2025 Szabolcs Toth and the oci-swift-sdk project authors
+// Licensed under MIT License
+//
+// See LICENSE for license information
+// See CONTRIBUTORS.md for the list of oci-swift-sdk project authors
+//
+// SPDX-License-Identifier: MIT License
+//
+//===----------------------------------------------------------------------===//
+
 import Foundation
 
 public struct TSzObjectStorageClient {
@@ -53,22 +67,8 @@ public struct TSzObjectStorageClient {
             throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
         }
         
-        guard var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else {
-            throw ObjectStorageError.invalidURL("")
-        }
-        components.path = "/n"
-        
-        if let compartmentId = compartmentId  {
-            components.queryItems = [
-                URLQueryItem(name: "compartmentId", value: compartmentId)
-            ]
-        }
-        
-        guard let url = components.url else {
-            throw ObjectStorageError.invalidURL("URL components could not be converted to a valid URL")
-        }
-        
-        var req = URLRequest(url: url)
+        let api = ObjectStorageAPI.getNamespace()
+        var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
         
         try signer.sign(&req)
         
@@ -104,7 +104,36 @@ public struct TSzObjectStorageClient {
     /// Parameters:
     ///     - namespaceName: The Object Storage namespace used for the request.
     ///     - compartmentId: The ID of the compartment in which to list buckets
-    public func listBuckets(namespaceName: String, compartmentId: String? = nil) async throws {}
+    ///
+    ///  TODO:
+    ///  - limit: Int / query (1-1000)
+    ///  - page: String / query (1-1024)
+    ///  - fields: Array / query (tags only allowed)
+    public func listBuckets(namespaceName: String, compartmentId: String) async throws -> [BucketSummary] {
+        guard let endpoint else {
+            throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+        }
+        
+        let api = ObjectStorageAPI.listBuckets(namespaceName: namespaceName, compartmentId: compartmentId)
+        var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+        
+        try signer.sign(&req)
+        
+        let (data, response) = try await URLSession.shared.data(for: req)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+        }
+        
+        if httpResponse.statusCode != 200 {
+            throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        }
+        
+        let decoder = JSONDecoder()
+        let bucketSummary = try decoder.decode([BucketSummary].self, from: data)
+        
+        return bucketSummary
+    }
 }
 
 // Retry configuration
