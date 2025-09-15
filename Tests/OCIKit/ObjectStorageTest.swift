@@ -27,7 +27,7 @@ struct ObjectStorageTest {
         let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
         let client = ObjectStorageClient(region: region, signer: signer)
 
-        let namespace = try await client.getNamespace()
+        let namespace = try await client.getNamespace(compartmentId: "ocid1.tenancy.oc1..aaaaaaaapt3esrvwldrfekea5ucasigr2nof7tjx6ysyb4oo3yiqgx2d72ha")
         print("Namespace: \(namespace)")
         #expect(!namespace.isEmpty)
     }
