@@ -14,23 +14,23 @@
 
 import Foundation
 
-public enum AutoTiring: String {
+public enum AutoTiring: String, Codable {
     case disabled = "Disabled"
     case infrequentAccess = "InfrequentAccess"
 }
 
-public enum PublicAccessType: String {
+public enum PublicAccessType: String, Codable {
     case noPublicAccess = "NoPublicAccess"
     case objectRead = "ObjectRead"
     case objectReadWithoutList = "ObjectReadWithoutList"
 }
 
-public enum StorageTier: String {
+public enum StorageTier: String, Codable {
     case standard = "Standard"
     case archive = "Archive"
 }
 
-public enum Versoning: String {
+public enum Versoning: String, Codable {
     case enabled = "Enabled"
     case suspended = "Suspended"
     case disabled = "Disabled"
