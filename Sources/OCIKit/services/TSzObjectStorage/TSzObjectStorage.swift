@@ -94,6 +94,11 @@ public struct TSzObjectStorageClient {
             throw error
         }
     }
+    
+    // MARK: - Gets bucket
+    /// Gets the current representation of the given bucket in the given Object Storage namespace.
+    
+    
     // MARK: - Gets namespace
     /// Each Oracle Cloud Infrastructure tenant is assigned one unique and uneditable Object Storage namespace. The namespace
     /// is a system-generated string assigned during account creation. For some older tenancies, the namespace string may be
