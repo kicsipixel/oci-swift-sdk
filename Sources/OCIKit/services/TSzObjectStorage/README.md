@@ -8,6 +8,10 @@ Use Object Storage and Archive Storage APIs to manage buckets, objects, and rela
     - `retryConfig`
 
 ## Bucket
+- [CreateBuckets](https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/20160918/Bucket/CreateBucket) 
+    - Parameters implemented:
+        - `namespaceName`
+        - `opc-client-request-id`
 
 - [ListBuckets](https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/20160918/Bucket/ListBuckets) 
     - Parameters implemented:
@@ -18,6 +22,7 @@ Use Object Storage and Archive Storage APIs to manage buckets, objects, and rela
         - `limit`
         - `page`
         - `fileds`
+
 ## Namespace
 - [GetNamespace](https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/20160918/Namespace/GetNamespace) 
     - Parameters implemented:
