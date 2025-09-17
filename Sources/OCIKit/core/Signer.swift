@@ -10,7 +10,7 @@ import Crypto
 import _CryptoExtras
 import Logging
 
-public var logger = Logger(label: "OCIKit")
+public let logger = Logger(label: "OCIKit")
 
 // Linux compatibility
 #if canImport(FoundationNetworking)
