@@ -15,3 +15,13 @@ I'm going to add support for the services that I need at the moment. If you woul
 - [ ] Object Storage
 - [ ] Container Instances
 - [ ] GenAI inference (custom models)
+
+## License
+
+[MIT License](https://github.com/iliasaz/oci-swift-sdk/blob/main/LICENSE)
+
+Copyright (c) 2024 Ilia Sazonov
+
+_**Oracle** is a registered trademark of **Oracle Corporation**. Any use of their trademark is under the established [trademark guidelines](https://www.oracle.com/legal/trademarks.html) and does not imply any affiliation with or endorsement by them, and all rights are reserved by them._
+
+_**Swift** is a registered trademark of **Apple, Inc**. Any use of their trademark does not imply any affiliation with or endorsement by them, and all rights are reserved by them._
