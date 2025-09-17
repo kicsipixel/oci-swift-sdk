@@ -97,7 +97,54 @@ public struct TSzObjectStorageClient {
     
     // MARK: - Gets bucket
     /// Gets the current representation of the given bucket in the given Object Storage namespace.
-    
+    /// - Parameters:
+    ///     - namespaceName: The Object Storage namespace used for the request.
+    ///     - bucketName: The name of the bucket. Avoid entering confidential information.
+    /// - Returns: A bucket representation for the requested bucket.
+    ///
+    /// TODO:
+    ///     - retryConfig: Optional The retry configuration to apply to this operation. If no key is provided,
+    ///     then the service-level retry configuration defined by `retryConfig` will be used.
+    ///     If an explicit `nil` value is provided, the operation will not retry.
+    ///   - ifMatch: Optional The entity tag (ETag) to match with the ETag of an existing resource.
+    ///     If the specified ETag matches the ETag of the existing resource, `GET` and `HEAD` requests
+    ///     will return the resource, and `PUT` and `POST` requests will upload the resource.
+    ///   - ifNoneMatch: Optional The entity tag (ETag) to avoid matching. Wildcards ('*') are not allowed.
+    ///     If the specified ETag does not match the ETag of the existing resource, the request returns
+    ///     the expected response. If the ETag matches, the request returns an HTTP 304 status without a response body.
+    ///   - opcClientRequestId: Optional The client request ID for tracing.
+    ///   - fields: Optional A list of fields to include in the bucket summary. Possible values are:
+    ///     - `approximateCount`: Approximate number of objects in the bucket.
+    ///     - `approximateSize`: Total approximate size in bytes of all objects in the bucket.
+    ///     - `autoTiering`: State of auto tiering on the bucket.
+    ///
+    public func getBucket(namespaceName: String, bucketName: String) async throws -> Bucket? {
+        guard let endpoint else {
+            throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+        }
+        
+        let api = ObjectStorageAPI.getBucket(namespaceName: namespaceName, bucketName: bucketName)
+        var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+        
+        try signer.sign(&req)
+        
+        let (data, response) = try await URLSession.shared.data(for: req)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+        }
+        
+        if httpResponse.statusCode != 200 {
+            throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        }
+        
+        do {
+            let bucket = try JSONDecoder().decode(Bucket.self, from: data)
+            return bucket
+        } catch {
+            throw ObjectStorageError.jsonDecodingError("Failed to decode response data to Bucket")
+        }
+    }
     
     // MARK: - Gets namespace
     /// Each Oracle Cloud Infrastructure tenant is assigned one unique and uneditable Object Storage namespace. The namespace
@@ -140,7 +187,6 @@ public struct TSzObjectStorageClient {
         
         return responseBody
     }
-    
     
     // MARK: - Lists buckets
     /// Gets a list of all BucketSummary items in a compartment. A BucketSummary contains only summary fields for the bucket
