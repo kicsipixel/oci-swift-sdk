@@ -41,7 +41,7 @@ public enum Versoning: String, Codable {
 ///
 /// To use any of the API operations, you must be authorized in an IAM policy. If you are not authorized, talk to an administrator.
 /// If you are an administrator who needs to write policies to give users access, see [Getting Started with Policies](Getting Started with Policies).
-public struct Bucket {
+public struct Bucket: Codable {
     /// The approximate number of objects in the bucket. Count statistics are reported periodically. You will see a lag between what is displayed and the actual object count.
     public let approximateCount: Int?
     /// The approximate total size in bytes of all objects in the bucket. Size statistics are reported periodically. You will see a lag between what is displayed and the actual size of the bucket.

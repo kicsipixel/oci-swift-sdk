@@ -31,6 +31,8 @@ public protocol API {
 }
 
 public enum ObjectStorageAPI: API {
+    /// Creates bucket
+    case createBucket(namespaceName: String)
     /// Gets Namespace
     case getNamespace(compartmentId: String? = nil, opcClientRequestId: String? = nil)
     /// Lists buckets
@@ -41,7 +43,8 @@ public enum ObjectStorageAPI: API {
         switch self {
         case .getNamespace:
             return "/n"
-        case .listBuckets(let namespaceName, _):
+        case .createBucket(let namespaceName),
+                .listBuckets(let namespaceName, _):
             return "/n/\(namespaceName)/b"
         }
     }
@@ -49,6 +52,8 @@ public enum ObjectStorageAPI: API {
     /// HTTPMethod
     public var method: HTTPMethod {
         switch self {
+        case .createBucket:
+            return .post
         case .getNamespace,
                 .listBuckets:
             return .get
@@ -58,6 +63,8 @@ public enum ObjectStorageAPI: API {
     /// QueryItems
     public var queryItems: [URLQueryItem]? {
         switch self {
+        case .createBucket:
+            return nil
         case .getNamespace(let compartmentId, _):
             if let compartmentId {
                 return [URLQueryItem(name: "compartmentId", value: compartmentId)]
@@ -75,7 +82,8 @@ public enum ObjectStorageAPI: API {
                 return ["opc-client-request-id": opcClientRequestId]
             }
             return nil
-        case .listBuckets:
+        case .createBucket,
+                .listBuckets:
             return nil
         }
     }
@@ -105,6 +113,7 @@ public func buildRequest(objectStorageAPI: API, endpoint: URL) throws -> URLRequ
         request.addValue(value, forHTTPHeaderField: key)
     }
     request.setValue("application/json", forHTTPHeaderField: "accept")
-    
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
     return request
 }

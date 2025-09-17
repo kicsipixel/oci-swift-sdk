@@ -49,4 +49,30 @@ public struct CreateBucketDetails: Codable {
     /// For versioning Enabled, objects are protected from overwrites and deletes, by maintaining their version history.
     /// When versioning is Suspended, the previous versions will still remain but new versions will no longer be created when overwitten or deleted.
     public let versioning: Versoning?
+    
+    public init(
+        autoTiring: AutoTiring? = nil,
+        compartmentId: String,
+        definedTags: [String: [String: String]]? = nil,
+        freeformTags: [String: String]? = nil,
+        kmsKeyId: String? = nil,
+        metadata: [String: String]? = nil,
+        name: String,
+        objectEventsEnabled: Bool? = nil,
+        publicAccessType: PublicAccessType? = nil,
+        storageTier: StorageTier? = nil,
+        versioning: Versoning? = nil
+    ) {
+        self.autoTiring = autoTiring
+        self.compartmentId = compartmentId
+        self.definedTags = definedTags
+        self.freeformTags = freeformTags
+        self.kmsKeyId = kmsKeyId
+        self.metadata = metadata
+        self.name = name
+        self.objectEventsEnabled = objectEventsEnabled
+        self.publicAccessType = publicAccessType
+        self.storageTier = storageTier
+        self.versioning = versioning
+    }
 }
