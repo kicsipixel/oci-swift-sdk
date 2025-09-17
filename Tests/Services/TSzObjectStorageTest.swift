@@ -45,6 +45,23 @@ struct TSzObjectStorageTest {
         #expect(createBucket != nil, "The return value should not be nil")
     }
     
+    // MARK: - Get bucket
+    @Test func getsBucketWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+        let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    
+        let createBucket = try await sut.getBucket(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk")
+        
+        // Prints the name of the new bucket
+        if let createBucket {
+            print("The bucket: \(createBucket.name) is in the compartment: \(createBucket.compartmentId), created by: \(createBucket.createdBy)")
+        }
+        
+        #expect(createBucket != nil, "The return value should not be nil")
+    }
+    
     // MARK: - Gets namespace
     @Test func getNamespaceWithAPIKeySignerReturnsValidString() async throws {
         let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
