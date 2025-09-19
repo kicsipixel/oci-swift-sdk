@@ -13,6 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// HTTP methods
 public enum HTTPMethod: String {
