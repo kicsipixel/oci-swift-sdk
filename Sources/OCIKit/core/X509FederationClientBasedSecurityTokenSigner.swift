@@ -6,6 +6,9 @@
 //
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public final class X509FederationClientBasedSecurityTokenSigner: Signer {
     private let federationClient: X509FederationClientProtocol
