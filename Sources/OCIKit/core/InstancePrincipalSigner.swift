@@ -108,7 +108,7 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
         self.tenancyId = try Self.tenancyIdFromCertificatePEM(leafCertPEM)
 
         // Map region to long form using Region enum if possible
-        if let region = Region.from(regionId: regionRaw) {
+        if let region = Region(rawValue: regionRaw) {
             self.regionIdLong = region.urlPart
         } else {
             self.regionIdLong = regionRaw
