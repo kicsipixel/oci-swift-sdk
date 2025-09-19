@@ -107,16 +107,19 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
         }
         self.leafPrivateKey = leafKey
         
-        if
-            let instanceJSON = try? Self.fetchJSON(url: GET_INSTANCE_URL, authorization: METADATA_AUTH_HEADER),
-            let imdsTenancy = instanceJSON["tenantId"] as? String,
-            !imdsTenancy.isEmpty
-        {
-            self.tenancyId = imdsTenancy
-            print("Using tenancy ID from IMDS: \(imdsTenancy)")
-        } else {
-            self.tenancyId = try Self.tenancyIdFromCertificatePEM(leafCertPEM)
+        if let certTenancyId = try? Self.tenancyIdFromCertificatePEM(leafCertPEM) {
+            self.tenancyId = certTenancyId
             print("Using tenancy ID from certificate: \(self.tenancyId)")
+        } else {
+            if let instanceJSON = try? Self.fetchJSON(url: GET_INSTANCE_URL, authorization: METADATA_AUTH_HEADER),
+               let imdsTenancy = instanceJSON["tenantId"] as? String,
+               !imdsTenancy.isEmpty
+            {
+                self.tenancyId = imdsTenancy
+                print("Using tenancy ID from IMDS: \(imdsTenancy)")
+            } else {
+                throw NSError(domain: "OCIKit.InstancePrincipalsFederationClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to obtain the tenancyId"])
+            }
         }
 
         // Map region to long form using Region enum if possible
