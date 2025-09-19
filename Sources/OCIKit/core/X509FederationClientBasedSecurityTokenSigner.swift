@@ -20,7 +20,7 @@ public final class X509FederationClientBasedSecurityTokenSigner: Signer {
     public func sign(_ req: inout URLRequest) throws {
         let token = try federationClient.currentSecurityToken()
         let key = try federationClient.currentPrivateKey()
-        var delegateSigner = SecurityTokenSigner(securityToken: token, privateKey: key)
+        let delegateSigner = SecurityTokenSigner(securityToken: token, privateKey: key)
         try delegateSigner.sign(&req)
     }
 }

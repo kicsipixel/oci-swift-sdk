@@ -1,4 +1,6 @@
-// swift-tools-version:5.10
+// swift-tools-version: 6.1
+// Copyright 2024 Ilia Sazonov
+// SPDX-License-Identifier: MIT License
 import PackageDescription
 
 let package = Package(
