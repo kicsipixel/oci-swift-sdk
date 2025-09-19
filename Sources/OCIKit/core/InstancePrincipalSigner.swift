@@ -211,7 +211,7 @@ private extension InstancePrincipalsFederationClient {
     }
 
     static func dataFor(session: URLSession, req: URLRequest) throws -> (Data, URLResponse) {
-        var result: Result<(Data, URLResponse), Error>!
+        nonisolated(unsafe) var result: Result<(Data, URLResponse), Error>!
         let sem = DispatchSemaphore(value: 1)
         sem.wait()
         let group = DispatchGroup()
