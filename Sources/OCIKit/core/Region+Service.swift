@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum Region: CaseIterable {
+public enum Region: String, CaseIterable {
     case syd, mel, gru, vcp, yul, yyz, scl, vap, bog, cdg, mrs, fra, hyd, bom,
         hsg, mtz, lin, kix, nrt, qro, mty, ams, ruh, jed, beg, sin, xsp, jnb,
         icn, yny, mad, arn, zrh, auh, dxb, lhr, cwl, iad, ord, phx, sjc
