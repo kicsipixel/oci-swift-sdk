@@ -53,6 +53,7 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
     private let LEAF_CERT_URL: URL
     private let LEAF_KEY_URL: URL
     private let INTERMEDIATE_CERT_URL: URL
+    private let GET_TENANCY_ID_URL: URL
     private let METADATA_AUTH_HEADER = "Bearer Oracle"
 
     private let session: URLSession
@@ -86,6 +87,8 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
         self.LEAF_CERT_URL = URL(string: "\(base)/identity/cert.pem")!
         self.LEAF_KEY_URL = URL(string: "\(base)/identity/key.pem")!
         self.INTERMEDIATE_CERT_URL = URL(string: "\(base)/identity/intermediate.pem")!
+        self.GET_TENANCY_ID_URL = URL(string: "\(base)/instance/tenancyId")!
+
         self.session = URLSession.shared
         self.purpose = purpose
 
@@ -104,8 +107,11 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
         }
         self.leafPrivateKey = leafKey
 
-        // Determine tenancy OCID: prefer IMDS if available, else try to parse from cert subject (not implemented here)
-        self.tenancyId = try Self.tenancyIdFromCertificatePEM(leafCertPEM)
+        if let imdsTenancy = try? Self.fetchText(url: GET_TENANCY_ID_URL, authorization: METADATA_AUTH_HEADER).trimmingCharacters(in: .whitespacesAndNewlines), !imdsTenancy.isEmpty {
+            self.tenancyId = imdsTenancy
+        } else {
+            self.tenancyId = try Self.tenancyIdFromCertificatePEM(leafCertPEM)
+        }
 
         // Map region to long form using Region enum if possible
         if let region = Region(rawValue: regionRaw) {
@@ -207,7 +213,7 @@ private extension InstancePrincipalsFederationClient {
         guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse)
         }
-        return String(data: data, encoding: .utf8) ?? ""
+        return (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func dataFor(session: URLSession, req: URLRequest) throws -> (Data, URLResponse) {
