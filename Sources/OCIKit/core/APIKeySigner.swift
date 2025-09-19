@@ -8,6 +8,9 @@
 import Foundation
 import Crypto
 import _CryptoExtras
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public struct APIKeySigner: Signer {
     private let config: SignerConfiguration
