@@ -109,8 +109,10 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
 
         if let imdsTenancy = try? Self.fetchText(url: GET_TENANCY_ID_URL, authorization: METADATA_AUTH_HEADER).trimmingCharacters(in: .whitespacesAndNewlines), !imdsTenancy.isEmpty {
             self.tenancyId = imdsTenancy
+            print("Using tenancy ID from IMDS: \(imdsTenancy)")
         } else {
             self.tenancyId = try Self.tenancyIdFromCertificatePEM(leafCertPEM)
+            print("Using tenancy ID from certificate: \(self.tenancyId)")
         }
 
         // Map region to long form using Region enum if possible
