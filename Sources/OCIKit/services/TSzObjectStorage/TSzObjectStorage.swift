@@ -113,7 +113,7 @@ public struct TSzObjectStorageClient {
   /// - Parameters:
   ///   - namespaceName: The Object Storage namespace used for the request.
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
-  ///   - opcClientRequestId: The client request ID for tracing.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
   ///
   /// - Returns: A `Response` object with data of type `Void`.
   ///
@@ -144,10 +144,10 @@ public struct TSzObjectStorageClient {
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
-      let headers = convertHeadersToDictionary(httpResponse)
-      if let opcRequestId = headers["opc-request-id"] {
-          logger.debug("The \(bucketName) bucket was delete from \(namespaceName) namespace. RequestID: \(opcRequestId)")
-      }
+    let headers = convertHeadersToDictionary(httpResponse)
+    if let opcRequestId = headers["opc-request-id"] {
+      logger.debug("The \(bucketName) bucket was delete from \(namespaceName) namespace. RequestID: \(opcRequestId)")
+    }
   }
   // MARK: - Gets bucket
   /// Gets the current representation of the given bucket in the given Object Storage namespace.
@@ -208,7 +208,7 @@ public struct TSzObjectStorageClient {
   /// - Parameters:
   ///   - namespaceName: The Object Storage namespace used for the request.
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
-  ///   - opcClientRequestId: The client request ID for tracing.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
   ///
   /// - Returns: A `Response` object with no data payload (`Void`).
   ///
@@ -242,9 +242,9 @@ public struct TSzObjectStorageClient {
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
-      if let etag = headers["Etag"], let opcRequestId = headers["opc-request-id"] {
-          logger.debug("ETag: \(etag), opc-request-id: \(opcRequestId)")
-      }
+    if let etag = headers["Etag"], let opcRequestId = headers["opc-request-id"] {
+      logger.debug("ETag: \(etag), opc-request-id: \(opcRequestId)")
+    }
   }
 
   // MARK: - Gets namespace
@@ -310,12 +310,12 @@ public struct TSzObjectStorageClient {
   ///  - limit: Int / query (1-1000)
   ///  - page: String / query (1-1024)
   ///  - fields: Array / query (tags only allowed)
-  public func listBuckets(namespaceName: String, compartmentId: String, opcCientRequestId: String? = nil) async throws -> [BucketSummary] {
+  public func listBuckets(namespaceName: String, compartmentId: String, opcClientRequestId: String? = nil) async throws -> [BucketSummary] {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
-    let api = ObjectStorageAPI.listBuckets(namespaceName: namespaceName, compartmentId: compartmentId, opcClientRequestId: opcCientRequestId)
+    let api = ObjectStorageAPI.listBuckets(namespaceName: namespaceName, compartmentId: compartmentId, opcClientRequestId: opcClientRequestId)
     var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
 
     try signer.sign(&req)
@@ -333,6 +333,56 @@ public struct TSzObjectStorageClient {
     let bucketSummary = try JSONDecoder().decode([BucketSummary].self, from: data)
 
     return bucketSummary
+  }
+
+  // MARK: - Reencrypts bucket
+  /// Re-encrypts the unique data encryption key used for each object in the bucket using the most recent
+  /// version of the master encryption key assigned to the bucket.
+  ///
+  /// All data encryption keys are encrypted by a master encryption key. By default, Oracle manages these keys,
+  /// but you can assign a custom key through the Oracle Cloud Infrastructure Key Management service.
+  /// The `kmsKeyId` property of the bucket determines which master encryption key is assigned.
+  /// If you assign a new master encryption key, you can call this API to re-encrypt all data encryption keys
+  /// with the newly assigned key. You may also want to re-encrypt if the assigned key has been rotated
+  /// since objects were last added. If no `kmsKeyId` is associated with the bucket, the call will fail.
+  ///
+  /// This API initiates a work request to re-encrypt the data encryption keys of all objects created
+  /// before the time of the call. The operation may take a long time depending on the number and size of objects.
+  /// All versions of objects will be re-encrypted, regardless of whether versioning is enabled or suspended.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A `Response` object with no data payload (`Void`).
+  ///
+  /// TODO:
+  ///- retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
+  public func reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.reencryptBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+     
+    let (_, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 202 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+    if let opcRequestId = headers["opc-request-id"], let opcWorkRequestId = headers["opc-work-request-id"] {
+      logger.debug("opc-request-id: \(opcRequestId), opc-work-request-id: \(opcWorkRequestId)")
+    }
   }
 }
 

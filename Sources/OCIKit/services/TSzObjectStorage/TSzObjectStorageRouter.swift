@@ -49,6 +49,8 @@ public enum ObjectStorageAPI: API {
   case getNamespace(compartmentId: String? = nil, opcClientRequestId: String? = nil)
   /// Lists buckets
   case listBuckets(namespaceName: String, compartmentId: String, opcClientRequestId: String? = nil)
+  /// Reencrypts bucket
+  case reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
 
   // Path
   public var path: String {
@@ -62,13 +64,16 @@ public enum ObjectStorageAPI: API {
       .getBucket(let namespaceName, let bucketName, _),
       .headBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)"
+    case .reencryptBucket(let namespaceName, let bucketName, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
     }
   }
 
   // HTTPMethod
   public var method: HTTPMethod {
     switch self {
-    case .createBucket:
+    case .createBucket,
+      .reencryptBucket:
       return .post
     case .deleteBucket:
       return .delete
@@ -87,7 +92,8 @@ public enum ObjectStorageAPI: API {
     case .createBucket,
       .deleteBucket,
       .getBucket,
-      .headBucket:
+      .headBucket,
+      .reencryptBucket:
       return nil
     case .getNamespace(let compartmentId, _):
       if let compartmentId {
@@ -109,7 +115,8 @@ public enum ObjectStorageAPI: API {
       .getBucket(_, _, let opcClientRequestId),
       .getNamespace(_, let opcClientRequestId),
       .headBucket(_, _, let opcClientRequestId),
-      .listBuckets(_, _, let opcClientRequestId):
+      .listBuckets(_, _, let opcClientRequestId),
+      .reencryptBucket(_, _, let opcClientRequestId):
       if let opcClientRequestId {
         return ["opc-client-request-id": opcClientRequestId]
       }

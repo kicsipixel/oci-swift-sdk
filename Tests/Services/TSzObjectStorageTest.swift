@@ -126,4 +126,17 @@ struct TSzObjectStorageTest {
 
     #expect(listOfBuckets.count > 0, "Number of buckets should be greater than zero")
   }
+
+  // MARK: - Reencrypts bucket
+  ///  If you call this API and there is no kmsKeyId associated with the bucket, the call will fail.
+  @Test func reencryptBucketWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+
+    let reencryptBucket: Void? = try? await sut.reencryptBucket(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk")
+
+    #expect(reencryptBucket != nil, "The operation should succeed")
+  }
 }
