@@ -45,7 +45,18 @@ struct TSzObjectStorageTest {
         #expect(createBucket != nil, "The return value should not be nil")
     }
     
-    // MARK: - Get bucket
+    // MARK: - Deletes bucket
+    @Test func deletesBucketWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+        let sut = try TSzObjectStorageClient(region: region, signer: signer)
+        
+        let deleteBucket: Void? = try? await sut.deleteBucket(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk")
+        
+        #expect(deleteBucket != nil, "The operation should succeed")
+    }
+    // MARK: - Gets bucket
     @Test func getsBucketWithAPIKeySigner() async throws {
         let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
         let region = Region.from(regionId: regionId ?? "") ?? .iad

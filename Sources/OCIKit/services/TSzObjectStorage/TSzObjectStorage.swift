@@ -16,6 +16,9 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+import Logging
+
+
 
 public struct TSzObjectStorageClient {
     let endpoint: URL?
@@ -56,8 +59,9 @@ public struct TSzObjectStorageClient {
     ///
     /// - Parameters:
     ///     - namespaceName: The Object Storage namespace used for the request.
+    ///     - opcClientRequestId: Optional client request ID for tracing.
     ///  - Returns: The response body will contain a single Bucket resource.
-    public func createBucket(namespaceName: String, bucket: CreateBucketDetails) async throws -> Bucket? {
+    public func createBucket(namespaceName: String, bucket: CreateBucketDetails, opcClientRequestId: String? = nil) async throws -> Bucket? {
         guard let endpoint else {
             throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
         }
@@ -98,11 +102,53 @@ public struct TSzObjectStorageClient {
         }
     }
     
+    // MARK: - Deletes bucket
+    /// Deletes a bucket if the bucket is already empty.
+    /// If the bucket is not empty, use `deleteObject` first.
+    /// You cannot delete a bucket that has a multipart upload in progress or a pre-authenticated request associated with it.
+    ///
+    /// - Parameters:
+    ///   - namespaceName: The Object Storage namespace used for the request.
+    ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+    ///   - opcClientRequestId: The client request ID for tracing.
+    ///
+    /// - Returns: A `Response` object with data of type `Void`.
+    ///
+    /// TODO:
+    /// - retryConfig: The retry configuration to apply to this operation. If no value is provided,
+    /// the service-level retry configuration will be used. If `nil` is explicitly provided,
+    /// the operation will not retry.
+    ///  - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource.
+    ///  If the specified ETag matches, GET and HEAD requests will return the resource,
+    ///  and PUT and POST requests will upload the resource.
+    public func deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil) async throws -> Void {
+        guard let endpoint else {
+            throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+        }
+        
+        let api = ObjectStorageAPI.deleteBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+        var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+        
+        try signer.sign(&req)
+        
+        let (_, response) = try await URLSession.shared.data(for: req)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+        }
+        
+        if httpResponse.statusCode != 204 {
+            throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        }
+        
+        logger.debug("The \(bucketName) bucket was delete from \(namespaceName) namespace.")
+    }
     // MARK: - Gets bucket
     /// Gets the current representation of the given bucket in the given Object Storage namespace.
     /// - Parameters:
     ///     - namespaceName: The Object Storage namespace used for the request.
     ///     - bucketName: The name of the bucket. Avoid entering confidential information.
+    ///     - opcClientRequestId: Optional client request ID for tracing.
     /// - Returns: A bucket representation for the requested bucket.
     ///
     /// TODO:
@@ -121,7 +167,7 @@ public struct TSzObjectStorageClient {
     ///     - `approximateSize`: Total approximate size in bytes of all objects in the bucket.
     ///     - `autoTiering`: State of auto tiering on the bucket.
     ///
-    public func getBucket(namespaceName: String, bucketName: String) async throws -> Bucket? {
+    public func getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil) async throws -> Bucket? {
         guard let endpoint else {
             throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
         }
@@ -204,14 +250,15 @@ public struct TSzObjectStorageClient {
     ///
     /// - Parameters:
     ///     - namespaceName: The Object Storage namespace used for the request.
-    ///     - compartmentId: The ID of the compartment in which to list buckets
+    ///     - compartmentId: The ID of the compartment in which to list buckets.
+    ///     - opcClientRequestId: Optional client request ID for tracing.
     ///  - Returns: The response body will contain an array of BucketSummary resources.
     ///
     ///  TODO:
     ///  - limit: Int / query (1-1000)
     ///  - page: String / query (1-1024)
     ///  - fields: Array / query (tags only allowed)
-    public func listBuckets(namespaceName: String, compartmentId: String) async throws -> [BucketSummary] {
+    public func listBuckets(namespaceName: String, compartmentId: String, opcCientRequestId: String? = nil) async throws -> [BucketSummary] {
         guard let endpoint else {
             throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
         }

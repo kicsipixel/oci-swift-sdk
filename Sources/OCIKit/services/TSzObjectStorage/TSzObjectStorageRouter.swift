@@ -38,6 +38,8 @@ public protocol API {
 public enum ObjectStorageAPI: API {
   /// Creates bucket
   case createBucket(namespaceName: String, opcClientRequestId: String? = nil)
+  /// Deletes bucket
+  case deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Gets bucket
   case getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Gets Namespace
@@ -53,7 +55,8 @@ public enum ObjectStorageAPI: API {
     case .createBucket(let namespaceName, _),
       .listBuckets(let namespaceName, _, _):
       return "/n/\(namespaceName)/b"
-    case .getBucket(let namespaceName, let bucketName, _):
+    case .deleteBucket(let namespaceName, let bucketName, _),
+      .getBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)"
     }
   }
@@ -63,6 +66,8 @@ public enum ObjectStorageAPI: API {
     switch self {
     case .createBucket:
       return .post
+    case .deleteBucket:
+      return .delete
     case .getNamespace,
       .getBucket,
       .listBuckets:
@@ -74,6 +79,7 @@ public enum ObjectStorageAPI: API {
   public var queryItems: [URLQueryItem]? {
     switch self {
     case .createBucket,
+      .deleteBucket,
       .getBucket:
       return nil
     case .getNamespace(let compartmentId, _):
@@ -92,6 +98,7 @@ public enum ObjectStorageAPI: API {
   public var headers: [String: String]? {
     switch self {
     case .createBucket(_, let opcClientRequestId),
+      .deleteBucket(_, _, let opcClientRequestId),
       .getBucket(_, _, let opcClientRequestId),
       .getNamespace(_, let opcClientRequestId),
       .listBuckets(_, _, let opcClientRequestId):
