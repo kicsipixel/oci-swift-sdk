@@ -53,6 +53,7 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
     private let LEAF_CERT_URL: URL
     private let LEAF_KEY_URL: URL
     private let INTERMEDIATE_CERT_URL: URL
+    private let GET_INSTANCE_URL: URL
     private let METADATA_AUTH_HEADER = "Bearer Oracle"
 
     private let session: URLSession
@@ -86,6 +87,8 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
         self.LEAF_CERT_URL = URL(string: "\(base)/identity/cert.pem")!
         self.LEAF_KEY_URL = URL(string: "\(base)/identity/key.pem")!
         self.INTERMEDIATE_CERT_URL = URL(string: "\(base)/identity/intermediate.pem")!
+        self.GET_INSTANCE_URL = URL(string: "\(base)/instance/")!
+
         self.session = URLSession.shared
         self.purpose = purpose
 
@@ -103,12 +106,24 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
             throw ConfigErrors.notPemFormat
         }
         self.leafPrivateKey = leafKey
-
-        // Determine tenancy OCID: prefer IMDS if available, else try to parse from cert subject (not implemented here)
-        self.tenancyId = try Self.tenancyIdFromCertificatePEM(leafCertPEM)
+        
+        if let certTenancyId = try? Self.tenancyIdFromCertificatePEM(leafCertPEM) {
+            self.tenancyId = certTenancyId
+            print("Using tenancy ID from certificate: \(self.tenancyId)")
+        } else {
+            if let instanceJSON = try? Self.fetchJSON(url: GET_INSTANCE_URL, authorization: METADATA_AUTH_HEADER),
+               let imdsTenancy = instanceJSON["tenantId"] as? String,
+               !imdsTenancy.isEmpty
+            {
+                self.tenancyId = imdsTenancy
+                print("Using tenancy ID from IMDS: \(imdsTenancy)")
+            } else {
+                throw NSError(domain: "OCIKit.InstancePrincipalsFederationClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to obtain the tenancyId"])
+            }
+        }
 
         // Map region to long form using Region enum if possible
-        if let region = Region.from(regionId: regionRaw) {
+        if let region = Region(rawValue: regionRaw) {
             self.regionIdLong = region.urlPart
         } else {
             self.regionIdLong = regionRaw
@@ -207,11 +222,27 @@ private extension InstancePrincipalsFederationClient {
         guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse)
         }
-        return String(data: data, encoding: .utf8) ?? ""
+        return (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    static func fetchJSON(url: URL, authorization: String) throws -> [String: Any] {
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.setValue(authorization, forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, resp) = try dataFor(session: URLSession.shared, req: req)
+        guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        let obj = try JSONSerialization.jsonObject(with: data, options: [])
+        guard let dict = obj as? [String: Any] else {
+            throw URLError(.cannotParseResponse)
+        }
+        return dict
     }
 
     static func dataFor(session: URLSession, req: URLRequest) throws -> (Data, URLResponse) {
-        var result: Result<(Data, URLResponse), Error>!
+        nonisolated(unsafe) var result: Result<(Data, URLResponse), Error>!
         let sem = DispatchSemaphore(value: 1)
         sem.wait()
         let group = DispatchGroup()
@@ -297,7 +328,20 @@ private extension InstancePrincipalsFederationClient {
                         break
                     }
                 }
-                if end > start, let s = String(bytes: bytes[start..<end], encoding: .utf8), !s.isEmpty {
+                var sliceEnd = end
+                if sliceEnd > start {
+                    // If the last collected character is '0' and the next byte looks like a DER tag/length boundary,
+                    // drop the trailing '0' which is actually the DER SEQUENCE (0x30) byte misread as ASCII.
+                    if bytes[sliceEnd - 1] == 0x30 {
+                        if end < bytes.count {
+                            let next = bytes[end]
+                            if next >= 0x80 || next == 0x30 || next == 0x31 || next == 0x06 || next == 0x0C || next == 0x13 || next == 0x16 || next == 0x17 || next == 0x18 {
+                                sliceEnd -= 1
+                            }
+                        }
+                    }
+                }
+                if sliceEnd > start, let s = String(bytes: bytes[start..<sliceEnd], encoding: .utf8), !s.isEmpty {
                     return s
                 }
             }
