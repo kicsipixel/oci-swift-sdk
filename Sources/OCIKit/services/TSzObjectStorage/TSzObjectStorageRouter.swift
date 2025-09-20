@@ -99,7 +99,7 @@ public enum ObjectStorageAPI: API {
     }
 }
 
-/// Build url from components defined in ObjectStorageAPIRouter
+/// Build request from components defined in ObjectStorageAPIRouter
 public func buildRequest(objectStorageAPI: API, endpoint: URL) throws -> URLRequest {
     guard var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else {
         throw ObjectStorageError.invalidURL("Enpoint URL is invalid")
