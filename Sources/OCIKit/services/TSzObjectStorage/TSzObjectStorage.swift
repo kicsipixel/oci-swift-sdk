@@ -66,7 +66,7 @@ public struct TSzObjectStorageClient {
             throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
         }
         
-        let api = ObjectStorageAPI.createBucket(namespaceName: namespaceName)
+        let api = ObjectStorageAPI.createBucket(namespaceName: namespaceName,opcClientRequestId: opcClientRequestId)
         var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
         
         do {
@@ -172,7 +172,7 @@ public struct TSzObjectStorageClient {
             throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
         }
         
-        let api = ObjectStorageAPI.getBucket(namespaceName: namespaceName, bucketName: bucketName)
+        let api = ObjectStorageAPI.getBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
         var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
         
         try signer.sign(&req)
@@ -192,6 +192,59 @@ public struct TSzObjectStorageClient {
             return bucket
         } catch {
             throw ObjectStorageError.jsonDecodingError("Failed to decode response data to Bucket")
+        }
+    }
+    
+    // MARK: - Heads bucket
+    /// Efficiently checks whether a bucket exists and retrieves the current entity tag (ETag) for the bucket.
+    ///
+    /// - Parameters:
+    ///   - namespaceName: The Object Storage namespace used for the request.
+    ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+    ///   - opcClientRequestId: The client request ID for tracing.
+    ///
+    /// - Returns: A `Response` object with no data payload (`Void`).
+    ///
+    /// TODO:
+    ///  - retryConfig: The retry configuration to apply to this operation. If no value is provided,
+    ///  the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
+    ///  - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource.
+    ///  If the specified ETag matches, GET and HEAD requests will return the resource,
+    ///  and PUT and POST requests will upload the resource.
+    ///  - ifNoneMatch: The entity tag (ETag) to avoid matching. Wildcards (`*`) are not allowed.
+    ///  If the specified ETag does not match the existing resource, the request returns the expected response.
+    ///  If it matches, the request returns HTTP 304 without a response body.
+    public func headBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil) async throws -> Void {
+        guard let endpoint else {
+            throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+        }
+        
+        let api = ObjectStorageAPI.headBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+        var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+        
+        try signer.sign(&req)
+        
+        let (_, response) = try await URLSession.shared.data(for: req)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+        }
+        
+        if httpResponse.statusCode != 200 {
+            throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        }
+        
+        // Convert the header to dictionary
+        let headers = httpResponse.allHeaderFields
+            .compactMapValues { "\($0)" }
+            .reduce(into: [String: String]()) { dict, pair in
+                if let key = pair.key as? String {
+                    dict[key] = pair.value
+                }
+            }
+        
+        if let etag = headers["Etag"] {
+            logger.debug("ETag: \(etag)")
         }
     }
     
@@ -263,7 +316,7 @@ public struct TSzObjectStorageClient {
             throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
         }
         
-        let api = ObjectStorageAPI.listBuckets(namespaceName: namespaceName, compartmentId: compartmentId)
+        let api = ObjectStorageAPI.listBuckets(namespaceName: namespaceName, compartmentId: compartmentId, opcClientRequestId: opcCientRequestId)
         var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
         
         try signer.sign(&req)

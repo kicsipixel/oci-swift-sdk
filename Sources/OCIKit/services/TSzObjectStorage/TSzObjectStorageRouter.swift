@@ -24,6 +24,7 @@ public enum HTTPMethod: String {
   case post = "POST"
   case put = "PUT"
   case delete = "DELETE"
+  case head = "HEAD"
 }
 
 // Protocol description
@@ -42,6 +43,8 @@ public enum ObjectStorageAPI: API {
   case deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Gets bucket
   case getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+  /// HEAD bucket
+  case headBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Gets Namespace
   case getNamespace(compartmentId: String? = nil, opcClientRequestId: String? = nil)
   /// Lists buckets
@@ -56,7 +59,8 @@ public enum ObjectStorageAPI: API {
       .listBuckets(let namespaceName, _, _):
       return "/n/\(namespaceName)/b"
     case .deleteBucket(let namespaceName, let bucketName, _),
-      .getBucket(let namespaceName, let bucketName, _):
+      .getBucket(let namespaceName, let bucketName, _),
+      .headBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)"
     }
   }
@@ -72,6 +76,8 @@ public enum ObjectStorageAPI: API {
       .getBucket,
       .listBuckets:
       return .get
+    case .headBucket:
+      return .head
     }
   }
 
@@ -80,7 +86,8 @@ public enum ObjectStorageAPI: API {
     switch self {
     case .createBucket,
       .deleteBucket,
-      .getBucket:
+      .getBucket,
+      .headBucket:
       return nil
     case .getNamespace(let compartmentId, _):
       if let compartmentId {
@@ -101,6 +108,7 @@ public enum ObjectStorageAPI: API {
       .deleteBucket(_, _, let opcClientRequestId),
       .getBucket(_, _, let opcClientRequestId),
       .getNamespace(_, let opcClientRequestId),
+      .headBucket(_, _, let opcClientRequestId),
       .listBuckets(_, _, let opcClientRequestId):
       if let opcClientRequestId {
         return ["opc-client-request-id": opcClientRequestId]
