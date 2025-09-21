@@ -87,7 +87,7 @@ struct TSzObjectStorageTest {
     #expect(headBucket != nil, "The operation should succeed")
   }
   // MARK: - Gets namespace
-  @Test func getNamespaceWithAPIKeySignerReturnsValidString() async throws {
+  @Test func getsNamespaceWithAPIKeySignerReturnsValidString() async throws {
     let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
     let region = Region.from(regionId: regionId ?? "") ?? .iad
     let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
@@ -98,7 +98,7 @@ struct TSzObjectStorageTest {
     #expect(!namespace.isEmpty, "Namespace should not be empty")
   }
 
-  @Test func getNamespaceWithAPIKeySignerAndCompartmentIdReturnsValidString() async throws {
+  @Test func gestNamespaceWithAPIKeySignerAndCompartmentIdReturnsValidString() async throws {
     let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
     let region = Region.from(regionId: regionId ?? "") ?? .iad
     let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
@@ -111,7 +111,7 @@ struct TSzObjectStorageTest {
 
   // MARK: - Lists buckets
   /// Creates bucket must be proceed.
-  @Test func listBucketsWithAPIKeySignerReturnsMoreThanZero() async throws {
+  @Test func listsBucketsWithAPIKeySignerReturnsMoreThanZero() async throws {
     let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
     let region = Region.from(regionId: regionId ?? "") ?? .iad
     let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
@@ -129,7 +129,7 @@ struct TSzObjectStorageTest {
 
   // MARK: - Reencrypts bucket
   ///  If you call this API and there is no kmsKeyId associated with the bucket, the call will fail.
-  @Test func reencryptBucketWithAPIKeySigner() async throws {
+  @Test func reencryptsBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
     let region = Region.from(regionId: regionId ?? "") ?? .iad
     let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
@@ -139,4 +139,53 @@ struct TSzObjectStorageTest {
 
     #expect(reencryptBucket != nil, "The operation should succeed")
   }
+    
+    // MARK: - Updates bucket
+    @Test func updatesBucketWithMovingToCompartmentWithAPIKeySigner() async throws {
+      let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+      let region = Region.from(regionId: regionId ?? "") ?? .iad
+      let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+      let sut = try TSzObjectStorageClient(region: region, signer: signer)
+        let bucket = UpdateBucketDetails(compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q")
+
+     let updateBucket: Bucket? = try? await sut.updateBucket(namespaceName: "frjfldcyl3la",
+                                                             bucketName: "test_bucket_by_sdk",
+                                                             bucket: bucket)
+        
+        if let updateBucket {
+            print(updateBucket.name)
+        }
+
+      // Prints the new name of the updated bucket
+      if let updateBucket {
+        print(updateBucket.name)
+      }
+
+      #expect(updateBucket != nil, "The return value should not be nil")
+    }
+    
+    // MARK: - Failing test for unknown reason
+    /// This test return with `400` HTTPURLResponse code
+    @Test func updatesBucketWithNewNameWithAPIKeySigner() async throws {
+      let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+      let region = Region.from(regionId: regionId ?? "") ?? .iad
+      let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+      let sut = try TSzObjectStorageClient(region: region, signer: signer)
+        let bucket = UpdateBucketDetails(name:"New_name")
+
+     let updateBucket: Bucket? = try? await sut.updateBucket(namespaceName: "frjfldcyl3la",
+                                                             bucketName: "test_bucket_by_sdk",
+                                                             bucket: bucket)
+        
+        if let updateBucket {
+            print(updateBucket.name)
+        }
+
+      // Prints the new name of the updated bucket
+      if let updateBucket {
+        print(updateBucket.name)
+      }
+
+      #expect(updateBucket != nil, "The return value should not be nil")
+    }
 }
