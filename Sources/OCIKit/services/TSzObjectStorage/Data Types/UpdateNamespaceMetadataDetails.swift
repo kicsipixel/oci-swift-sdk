@@ -17,7 +17,12 @@ import Foundation
 /// UpdateNamespaceMetadataDetails is used to update the NamespaceMetadata.
 public struct UpdateNamespaceMetadataDetails: Codable {
   /// If the field is set, specifies the default compartment assignment for the Amazon S3 Compatibility API.
-  public let defaultS3CompartmentId: String
+  public let defaultS3CompartmentId: String?
   /// If the field is set, specifies the default compartment assignment for the Swift API.
-  public let defaultSwiftCompartmentId: String
+  public let defaultSwiftCompartmentId: String?
+    
+    public init(defaultS3CompartmentId: String? = nil, defaultSwiftCompartmentId: String? = nil) {
+        self.defaultS3CompartmentId = defaultS3CompartmentId
+        self.defaultSwiftCompartmentId = defaultSwiftCompartmentId
+    }
 }

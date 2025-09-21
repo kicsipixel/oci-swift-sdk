@@ -55,13 +55,16 @@ public enum ObjectStorageAPI: API {
   case reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Updates bucket
   case updateBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+  /// Updates namespace metadata
+  case updateNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil)
 
   // Path
   public var path: String {
     switch self {
     case .getNamespace:
       return "/n"
-    case .getNamespaceMetadata(let namespaceName, _):
+    case .getNamespaceMetadata(let namespaceName, _),
+      .updateNamespaceMetadata(let namespaceName, _):
       return "/n/\(namespaceName)"
     case .createBucket(let namespaceName, _),
       .listBuckets(let namespaceName, _, _):
@@ -92,6 +95,8 @@ public enum ObjectStorageAPI: API {
       return .get
     case .headBucket:
       return .head
+    case .updateNamespaceMetadata:
+      return .put
     }
   }
 
@@ -104,7 +109,8 @@ public enum ObjectStorageAPI: API {
       .getNamespaceMetadata,
       .headBucket,
       .reencryptBucket,
-      .updateBucket:
+      .updateBucket,
+      .updateNamespaceMetadata:
       return nil
     case .getNamespace(let compartmentId, _):
       if let compartmentId {
@@ -129,7 +135,8 @@ public enum ObjectStorageAPI: API {
       .headBucket(_, _, let opcClientRequestId),
       .listBuckets(_, _, let opcClientRequestId),
       .reencryptBucket(_, _, let opcClientRequestId),
-      .updateBucket(_, _, let opcClientRequestId):
+      .updateBucket(_, _, let opcClientRequestId),
+      .updateNamespaceMetadata(_, let opcClientRequestId):
       if let opcClientRequestId {
         return ["opc-client-request-id": opcClientRequestId]
       }

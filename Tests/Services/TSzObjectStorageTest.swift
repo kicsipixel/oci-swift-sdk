@@ -216,4 +216,21 @@ struct TSzObjectStorageTest {
     }
     #expect(updateBucket != nil, "The return value should not be nil")
   }
+    
+    // MARK: - Updates namespace meatadata
+    @Test func updatesNamespaceMetadataWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+        let sut = try TSzObjectStorageClient(region: region, signer: signer)
+        let metadata = UpdateNamespaceMetadataDetails(defaultS3CompartmentId: "ocid1.compartment.oc1..aaaaaaaar3gnsxd7vomtvklspmmmjl5i43vd6umbuqa3f6vtgsfmmk4oeuwa", defaultSwiftCompartmentId: "ocid1.compartment.oc1..aaaaaaaar3gnsxd7vomtvklspmmmjl5i43vd6umbuqa3f6vtgsfmmk4oeuwa")
+        
+        let updateNamespaceMetadata = try? await sut.updateNamespaceMetadata(namespaceName: "frjfldcyl3la", metadata: metadata)
+        
+        // Prints metadata
+        if let updateNamespaceMetadata {
+            print("default-swift-compartment-id: \(updateNamespaceMetadata.defaultSwiftCompartmentId), \ndefault-s3-compartment-id: \(updateNamespaceMetadata.defaultS3CompartmentId), \nnamespace: \(updateNamespaceMetadata.namespace)")
+        }
+       #expect(updateNamespaceMetadata != nil, "The operation should succeed")
+    }
 }
