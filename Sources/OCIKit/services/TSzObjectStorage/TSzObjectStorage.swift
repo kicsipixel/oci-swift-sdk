@@ -53,6 +53,70 @@ public struct TSzObjectStorageClient {
     }
   }
 
+  // MARK: - Copy object
+  /// Creates a request to copy an object within a region or to another region.
+  ///
+  /// See [Object Names](https://docs.cloud.oracle.com/Content/Object/Tasks/managingobjects.htm#namerequirements)
+  /// for object naming requirements.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - copyObjectDetails: The source and destination of the object to be copied.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A `Response` object with no data payload (`Void`).
+  ///
+  /// TODO:
+  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
+  ///   - opcSseCustomerAlgorithm: Optional header specifying `"AES256"` as the encryption algorithm. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSseCustomerKey: Optional header specifying the base64-encoded 256-bit encryption key to encrypt or decrypt the data. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSseCustomerKeySha256: Optional header specifying the base64-encoded SHA256 hash of the encryption key to verify its integrity. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSourceSseCustomerAlgorithm: Optional header specifying `"AES256"` as the encryption algorithm to decrypt the source object. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSourceSseCustomerKey: Optional header specifying the base64-encoded 256-bit encryption key to decrypt the source object. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSourceSseCustomerKeySha256: Optional header specifying the base64-encoded SHA256 hash of the encryption key used to decrypt the source object. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSseKmsKeyId: The [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) of a master encryption key used to call the Key Management service.
+  public func copyObject(namespaceName: String, bucketName: String, copyObjectDetails: CopyObjectDetails, opcClientRequestId: String? = nil) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.copyObject(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    do {
+      let payload: Data
+      do {
+        payload = try JSONEncoder().encode(copyObjectDetails)
+      }
+      catch {
+        throw ObjectStorageError.jsonEncodingError("CopyObjectDetails cannot be encoded to data")
+      }
+
+      req.httpBody = payload
+
+      try signer.sign(&req)
+
+      let (data, response) = try await URLSession.shared.data(for: req)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+      }
+
+      if httpResponse.statusCode != 202 {
+        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      }
+
+      let headers = convertHeadersToDictionary(httpResponse)
+      if let opcRequestId = headers["opc-request-id"], let opcWorkRequestId = headers["opc-work-request-id"], let opcClientRequestId = headers["opc-client-request-id"] {
+        logger.debug("opc-request-id: \(opcRequestId), opc-work-request-id: \(opcWorkRequestId), opc-client-request-id: \(opcClientRequestId)")
+      }
+    }
+    catch {
+      throw error
+    }
+  }
+
   // MARK: - Creates bucket
   /// Creates a bucket in the given namespace with a bucket name and optional user-defined metadata. Avoid entering confidential information in bucket names.
   /// The request body must contain a single [CreateBucketDetails](https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/20160918/datatypes/CreateBucketDetails) resource.
@@ -61,7 +125,7 @@ public struct TSzObjectStorageClient {
   ///     - namespaceName: The Object Storage namespace used for the request.
   ///     - opcClientRequestId: Optional client request ID for tracing.
   ///  - Returns: The response body will contain a single Bucket resource.
-  public func createBucket(namespaceName: String, bucket: CreateBucketDetails, opcClientRequestId: String? = nil) async throws -> Bucket? {
+  public func createBucket(namespaceName: String, createBucketDetails: CreateBucketDetails, opcClientRequestId: String? = nil) async throws -> Bucket? {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -72,7 +136,7 @@ public struct TSzObjectStorageClient {
     do {
       let payload: Data
       do {
-        payload = try JSONEncoder().encode(bucket)
+        payload = try JSONEncoder().encode(createBucketDetails)
       }
       catch {
         throw ObjectStorageError.jsonEncodingError("CreateBucketDetails cannot be encoded to data")
@@ -446,7 +510,7 @@ public struct TSzObjectStorageClient {
   public func updateBucket(
     namespaceName: String,
     bucketName: String,
-    bucket: UpdateBucketDetails,
+    updateBucketDetails: UpdateBucketDetails,
     opcClientRequestId: String? = nil
   ) async throws -> Bucket? {
     guard let endpoint else {
@@ -459,7 +523,7 @@ public struct TSzObjectStorageClient {
     do {
       let payload: Data
       do {
-        payload = try JSONEncoder().encode(bucket)
+        payload = try JSONEncoder().encode(updateBucketDetails)
       }
       catch {
         throw ObjectStorageError.jsonEncodingError("CreateBucketDetails cannot be encoded to data")
