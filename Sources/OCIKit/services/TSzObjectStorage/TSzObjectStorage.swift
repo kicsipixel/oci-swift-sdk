@@ -491,6 +491,88 @@ public struct TSzObjectStorageClient {
       throw error
     }
   }
+
+  // MARK: - Updates namespace metadata
+  /// Updates the default compartment designation for buckets created using the Amazon S3 Compatibility API or the Swift API.
+  ///
+  /// By default, such buckets are created in the root compartment of the Oracle Cloud Infrastructure tenancy.
+  /// You can change this default to a different `compartmentId`. All future bucket creations will use the new default,
+  /// but previously created buckets will remain unchanged.
+  ///
+  /// To perform this operation, the user must have the `OBJECTSTORAGE_NAMESPACE_UPDATE` permission.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - updateNamespaceMetadataDetails: The request object containing the new default compartment settings.
+  ///   - opcClientRequestId: The client request ID for tracing.
+  ///
+  /// - Returns: A `Response` object containing `NamespaceMetadata`.
+  ///
+  /// TODO:
+  ///
+  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
+  public func updateNamespaceMetadata(
+    namespaceName: String,
+    metadata: UpdateNamespaceMetadataDetails,
+    opcClientRequestId: String? = nil
+  ) async throws -> NamespaceMetadata? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.updateNamespaceMetadata(namespaceName: namespaceName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    do {
+      let payload: Data
+      do {
+        payload = try JSONEncoder().encode(metadata)
+      }
+      catch {
+        throw ObjectStorageError.jsonEncodingError("CreateBucketDetails cannot be encoded to data")
+      }
+
+      req.httpBody = payload
+
+      try signer.sign(&req)
+
+      let (data, response) = try await URLSession.shared.data(for: req)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        print(response)
+        throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+      }
+
+      if httpResponse.statusCode != 200 {
+        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      }
+
+      // TODO: this decoding fails, beacuse the response from the server doesn't contain `namespace`.🤷‍♂️
+      ///
+      /// https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/20160918/Namespace/UpdateNamespaceMetadata
+      ///
+      /// ```
+      ///  let responseBody = String(data: data, encoding: .utf8)
+      ///  print("Response: \(responseBody ?? "<no body>")")
+      /// ```
+      /// The response is:
+      ///
+      /// ``` {"defaultS3CompartmentId":"ocid1.compartment.oc1..aaaaaaaar3gnsxd7vomtvklspmmmjl5i43vd6umbuqa3f6vtgsfmmk4oeuwa","defaultSwiftCompartmentId":"ocid1.compartment.oc1..aaaaaaaar3gnsxd7vomtvklspmmmjl5i43vd6umbuqa3f6vtgsfmmk4oeuwa","namespace":null}
+      /// ```
+      /// `namespace` is `null`
+
+      do {
+        let nameSpaceMetadata = try JSONDecoder().decode(NamespaceMetadata.self, from: data)
+        return nameSpaceMetadata
+      }
+      catch {
+        throw ObjectStorageError.jsonDecodingError("Failed to decode response data to Bucket")
+      }
+    }
+    catch {
+      throw error
+    }
+  }
 }
 
 // Retry configuration
