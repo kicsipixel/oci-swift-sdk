@@ -50,7 +50,7 @@ public struct UpdateBucketDetails: Codable {
     
     public init(
         autoTiring: AutoTiring? = nil,
-        compartmentId: String,
+        compartmentId: String? = nil,
         definedTags: [String: [String: String]]? = nil,
         freeformTags: [String: String]? = nil,
         kmsKeyId: String? = nil,

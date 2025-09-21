@@ -51,6 +51,8 @@ public enum ObjectStorageAPI: API {
   case listBuckets(namespaceName: String, compartmentId: String, opcClientRequestId: String? = nil)
   /// Reencrypts bucket
   case reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+  /// Updates bucket
+  case updateBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
 
   // Path
   public var path: String {
@@ -62,7 +64,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b"
     case .deleteBucket(let namespaceName, let bucketName, _),
       .getBucket(let namespaceName, let bucketName, _),
-      .headBucket(let namespaceName, let bucketName, _):
+      .headBucket(let namespaceName, let bucketName, _),
+      .updateBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)"
     case .reencryptBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
@@ -73,7 +76,8 @@ public enum ObjectStorageAPI: API {
   public var method: HTTPMethod {
     switch self {
     case .createBucket,
-      .reencryptBucket:
+      .reencryptBucket,
+      .updateBucket:
       return .post
     case .deleteBucket:
       return .delete
@@ -93,7 +97,8 @@ public enum ObjectStorageAPI: API {
       .deleteBucket,
       .getBucket,
       .headBucket,
-      .reencryptBucket:
+      .reencryptBucket,
+      .updateBucket:
       return nil
     case .getNamespace(let compartmentId, _):
       if let compartmentId {
@@ -116,7 +121,8 @@ public enum ObjectStorageAPI: API {
       .getNamespace(_, let opcClientRequestId),
       .headBucket(_, _, let opcClientRequestId),
       .listBuckets(_, _, let opcClientRequestId),
-      .reencryptBucket(_, _, let opcClientRequestId):
+      .reencryptBucket(_, _, let opcClientRequestId),
+      .updateBucket(_, _, let opcClientRequestId):
       if let opcClientRequestId {
         return ["opc-client-request-id": opcClientRequestId]
       }

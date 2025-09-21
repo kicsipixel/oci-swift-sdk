@@ -368,7 +368,7 @@ public struct TSzObjectStorageClient {
     var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
 
     try signer.sign(&req)
-     
+
     let (_, response) = try await URLSession.shared.data(for: req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
@@ -382,6 +382,73 @@ public struct TSzObjectStorageClient {
     let headers = convertHeadersToDictionary(httpResponse)
     if let opcRequestId = headers["opc-request-id"], let opcWorkRequestId = headers["opc-work-request-id"] {
       logger.debug("opc-request-id: \(opcRequestId), opc-work-request-id: \(opcWorkRequestId)")
+    }
+  }
+
+  // MARK: - Updates bucket
+  /// Performs a partial or full update of a bucket's user-defined metadata.
+  ///
+  /// Use `updateBucket` to move a bucket from one compartment to another within the same tenancy.
+  /// Provide the `compartmentId` of the target compartment. For more details, see:
+  /// [Moving Resources to a Different Compartment](https://docs.cloud.oracle.com/iaas/Content/Identity/Tasks/managingcompartments.htm#moveRes).
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - updateBucketDetails: The request object containing metadata updates for the bucket.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A `Response` object containing the updated `Bucket`.
+  ///
+  /// TODO:
+  ///  - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource. If the specified ETag matches, GET and HEAD requests will return the resource, and PUT and POST requests will upload the resource.
+  ///  - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
+  public func updateBucket(
+    namespaceName: String,
+    bucketName: String,
+    bucket: UpdateBucketDetails,
+    opcClientRequestId: String? = nil
+  ) async throws -> Bucket? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.updateBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    do {
+      let payload: Data
+      do {
+        payload = try JSONEncoder().encode(bucket)
+      }
+      catch {
+        throw ObjectStorageError.jsonEncodingError("CreateBucketDetails cannot be encoded to data")
+      }
+
+      req.httpBody = payload
+
+      try signer.sign(&req)
+
+      let (data, response) = try await URLSession.shared.data(for: req)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+      }
+
+      if httpResponse.statusCode != 200 {
+        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      }
+
+      do {
+        let bucket = try JSONDecoder().decode(Bucket.self, from: data)
+        return bucket
+      }
+      catch {
+        throw ObjectStorageError.jsonDecodingError("Failed to decode response data to Bucket")
+      }
+    }
+    catch {
+      throw error
     }
   }
 }
