@@ -14,7 +14,7 @@
 
 import Foundation
 
-public struct ObjectSummary {
+public struct ObjectSummary: Codable {
   /// Archival state of an object. This field is set only for objects in Archive tier.
   public let archivalState: ArchivalState?
   /// The current entity tag (ETag) for the object.
@@ -37,4 +37,15 @@ public enum ArchivalState: String, Codable {
   case archived = "Archived"
   case restoring = "Restoring"
   case restored = "Restored"
+}
+
+public enum Field: String, CaseIterable {
+  case name
+  case size
+  case etag
+  case timeCreated
+  case md5
+  case timeModified
+  case storageTier
+  case archivalState
 }

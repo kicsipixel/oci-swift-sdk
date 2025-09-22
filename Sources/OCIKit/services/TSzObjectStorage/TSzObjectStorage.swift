@@ -31,6 +31,8 @@ public struct TSzObjectStorageClient {
   ///     - region: A region used to determine the service endpoint.
   ///     - endpoint: The fully qualified endpoint URL
   ///     - signer: A signer implementation which can be used by this client.
+  ///
+  ///  TODO:
   ///     - proxySettings: If your environment requires you to use a proxy server for outgoing HTTP requests the details for the proxy can be provided in this parameter
   ///     - retryConfig: The retry configuration for this service client
   ///
@@ -674,6 +676,80 @@ public struct TSzObjectStorageClient {
     let bucketSummary = try JSONDecoder().decode([BucketSummary].self, from: data)
 
     return bucketSummary
+  }
+
+  // MARK: - Lists objects
+  /// Lists the objects in a bucket. By default, only object names are returned.
+  /// Use the `fields` parameter to include additional metadata in the response.
+  ///
+  /// The operation returns at most 1000 objects. To paginate through more objects,
+  /// use the `nextStartWith` value from the response with the `start` parameter.
+  /// To filter results, use the `start` and `end` parameters.
+  ///
+  /// You must be authorized via an IAM policy to use this API. If unauthorized,
+  /// contact an administrator. For policy guidance, see:
+  /// [Getting Started with Policies](https://docs.cloud.oracle.com/Content/Identity/Concepts/policygetstarted.htm).
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - prefix: Optional string to match against the start of object names in the list query.
+  ///   - start: Optional returns object names lexicographically greater than or equal to this value.
+  ///   - end: Optional returns object names lexicographically strictly less than this value.
+  ///   - limit: Optional maximum number of results per page. See [List Pagination](https://docs.cloud.oracle.com/iaas/Content/API/Concepts/usingapi.htm#nine).
+  ///   - delimiter: Optional. When set, only objects without the delimiter character (after an optional prefix) are returned.
+  ///     Objects with the delimiter are grouped as prefixes. Only `'/'` is supported.
+  ///   - fields: Optional Comma-separated list of additional fields to include in the response.
+  ///     Valid values: `name`, `size`, `etag`, `md5`, `timeCreated`, `timeModified`, `storageTier`, `archivalState`.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - startAfter: Optional returns object names lexicographically strictly greater than this value.
+  ///
+  /// - Returns: A `Response` object containing `ListObjects`.
+  public func listObjects(
+    namespaceName: String,
+    bucketName: String,
+    prefix: String? = nil,
+    start: String? = nil,
+    end: String? = nil,
+    limit: Int? = nil,
+    delimiter: String? = nil,
+    fields: String? = nil,
+    opcClientRequestId: String? = nil,
+    startAfter: String? = nil
+  ) async throws -> ListObject? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.listObjects(
+      namespaceName: namespaceName,
+      bucketName: bucketName,
+      prefix: prefix,
+      start: start,
+      end: end,
+      limit: limit,
+      delimiter: delimiter,
+      fields: fields,
+      opcClientRequiredId: opcClientRequestId,
+      startAfter: startAfter
+    )
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let listObjects = try JSONDecoder().decode(ListObject.self, from: data)
+
+    return listObjects
   }
 
   // MARK: - Reencrypts bucket

@@ -84,6 +84,19 @@ public enum ObjectStorageAPI: API {
   case getNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil)
   /// Lists buckets
   case listBuckets(namespaceName: String, compartmentId: String, opcClientRequestId: String? = nil)
+  /// Lists objects
+  case listObjects(
+    namespaceName: String,
+    bucketName: String,
+    prefix: String? = nil,
+    start: String? = nil,
+    end: String? = nil,
+    limit: Int? = nil,
+    delimiter: String? = nil,
+    fields: String? = nil,
+    opcClientRequiredId: String? = nil,
+    startAfter: String? = nil
+  )
   /// Reencrypts bucket
   case reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Updates bucket
@@ -111,6 +124,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
     case .copyObject(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/copyObject"
+    case .listObjects(let namespaceName, let bucketName, _, _, _, _, _, _, _, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/o"
     case .deleteObject(let namespaceName, let bucketName, let objectName, _, _),
       .getObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _, _, _, _, _, _, _, _),
       .headObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _):
@@ -133,7 +148,8 @@ public enum ObjectStorageAPI: API {
       .getBucket,
       .getObject,
       .getNamespaceMetadata,
-      .listBuckets:
+      .listBuckets,
+      .listObjects:
       return .get
     case .headBucket,
       .headObject:
@@ -216,6 +232,24 @@ public enum ObjectStorageAPI: API {
         ]
       }
       return nil
+
+    case .listObjects(_, _, let prefix, let start, let end, let limit, let delimiter, let fields, _, let startAfter):
+      let keyValuePairs: [(String, String?)] = [
+        ("prefix", prefix),
+        ("start", start),
+        ("end", end),
+        ("limit", limit.map { String($0) }),
+        ("delimiter", delimiter),
+        ("fields", fields),
+        ("startAfter", startAfter),
+      ]
+
+      // Convert non-nil values into URLQueryItems
+      let queryItems = keyValuePairs.compactMap { key, value in
+        value.map { URLQueryItem(name: key, value: $0) }
+      }
+
+      return queryItems.isEmpty ? nil : queryItems
     }
   }
 
@@ -233,6 +267,7 @@ public enum ObjectStorageAPI: API {
       .headBucket(_, _, let opcClientRequestId),
       .headObject(_, _, _, _, let opcClientRequestId, _, _, _),
       .listBuckets(_, _, let opcClientRequestId),
+      .listObjects(_, _, _, _, _, _, _, _, let opcClientRequestId, _),
       .reencryptBucket(_, _, let opcClientRequestId),
       .updateBucket(_, _, let opcClientRequestId),
       .updateNamespaceMetadata(_, let opcClientRequestId):
