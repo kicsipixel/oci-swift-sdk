@@ -521,8 +521,112 @@ public struct TSzObjectStorageClient {
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
-    if let etag = headers["Etag"], let opcRequestId = headers["opc-request-id"] {
+    if let etag = headers["ETag"], let opcRequestId = headers["opc-request-id"] {
       logger.debug("ETag: \(etag), opc-request-id: \(opcRequestId)")
+    }
+  }
+
+  // MARK: - Heads object
+  /// Retrieves the user-defined metadata and entity tag (ETag) for an object.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - objectName: The name of the object. Avoid entering confidential information. Example: `"test/object1.log"`
+  ///   - versionId: Optional version ID used to identify a particular version of the object.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - opcSseCustomerAlgorithm: Optional header specifying `"AES256"` as the encryption algorithm. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSseCustomerKey: Optional header specifying the base64-encoded 256-bit encryption key to encrypt or decrypt the data. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSseCustomerKeySha256: Optional header specifying the base64-encoded SHA256 hash of the encryption key to verify its integrity. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///
+  /// - Returns: A `Response` object with no data payload (`Void`).
+  ///
+  /// TODO:
+  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
+  ///   - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource. If the specified ETag matches, GET and HEAD requests will return the resource, and PUT and POST requests will upload the resource.
+  ///   - ifNoneMatch: The entity tag (ETag) to avoid matching. Wildcards (`*`) are not allowed. If the specified ETag does not match, the request returns the expected response. If it matches, the request returns HTTP 304 without a response body.
+  public func headObject(
+    namespaceName: String,
+    bucketName: String,
+    objectName: String,
+    versionId: String? = nil,
+    opcClientRequestId: String? = nil,
+    opcSseCustomerAlgorithm: String? = nil,
+    opcSseCustomerKey: String? = nil,
+    opcSseCustomerKeySha256: String? = nil
+  ) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.headObject(
+      namespaceName: namespaceName,
+      bucketName: bucketName,
+      objectName: objectName,
+      versionId: versionId,
+      opcClientRequestId: opcClientRequestId,
+      opcSseCustomerAlgorithm: opcSseCustomerAlgorithm,
+      opcSseCustomerKey: opcSseCustomerKey,
+      opcSseCustomerKeySha256: opcSseCustomerKeySha256
+    )
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (_, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)  // keys lowercased
+
+    if let etag = headers["ETag"],
+      let archivalState = headers["archival-state"],
+      let cacheControl = headers["cache-control"],
+      let contentDisposition = headers["content-disposition"],
+      let contentEncoding = headers["content-encoding"],
+      let contentLanguage = headers["content-language"],
+      let contentLength = headers["content-length"],
+      let contentMd5 = headers["content-md5"],
+      let contentType = headers["content-type"],
+      let lastModified = headers["last-modified"],
+      let opcClientRequestId = headers["opc-client-request-id"],
+      let opcMultipartMd5 = headers["opc-multipart-md5"],
+      let opcRequestId = headers["opc-request-id"],
+      let storageTier = headers["storage-tier"],
+      let timeOfArchival = headers["time-of-archival"],
+      let versionId = headers["version-id"]
+    {
+
+      // Extract all user-defined metadata headers
+      let opcMeta = headers.filter { $0.key.hasPrefix("opc-meta-") }
+
+      logger.debug(
+        """
+        ETag: \(etag)
+        Archival-State: \(archivalState)
+        Cache-Control: \(cacheControl)
+        Content-Disposition: \(contentDisposition)
+        Content-Encoding: \(contentEncoding)
+        Content-Language: \(contentLanguage)
+        Content-Length: \(contentLength)
+        Content-MD5: \(contentMd5)
+        Content-Type: \(contentType)
+        Last-Modified: \(lastModified)
+        opc-client-request-id: \(opcClientRequestId)
+        opc-multipart-md5: \(opcMultipartMd5)
+        opc-request-id: \(opcRequestId)
+        Storage-Tier: \(storageTier)
+        Time-Of-Archival: \(timeOfArchival)
+        Version-Id: \(versionId)
+        opc-meta: \(opcMeta)
+        """
+      )
     }
   }
 
