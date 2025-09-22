@@ -109,14 +109,12 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
         
         if let certTenancyId = try? Self.tenancyIdFromCertificatePEM(leafCertPEM) {
             self.tenancyId = certTenancyId
-            print("Using tenancy ID from certificate: \(self.tenancyId)")
         } else {
             if let instanceJSON = try? Self.fetchJSON(url: GET_INSTANCE_URL, authorization: METADATA_AUTH_HEADER),
                let imdsTenancy = instanceJSON["tenantId"] as? String,
                !imdsTenancy.isEmpty
             {
                 self.tenancyId = imdsTenancy
-                print("Using tenancy ID from IMDS: \(imdsTenancy)")
             } else {
                 throw NSError(domain: "OCIKit.InstancePrincipalsFederationClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to obtain the tenancyId"])
             }
@@ -205,7 +203,7 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol {
             let bodyStr = String(data: data, encoding: .utf8) ?? ""
             throw NSError(domain: "OCIKit.FederationClient", code: -2, userInfo: [NSLocalizedDescriptionKey: "Auth federation response missing token: \(bodyStr)"])
         }
-
+        
         self.token = SecurityTokenContainer(sessionKeySupplier: sessionPrivateKey, securityToken: tokenStr)
     }
 }
