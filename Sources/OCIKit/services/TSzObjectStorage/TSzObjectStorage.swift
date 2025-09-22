@@ -83,7 +83,7 @@ public struct TSzObjectStorageClient {
 
     let api = ObjectStorageAPI.copyObject(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
     var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
-      
+
     do {
       let payload: Data
       do {
@@ -213,6 +213,56 @@ public struct TSzObjectStorageClient {
       logger.debug("The \(bucketName) bucket was delete from \(namespaceName) namespace. RequestID: \(opcRequestId)")
     }
   }
+
+  // MARK: - Deletes object
+  /// Deletes an object from Object Storage.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - objectName: The name of the object to delete. Avoid entering confidential information. Example: `"test/object1.log"`
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - versionId: Optional version ID used to identify a particular version of the object.
+  ///
+  /// - Returns: A `Response` object with no data payload (`Void`).
+  ///
+  /// TODO:
+  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
+  ///   - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource. If the specified ETag matches, GET and HEAD requests will return the resource, and PUT and POST requests will upload the resource.
+  public func deleteObject(
+    namespaceName: String,
+    bucketName: String,
+    objectName: String,
+    opcClientRequestId: String? = nil,
+    versionId: String? = nil
+  ) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.deleteObject(namespaceName: namespaceName, bucketName: bucketName, objectName: objectName, opcClientRequestId: opcClientRequestId, versionId: versionId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (_, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 204 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+    if let isDeleteMarker = headers["is-delete-marker"], let lastModified = headers["last-modified"], let opcClientRequestId = headers["opc-client-request-id"],
+      let opcRequestId = headers["opc-request-id"], let versionId = headers["version-id"]
+    {
+      logger.debug("is-delete-marker: \(isDeleteMarker), last-modified: \(lastModified), opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId), version-id: \(versionId)")
+    }
+  }
+
   // MARK: - Gets bucket
   /// Gets the current representation of the given bucket in the given Object Storage namespace.
   /// - Parameters:
@@ -348,6 +398,89 @@ public struct TSzObjectStorageClient {
 
     return namespaceMetadata
   }
+
+  // MARK: - Get object
+  /// Retrieves the metadata and body of an object from Object Storage.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - objectName: The name of the object. Avoid entering confidential information. Example: `"test/object1.log"`
+  ///   - versionId: The version ID used to identify a particular version of the object.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - range: Optional byte range to fetch, as described in [RFC 7233](https://tools.ietf.org/html/rfc7233#section-2.1). Only a single range is supported.
+  ///   - opcSseCustomerAlgorithm: Optional header specifying `"AES256"` as the encryption algorithm. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSseCustomerKey: Optional header specifying the base64-encoded 256-bit encryption key to encrypt or decrypt the data. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSseCustomerKeySha256: Optional header specifying the base64-encoded SHA256 hash of the encryption key to verify its integrity. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - httpResponseContentDisposition: Query parameter to override the `Content-Disposition` response header.
+  ///   - httpResponseCacheControl: Query parameter to override the `Cache-Control` response header.
+  ///   - httpResponseContentType: Query parameter to override the `Content-Type` response header.
+  ///   - httpResponseContentLanguage: Query parameter to override the `Content-Language` response header.
+  ///   - httpResponseContentEncoding: Query parameter to override the `Content-Encoding` response header.
+  ///   - httpResponseExpires: Query parameter to override the `Expires` response header.
+  ///
+  /// - Returns: A `Response` object with data of type `String` if `responseTarget` and `block` are not provided, otherwise with `nil` data.
+  ///
+  /// TODO:
+  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
+  ///   - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource. If the specified ETag matches, GET and HEAD requests will return the resource, and PUT and POST requests will upload the resource.
+  ///   - ifNoneMatch: The entity tag (ETag) to avoid matching. Wildcards (`*`) are not allowed. If the specified ETag does not match, the request returns the expected response. If it matches, the request returns HTTP 304 without a response body.
+  public func getObject(
+    namespaceName: String,
+    bucketName: String,
+    objectName: String,
+    versionId: String? = nil,
+    opcClientRequestId: String? = nil,
+    range: String? = nil,
+    opcSseCustomerAlgorithm: String? = nil,
+    opcSseCustomerKey: String? = nil,
+    opcSseCustomerKeySha256: String? = nil,
+    httpResponseContentDisposition: String? = nil,
+    httpResponseCacheControl: String? = nil,
+    httpResponseContentType: String? = nil,
+    httpResponseContentLanguage: String? = nil,
+    httpResponseContentEncoding: String? = nil,
+    httpResponseExpires: String? = nil
+  ) async throws -> Data {
+
+    let api = ObjectStorageAPI.getObject(
+      namespaceName: namespaceName,
+      bucketName: bucketName,
+      objectName: objectName,
+      versionId: versionId,
+      opcClientRequestId: opcClientRequestId,
+      range: range,
+      opcSseCustomerAlgorithm: opcSseCustomerAlgorithm,
+      opcSseCustomerKey: opcSseCustomerKey,
+      opcSseCustomerKeySha256: opcSseCustomerKeySha256,
+      httpResponseContentDisposition: httpResponseContentDisposition,
+      httpResponseCacheControl: httpResponseCacheControl,
+      httpResponseContentType: httpResponseContentType,
+      httpResponseContentLanguage: httpResponseContentLanguage,
+      httpResponseContentEncoding: httpResponseContentEncoding,
+      httpResponseExpires: httpResponseExpires
+    )
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    return data
+  }
+
   // MARK: - Heads bucket
   /// Efficiently checks whether a bucket exists and retrieves the current entity tag (ETag) for the bucket.
   ///
@@ -540,7 +673,7 @@ public struct TSzObjectStorageClient {
       }
 
       if httpResponse.statusCode != 200 {
-          throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
       }
 
       do {
