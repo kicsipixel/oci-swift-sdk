@@ -83,7 +83,7 @@ public struct TSzObjectStorageClient {
 
     let api = ObjectStorageAPI.copyObject(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
     var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
-
+      
     do {
       let payload: Data
       do {
@@ -97,7 +97,7 @@ public struct TSzObjectStorageClient {
 
       try signer.sign(&req)
 
-      let (data, response) = try await URLSession.shared.data(for: req)
+      let (_, response) = try await URLSession.shared.data(for: req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -540,7 +540,7 @@ public struct TSzObjectStorageClient {
       }
 
       if httpResponse.statusCode != 200 {
-        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+          throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
       }
 
       do {
