@@ -110,6 +110,50 @@ struct TSzObjectStorageTest {
     #expect(deleteBucket != nil, "The operation should succeed")
   }
 
+  // MARK: -  Deletes object
+  @Test func deletesObjectWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+
+    let deleteObject: Void? = try? await sut.deleteObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      objectName: "Frame.png"
+    )
+
+    #expect(deleteObject != nil, "The operation should succeed")
+  }
+
+  @Test func deletesObjectWithVersionIdWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+
+    let deleteObject: Void? = try? await sut.deleteObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      objectName: "bucket.svg",
+      versionId: "e0de6bec-7543-411a-9ab8-3542669ea3b3"
+    )
+
+    #expect(deleteObject != nil, "The operation should succeed")
+  }
+
   // MARK: - Gets bucket
   @Test func getsBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -208,6 +252,24 @@ struct TSzObjectStorageTest {
       )
     }
     #expect(getNamespaceMetadata != nil, "The operation should succeed")
+  }
+
+  // MARK: - Gets object
+  @Test func getsObjectWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+
+    let getObject = try? await sut.getObject(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", objectName: "bucket.svg")
+
+    #expect(getObject != nil, "The operation should succeed")
   }
 
   // MARK: - Heads bucket

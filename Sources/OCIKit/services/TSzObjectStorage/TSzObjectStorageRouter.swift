@@ -43,8 +43,28 @@ public enum ObjectStorageAPI: API {
   case createBucket(namespaceName: String, opcClientRequestId: String? = nil)
   /// Deletes bucket
   case deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+  /// Deletes object
+  case deleteObject(namespaceName: String, bucketName: String, objectName: String, opcClientRequestId: String? = nil, versionId: String? = nil)
   /// Gets bucket
   case getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+    /// Gets object
+    case getObject(
+      namespaceName: String,
+      bucketName: String,
+      objectName: String,
+      versionId: String? = nil,
+      opcClientRequestId: String? = nil,
+      range: String? = nil,
+      opcSseCustomerAlgorithm: String? = nil,
+      opcSseCustomerKey: String? = nil,
+      opcSseCustomerKeySha256: String? = nil,
+      httpResponseContentDisposition: String? = nil,
+      httpResponseCacheControl: String? = nil,
+      httpResponseContentType: String? = nil,
+      httpResponseContentLanguage: String? = nil,
+      httpResponseContentEncoding: String? = nil,
+      httpResponseExpires: String? = nil
+    )
   /// HEAD bucket
   case headBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Gets namespace
@@ -80,6 +100,9 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
     case .copyObject(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/copyObject"
+    case .deleteObject(let namespaceName, let bucketName, let objectName, _, _),
+            .getObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _, _ , _ , _ , _, _, _, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/o/\(objectName)"
     }
   }
 
@@ -91,10 +114,12 @@ public enum ObjectStorageAPI: API {
       .reencryptBucket,
       .updateBucket:
       return .post
-    case .deleteBucket:
+    case .deleteBucket,
+      .deleteObject:
       return .delete
     case .getNamespace,
       .getBucket,
+      .getObject,
       .getNamespaceMetadata,
       .listBuckets:
       return .get
@@ -106,29 +131,61 @@ public enum ObjectStorageAPI: API {
   }
 
   // QueryItems
-  public var queryItems: [URLQueryItem]? {
-    switch self {
-    case .copyObject,
-      .createBucket,
-      .deleteBucket,
-      .getBucket,
-      .getNamespaceMetadata,
-      .headBucket,
-      .reencryptBucket,
-      .updateBucket,
-      .updateNamespaceMetadata:
-      return nil
-    case .getNamespace(let compartmentId, _):
-      if let compartmentId {
-        return [
-          URLQueryItem(name: "compartmentId", value: compartmentId)
-        ]
-      }
-      return nil
-    case .listBuckets(_, let compartmentId, _):
-      return [URLQueryItem(name: "compartmentId", value: compartmentId)]
+    public var queryItems: [URLQueryItem]? {
+        switch self {
+        case .copyObject,
+                .createBucket,
+                .deleteBucket,
+                .getBucket,
+                .getNamespaceMetadata,
+                .headBucket,
+                .reencryptBucket,
+                .updateBucket,
+                .updateNamespaceMetadata:
+            return nil
+        case .getNamespace(let compartmentId, _):
+            if let compartmentId {
+                return [
+                    URLQueryItem(name: "compartmentId", value: compartmentId)
+                ]
+            }
+            return nil
+            
+        case .listBuckets(_, let compartmentId, _):
+            return [URLQueryItem(name: "compartmentId", value: compartmentId)]
+            
+        case .deleteObject(_, _, _, _, let versionId):
+            if let versionId {
+                return [
+                    URLQueryItem(name: "versionId", value: versionId)
+                ]
+            }
+            return nil
+            
+        case .getObject(
+            _, _, _, let versionId, _, _, _, _, _,
+            let httpResponseContentDisposition, let httpResponseCacheControl,
+            let httpResponseContentType, let httpResponseContentLanguage,
+            let httpResponseContentEncoding, let httpResponseExpires
+        ):
+            let keyValuePairs: [(String, String?)] = [
+                ("versionId", versionId),
+                ("contentDisposition", httpResponseContentDisposition),
+                ("cacheControl", httpResponseCacheControl),
+                ("contentType", httpResponseContentType),
+                ("contentLanguage", httpResponseContentLanguage),
+                ("contentEncoding", httpResponseContentEncoding),
+                ("expires", httpResponseExpires)
+            ]
+            
+            // Convert non-nil values into URLQueryItems
+            let queryItems = keyValuePairs.compactMap { key, value in
+                value.map { URLQueryItem(name: key, value: $0) }
+            }
+            
+            return queryItems.isEmpty ? nil : queryItems
+        }
     }
-  }
 
   // Headers
   public var headers: [String: String]? {
@@ -136,7 +193,9 @@ public enum ObjectStorageAPI: API {
     case .copyObject(_, _, let opcClientRequestId),
       .createBucket(_, let opcClientRequestId),
       .deleteBucket(_, _, let opcClientRequestId),
+      .deleteObject(_, _, _, let opcClientRequestId, _),
       .getBucket(_, _, let opcClientRequestId),
+      .getObject(_, _, _, _, let opcClientRequestId, _, _, _, _, _, _, _, _, _, _),
       .getNamespace(_, let opcClientRequestId),
       .getNamespaceMetadata(_, let opcClientRequestId),
       .headBucket(_, _, let opcClientRequestId),
