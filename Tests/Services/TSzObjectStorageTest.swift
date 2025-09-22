@@ -20,26 +20,66 @@ struct TSzObjectStorageTest {
   let ociConfigFilePath: String
   let ociProfileName: String
 
-  init() {
+  init() throws {
     let env = ProcessInfo.processInfo.environment
     ociConfigFilePath = env["OCI_CONFIG_FILE"] ?? "\(NSHomeDirectory())/.oci/config"
     ociProfileName = env["OCI_PROFILE"] ?? "DEFAULT"
   }
 
   // MARK: - Copies object
-  /// No test, since my subcription is valid only for one region.
+  /// This test fails with `400` for unknown reason.
+  /// "code": "InsufficientServicePermissions",
+  ///  "message": "Permissions granted to the object storage service principal \"objectstorage-eu-frankfurt-1\" to this bucket are insufficient."
+  ///  "See [documentation](https://docs.oracle.com/iaas/Content/API/References/apierrors.htm) for more information about resolving this error. If you are unable to resolve this issue, run this CLI command with --debug option and contact Oracle support and provide them the full error message."
+  @Test func copiesObjectWithinRegionWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let object = CopyObjectDetails(
+      destinationBucket: "Bucket_Parks_of_Prague",
+      destinationNamespace: "frjfldcyl3la",
+      destinationObjectName: "Frame.png",
+      destinationRegion: "eu-frankfurt-1",
+      sourceObjectName: "Frame.png"
+    )
+
+    let copyObject: Void? = try? await sut.copyObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      copyObjectDetails: object
+    )
+
+    #expect(copyObject != nil, "The return value should not be nil")
+  }
+
   // MARK: - Creates bucket
   @Test func createsBucketWithAPIKeySigner() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
     let bucket = CreateBucketDetails(
       compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q",
       name: "test_bucket_by_sdk_2"
     )
 
-    let createBucket = try await sut.createBucket(namespaceName: "frjfldcyl3la", createBucketDetails: bucket)
+    let createBucket = try await sut.createBucket(
+      namespaceName: "frjfldcyl3la",
+      createBucketDetails: bucket
+    )
 
     // Prints the name of the new bucket
     if let createBucket {
@@ -51,28 +91,48 @@ struct TSzObjectStorageTest {
 
   // MARK: - Deletes bucket
   @Test func deletesBucketWithAPIKeySigner() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
 
-    let deleteBucket: Void? = try? await sut.deleteBucket(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk")
+    let deleteBucket: Void? = try? await sut.deleteBucket(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk"
+    )
 
     #expect(deleteBucket != nil, "The operation should succeed")
   }
 
   // MARK: - Gets bucket
   @Test func getsBucketWithAPIKeySigner() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
 
-    let createBucket = try await sut.getBucket(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk")
+    let createBucket = try await sut.getBucket(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk"
+    )
 
     // Prints the name of the new bucket
     if let createBucket {
-      print("The bucket: \(createBucket.name) is in the compartment: \(createBucket.compartmentId), created by: \(createBucket.createdBy)")
+      print(
+        "The bucket: \(createBucket.name) is in the compartment: \(createBucket.compartmentId), created by: \(createBucket.createdBy)"
+      )
     }
 
     #expect(createBucket != nil, "The return value should not be nil")
@@ -80,9 +140,15 @@ struct TSzObjectStorageTest {
 
   // MARK: - Gets namespace
   @Test func getsNamespaceWithAPIKeySignerReturnsValidString() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
 
     let namespace = try await sut.getNamespace()
@@ -93,12 +159,20 @@ struct TSzObjectStorageTest {
   }
 
   @Test func gestNamespaceWithAPIKeySignerAndCompartmentIdReturnsValidString() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
 
-    let namespace = try await sut.getNamespace(compartmentId: "ocid1.tenancy.oc1..aaaaaaaapt3esrvwldrfekea5ucasigr2nof7tjx6ysyb4oo3yiqgx2d72ha")
+    let namespace = try await sut.getNamespace(
+      compartmentId: "ocid1.tenancy.oc1..aaaaaaaapt3esrvwldrfekea5ucasigr2nof7tjx6ysyb4oo3yiqgx2d72ha"
+    )
 
     #expect(!namespace.isEmpty, "Namespace should not be empty")
   }
@@ -112,28 +186,47 @@ struct TSzObjectStorageTest {
   ///    }
   /// }`
   @Test func getsNamespaceMetadataWithAPIKeySigner() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
 
-    let getNamespaceMetadata = try? await sut.getNamespaceMetadata(namespaceName: "frjfldcyl3la")
+    let getNamespaceMetadata = try? await sut.getNamespaceMetadata(
+      namespaceName: "frjfldcyl3la"
+    )
 
     // Prints metadata
     if let metadata = getNamespaceMetadata {
-      print("default-swift-compartment-id: \(metadata.defaultSwiftCompartmentId), \ndefault-s3-compartment-id: \(metadata.defaultS3CompartmentId), \nnamespace: \(metadata.namespace)")
+      print(
+        "default-swift-compartment-id: \(metadata.defaultSwiftCompartmentId), \ndefault-s3-compartment-id: \(metadata.defaultS3CompartmentId), \nnamespace: \(metadata.namespace)"
+      )
     }
     #expect(getNamespaceMetadata != nil, "The operation should succeed")
   }
 
   // MARK: - Heads bucket
   @Test func headsBucketWithAPIKeySigner() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
 
-    let headBucket: Void? = try? await sut.headBucket(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk")
+    let headBucket: Void? = try? await sut.headBucket(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk"
+    )
 
     #expect(headBucket != nil, "The operation should succeed")
   }
@@ -141,40 +234,69 @@ struct TSzObjectStorageTest {
   // MARK: - Lists buckets
   /// Creates bucket must be proceed.
   @Test func listsBucketsWithAPIKeySignerReturnsMoreThanZero() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
 
-    let listOfBuckets = try await sut.listBuckets(namespaceName: "frjfldcyl3la", compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q")
+    let listOfBuckets = try await sut.listBuckets(
+      namespaceName: "frjfldcyl3la",
+      compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q"
+    )
 
     // Lists all buckets in the compartment
     for bucket in listOfBuckets {
       print(bucket.name)
     }
-    #expect(listOfBuckets.count > 0, "Number of buckets should be greater than zero")
+    #expect(
+      listOfBuckets.count > 0,
+      "Number of buckets should be greater than zero"
+    )
   }
 
   // MARK: - Reencrypts bucket
   ///  If you call this API and there is no kmsKeyId associated with the bucket, the call will fail.
   @Test func reencryptsBucketWithAPIKeySigner() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
 
-    let reencryptBucket: Void? = try? await sut.reencryptBucket(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk")
+    let reencryptBucket: Void? = try? await sut.reencryptBucket(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk"
+    )
 
     #expect(reencryptBucket != nil, "The operation should succeed")
   }
 
   // MARK: - Updates bucket
   @Test func updatesBucketWithMovingToCompartmentWithAPIKeySigner() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
-    let bucket = UpdateBucketDetails(compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q")
+    let bucket = UpdateBucketDetails(
+      compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q"
+    )
 
     let updateBucket: Bucket? = try? await sut.updateBucket(
       namespaceName: "frjfldcyl3la",
@@ -193,14 +315,18 @@ struct TSzObjectStorageTest {
     #expect(updateBucket != nil, "The return value should not be nil")
   }
 
-  // MARK: - Failing test for unknown reason
-  /// This test return with `400` HTTPURLResponse code
-  @Test func updatesBucketWithNewNameWithAPIKeySigner() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+  @Test func updatesBucketWithVersioningWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
-    let bucket = UpdateBucketDetails(name: "New_name")
+    let bucket = UpdateBucketDetails(versioning: Versoning.enabled)
 
     let updateBucket: Bucket? = try? await sut.updateBucket(
       namespaceName: "frjfldcyl3la",
@@ -221,16 +347,25 @@ struct TSzObjectStorageTest {
 
   // MARK: - Updates namespace meatadata
   @Test func updatesNamespaceMetadataWithAPIKeySigner() async throws {
-    let regionId = try extractUserRegion(from: ociConfigFilePath, profile: ociProfileName)
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
     let sut = try TSzObjectStorageClient(region: region, signer: signer)
     let metadata = UpdateNamespaceMetadataDetails(
       defaultS3CompartmentId: "ocid1.compartment.oc1..aaaaaaaar3gnsxd7vomtvklspmmmjl5i43vd6umbuqa3f6vtgsfmmk4oeuwa",
       defaultSwiftCompartmentId: "ocid1.compartment.oc1..aaaaaaaar3gnsxd7vomtvklspmmmjl5i43vd6umbuqa3f6vtgsfmmk4oeuwa"
     )
 
-    let updateNamespaceMetadata = try? await sut.updateNamespaceMetadata(namespaceName: "frjfldcyl3la", metadata: metadata)
+    let updateNamespaceMetadata = try? await sut.updateNamespaceMetadata(
+      namespaceName: "frjfldcyl3la",
+      metadata: metadata
+    )
 
     // Prints metadata
     if let updateNamespaceMetadata {
