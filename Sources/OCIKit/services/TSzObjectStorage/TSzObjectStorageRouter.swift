@@ -45,20 +45,27 @@ public enum ObjectStorageAPI: API {
   case getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// HEAD bucket
   case headBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
-  /// Gets Namespace
+  /// Gets namespace
   case getNamespace(compartmentId: String? = nil, opcClientRequestId: String? = nil)
+  /// Gets namespace metadata
+  case getNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil)
   /// Lists buckets
   case listBuckets(namespaceName: String, compartmentId: String, opcClientRequestId: String? = nil)
   /// Reencrypts bucket
   case reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Updates bucket
   case updateBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+  /// Updates namespace metadata
+  case updateNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil)
 
   // Path
   public var path: String {
     switch self {
     case .getNamespace:
       return "/n"
+    case .getNamespaceMetadata(let namespaceName, _),
+      .updateNamespaceMetadata(let namespaceName, _):
+      return "/n/\(namespaceName)"
     case .createBucket(let namespaceName, _),
       .listBuckets(let namespaceName, _, _):
       return "/n/\(namespaceName)/b"
@@ -83,10 +90,13 @@ public enum ObjectStorageAPI: API {
       return .delete
     case .getNamespace,
       .getBucket,
+      .getNamespaceMetadata,
       .listBuckets:
       return .get
     case .headBucket:
       return .head
+    case .updateNamespaceMetadata:
+      return .put
     }
   }
 
@@ -96,9 +106,11 @@ public enum ObjectStorageAPI: API {
     case .createBucket,
       .deleteBucket,
       .getBucket,
+      .getNamespaceMetadata,
       .headBucket,
       .reencryptBucket,
-      .updateBucket:
+      .updateBucket,
+      .updateNamespaceMetadata:
       return nil
     case .getNamespace(let compartmentId, _):
       if let compartmentId {
@@ -119,10 +131,12 @@ public enum ObjectStorageAPI: API {
       .deleteBucket(_, _, let opcClientRequestId),
       .getBucket(_, _, let opcClientRequestId),
       .getNamespace(_, let opcClientRequestId),
+      .getNamespaceMetadata(_, let opcClientRequestId),
       .headBucket(_, _, let opcClientRequestId),
       .listBuckets(_, _, let opcClientRequestId),
       .reencryptBucket(_, _, let opcClientRequestId),
-      .updateBucket(_, _, let opcClientRequestId):
+      .updateBucket(_, _, let opcClientRequestId),
+      .updateNamespaceMetadata(_, let opcClientRequestId):
       if let opcClientRequestId {
         return ["opc-client-request-id": opcClientRequestId]
       }

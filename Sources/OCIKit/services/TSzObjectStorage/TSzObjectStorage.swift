@@ -202,6 +202,88 @@ public struct TSzObjectStorageClient {
     }
   }
 
+  // MARK: - Gets namespace
+  /// Each Oracle Cloud Infrastructure tenant is assigned one unique and uneditable Object Storage namespace. The namespace
+  /// is a system-generated string assigned during account creation. For some older tenancies, the namespace string may be
+  /// the tenancy name in all lower-case letters. You cannot edit a namespace.
+  ///
+  /// GetNamespace returns the name of the Object Storage namespace for the user making the request.
+  /// If an optional compartmentId query parameter is provided, GetNamespace returns the namespace name of the corresponding
+  /// tenancy, provided the user has access to it.
+  ///
+  /// - Parameters:
+  ///   - compartmentId: his is an optional field representing either the tenancy [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) or the compartment [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) within the tenancy whose Object Storage namespace is to be retrieved.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: Optional retry configuration to apply to this operation. If `nil`, the default service-level retry configuration is used. If explicitly set to `nil`, the operation will not retry.
+  ///
+  /// - Returns: A `String` containing the Object Storage namespace.
+  public func getNamespace(compartmentId: String? = nil) async throws -> String {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.getNamespace()
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    guard let responseBody = String(data: data, encoding: .utf8) else {
+      throw ObjectStorageError.invalidUTF8
+    }
+
+    return responseBody
+  }
+
+  // MARK: - Gets namespace metadata
+  /// Retrieves metadata for the Object Storage namespace, including `defaultS3CompartmentId` and `defaultSwiftCompartmentId`.
+  ///
+  /// Any user with the `OBJECTSTORAGE_NAMESPACE_READ` permission can view the current metadata.
+  /// If you are not authorized, contact an administrator. Administrators can refer to
+  /// [Getting Started with Policies](https://docs.cloud.oracle.com/Content/Identity/Concepts/policygetstarted.htm)
+  /// for guidance on granting access.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - opcClientRequestId: The client request ID for tracing.
+  ///
+  /// - Returns: A `Response` object containing `NamespaceMetadata`.
+  ///
+  /// TODO:
+  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
+  public func getNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil) async throws -> NamespaceMetadata? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.getNamespaceMetadata(namespaceName: namespaceName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let namespaceMetadata = try JSONDecoder().decode(NamespaceMetadata.self, from: data)
+
+    return namespaceMetadata
+  }
   // MARK: - Heads bucket
   /// Efficiently checks whether a bucket exists and retrieves the current entity tag (ETag) for the bucket.
   ///
@@ -245,48 +327,6 @@ public struct TSzObjectStorageClient {
     if let etag = headers["Etag"], let opcRequestId = headers["opc-request-id"] {
       logger.debug("ETag: \(etag), opc-request-id: \(opcRequestId)")
     }
-  }
-
-  // MARK: - Gets namespace
-  /// Each Oracle Cloud Infrastructure tenant is assigned one unique and uneditable Object Storage namespace. The namespace
-  /// is a system-generated string assigned during account creation. For some older tenancies, the namespace string may be
-  /// the tenancy name in all lower-case letters. You cannot edit a namespace.
-  ///
-  /// GetNamespace returns the name of the Object Storage namespace for the user making the request.
-  /// If an optional compartmentId query parameter is provided, GetNamespace returns the namespace name of the corresponding
-  /// tenancy, provided the user has access to it.
-  ///
-  /// - Parameters:
-  ///   - compartmentId: his is an optional field representing either the tenancy [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) or the compartment [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) within the tenancy whose Object Storage namespace is to be retrieved.
-  ///   - opcClientRequestId: Optional client request ID for tracing.
-  ///   - retryConfig: Optional retry configuration to apply to this operation. If `nil`, the default service-level retry configuration is used. If explicitly set to `nil`, the operation will not retry.
-  ///
-  /// - Returns: A `String` containing the Object Storage namespace.
-  public func getNamespace(compartmentId: String? = nil) async throws -> String {
-    guard let endpoint else {
-      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
-    }
-
-    let api = ObjectStorageAPI.getNamespace()
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
-
-    try signer.sign(&req)
-
-    let (data, response) = try await URLSession.shared.data(for: req)
-
-    guard let httpResponse = response as? HTTPURLResponse else {
-      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
-    }
-
-    if httpResponse.statusCode != 200 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
-    }
-
-    guard let responseBody = String(data: data, encoding: .utf8) else {
-      throw ObjectStorageError.invalidUTF8
-    }
-
-    return responseBody
   }
 
   // MARK: - Lists buckets
@@ -442,6 +482,88 @@ public struct TSzObjectStorageClient {
       do {
         let bucket = try JSONDecoder().decode(Bucket.self, from: data)
         return bucket
+      }
+      catch {
+        throw ObjectStorageError.jsonDecodingError("Failed to decode response data to Bucket")
+      }
+    }
+    catch {
+      throw error
+    }
+  }
+
+  // MARK: - Updates namespace metadata
+  /// Updates the default compartment designation for buckets created using the Amazon S3 Compatibility API or the Swift API.
+  ///
+  /// By default, such buckets are created in the root compartment of the Oracle Cloud Infrastructure tenancy.
+  /// You can change this default to a different `compartmentId`. All future bucket creations will use the new default,
+  /// but previously created buckets will remain unchanged.
+  ///
+  /// To perform this operation, the user must have the `OBJECTSTORAGE_NAMESPACE_UPDATE` permission.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - updateNamespaceMetadataDetails: The request object containing the new default compartment settings.
+  ///   - opcClientRequestId: The client request ID for tracing.
+  ///
+  /// - Returns: A `Response` object containing `NamespaceMetadata`.
+  ///
+  /// TODO:
+  ///
+  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
+  public func updateNamespaceMetadata(
+    namespaceName: String,
+    metadata: UpdateNamespaceMetadataDetails,
+    opcClientRequestId: String? = nil
+  ) async throws -> NamespaceMetadata? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.updateNamespaceMetadata(namespaceName: namespaceName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    do {
+      let payload: Data
+      do {
+        payload = try JSONEncoder().encode(metadata)
+      }
+      catch {
+        throw ObjectStorageError.jsonEncodingError("CreateBucketDetails cannot be encoded to data")
+      }
+
+      req.httpBody = payload
+
+      try signer.sign(&req)
+
+      let (data, response) = try await URLSession.shared.data(for: req)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        print(response)
+        throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+      }
+
+      if httpResponse.statusCode != 200 {
+        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      }
+
+      // TODO: this decoding fails, beacuse the response from the server doesn't contain `namespace`.🤷‍♂️
+      ///
+      /// https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/20160918/Namespace/UpdateNamespaceMetadata
+      ///
+      /// ```
+      ///  let responseBody = String(data: data, encoding: .utf8)
+      ///  print("Response: \(responseBody ?? "<no body>")")
+      /// ```
+      /// The response is:
+      ///
+      /// ``` {"defaultS3CompartmentId":"ocid1.compartment.oc1..aaaaaaaar3gnsxd7vomtvklspmmmjl5i43vd6umbuqa3f6vtgsfmmk4oeuwa","defaultSwiftCompartmentId":"ocid1.compartment.oc1..aaaaaaaar3gnsxd7vomtvklspmmmjl5i43vd6umbuqa3f6vtgsfmmk4oeuwa","namespace":null}
+      /// ```
+      /// `namespace` is `null`
+
+      do {
+        let nameSpaceMetadata = try JSONDecoder().decode(NamespaceMetadata.self, from: data)
+        return nameSpaceMetadata
       }
       catch {
         throw ObjectStorageError.jsonDecodingError("Failed to decode response data to Bucket")
