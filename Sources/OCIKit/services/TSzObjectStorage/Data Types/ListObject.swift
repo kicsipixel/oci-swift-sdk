@@ -14,11 +14,11 @@
 
 import Foundation
 
-public struct ListObject {
+public struct ListObject: Codable {
     /// The name of the object to use in the start parameter to obtain the next page of a truncated ListObjects response. Avoid entering confidential information. Example: test/object1.log
     public let nextStartWith: String?
     /// An array of object summaries.
-    public let onjects: [ObjectSummary]
+    public let objects: [ObjectSummary]
     /// Prefixes that are common to the results returned by the request if the request specified a delimiter.
     public let prefixes: [String]?
 }
