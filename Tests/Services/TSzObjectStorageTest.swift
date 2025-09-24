@@ -322,34 +322,64 @@ struct TSzObjectStorageTest {
     )
   }
 
-    // MARK: - List objects
-    @Test func listObjectsWithAPIKeySigner() async throws {
-        let regionId = try extractUserRegion(
-          from: ociConfigFilePath,
-          profile: ociProfileName
-        )
-        let region = Region.from(regionId: regionId ?? "") ?? .iad
-        let signer = try APIKeySigner(
-          configFilePath: ociConfigFilePath,
-          configName: ociProfileName
-        )
-        let sut = try TSzObjectStorageClient(region: region, signer: signer)
-    
-        // Allowed values are: name (default), size, etag, timeCreated, md5, timeModified, storageTier, archivalState
-        let fields: [Field] = [.name, .size, .md5]
-        let fieldsString = fields.map { $0.rawValue }.joined(separator: ",")
-        let listOfObjects = try await sut.listObjects(
-            namespaceName: "frjfldcyl3la",
-            bucketName: "test_bucket_by_sdk",
-            fields: fieldsString
-        )
-        
-        if let name = listOfObjects?.objects.first?.name, let size = listOfObjects?.objects.first?.size, let md5 = listOfObjects?.objects.first?.md5 {
-            print("The name of the file: \(name), size: \(size) and md5: \(md5)")
-        }
-        #expect(listOfObjects != nil, "The operation should succeed")
+  // MARK: - List objects
+  @Test func listObjectsWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+
+    // Allowed values are: name (default), size, etag, timeCreated, md5, timeModified, storageTier, archivalState
+    let fields: [Field] = [.name, .size, .md5]
+    let fieldsString = fields.map { $0.rawValue }.joined(separator: ",")
+    let listOfObjects = try await sut.listObjects(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      fields: fieldsString
+    )
+
+    if let name = listOfObjects?.objects.first?.name, let size = listOfObjects?.objects.first?.size, let md5 = listOfObjects?.objects.first?.md5 {
+      print("The name of the file: \(name), size: \(size) and md5: \(md5)")
     }
-    
+    #expect(listOfObjects != nil, "The operation should succeed")
+  }
+
+  // MARK: - Lists object versions
+  @Test func listObjectVersionsWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+
+    // Allowed values are: name (default), size, etag, timeCreated, md5, timeModified, storageTier, archivalState
+    let fields: [Field] = [.name, .size, .md5]
+    let fieldsString = fields.map { $0.rawValue }.joined(separator: ",")
+    let listOfObjectVersions = try? await sut.listObjectVersions(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      fields: fieldsString
+    )
+
+    // Prints versions
+    if let versions = listOfObjectVersions?.items {
+      for version in versions {
+        print("File: \(version.name), size: \(version.size ?? 0), md5: \(version.md5 ?? "") and version: \(version.versionId)")
+      }
+    }
+    #expect(listOfObjectVersions != nil, "The operation should succeed")
+  }
   // MARK: - Reencrypts bucket
   ///  If you call this API and there is no kmsKeyId associated with the bucket, the call will fail.
   @Test func reencryptsBucketWithAPIKeySigner() async throws {
