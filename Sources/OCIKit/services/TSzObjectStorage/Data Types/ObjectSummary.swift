@@ -29,7 +29,7 @@ public struct ObjectSummary: Codable {
   public let storageTier: StorageTier?
   ///  The date and time the object was created, as described in RFC 2616.
   public let timeCreated: String?
-  ///T he date and time the object was modified, as described in RFC 2616, section 14.29.
+  /// The date and time the object was modified, as described in RFC 2616, section 14.29.
   public let timeModified: String?
 }
 
