@@ -752,6 +752,79 @@ public struct TSzObjectStorageClient {
     return listObjects
   }
 
+  // MARK: - Lists object versions
+  /// Lists the object versions in a bucket.
+  ///
+  /// Returns an `ObjectVersionCollection` containing up to 1000 object versions.
+  /// To paginate through more results, use the `page` parameter with the value from the `opc-next-page` response header.
+  ///
+  /// You must be authorized via an IAM policy to use this operation. For guidance, see:
+  /// [Getting Started with Policies](https://docs.cloud.oracle.com/Content/Identity/Concepts/policygetstarted.htm)
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - prefix: Optional string to match against the start of object names in the list query.
+  ///   - start: Optional returns object names lexicographically greater than or equal to this value.
+  ///   - end: Optional returns object names lexicographically strictly less than this value.
+  ///   - limit: Optinal maximum number of results per page.
+  ///   - delimiter: Optinal set, only objects without the delimiter character are returned. Only `'/'` is supported.
+  ///   - fields: Optional omma-separated list of additional fields to include. Valid values: `name`, `size`, `etag`, `md5`, `timeCreated`, `timeModified`, `storageTier`, `archivalState`.
+  ///   - opcClientRequestId: Optional client request ID for tracing. Optional.
+  ///   - startAfter: Returns object names lexicographically strictly greater than this value.
+  ///   - page: Optional pagination, use the value from the previous response's `opc-next-page` header.
+  ///
+  /// - Returns: A `Response` object containing `ObjectVersionCollection`.
+  ///
+  /// TODO:
+  ///   - retryConfig: Retry configuration for the operation.
+  public func listObjectVersions(
+    namespaceName: String,
+    bucketName: String,
+    prefix: String? = nil,
+    start: String? = nil,
+    end: String? = nil,
+    limit: Int? = nil,
+    delimiter: String? = nil,
+    fields: String? = nil,
+    opcClientRequestId: String? = nil,
+    startAfter: String? = nil,
+    page: String? = nil,
+  ) async throws -> ObjectVersionCollection? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.listObjectVersions(
+      namespaceName: namespaceName,
+      bucketName: bucketName,
+      prefix: prefix,
+      start: start,
+      end: end,
+      limit: limit,
+      delimiter: delimiter,
+      fields: fields,
+      opcClientRequiredId: opcClientRequestId,
+      startAfter: startAfter,
+      page: page
+    )
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let listObjectVersions = try JSONDecoder().decode(ObjectVersionCollection.self, from: data)
+    return listObjectVersions
+  }
   // MARK: - Reencrypts bucket
   /// Re-encrypts the unique data encryption key used for each object in the bucket using the most recent
   /// version of the master encryption key assigned to the bucket.
