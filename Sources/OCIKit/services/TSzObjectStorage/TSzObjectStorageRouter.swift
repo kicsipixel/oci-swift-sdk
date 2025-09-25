@@ -111,6 +111,15 @@ public enum ObjectStorageAPI: API {
     startAfter: String? = nil,
     page: String? = nil
   )
+  /// Puts object
+  case putObject(
+    namespaceName: String,
+    bucketName: String,
+    objectName: String,
+    contentLenght: Int? = nil,
+    opcClientRequestId: String? = nil,
+    StorageTier: String? = nil
+  )
   /// Reencrypts bucket
   case reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Updates bucket
@@ -144,7 +153,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/objectversions"
     case .deleteObject(let namespaceName, let bucketName, let objectName, _, _),
       .getObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _, _, _, _, _, _, _, _),
-      .headObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _):
+      .headObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _),
+      .putObject(let namespaceName, let bucketName, let objectName, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/o/\(objectName)"
     }
   }
@@ -171,7 +181,8 @@ public enum ObjectStorageAPI: API {
     case .headBucket,
       .headObject:
       return .head
-    case .updateNamespaceMetadata:
+    case .putObject,
+      .updateNamespaceMetadata:
       return .put
     }
   }
@@ -185,6 +196,7 @@ public enum ObjectStorageAPI: API {
       .getBucket,
       .getNamespaceMetadata,
       .headBucket,
+      .putObject,
       .reencryptBucket,
       .updateBucket,
       .updateNamespaceMetadata:
@@ -312,6 +324,17 @@ public enum ObjectStorageAPI: API {
         return ["opc-client-request-id": opcClientRequestId]
       }
       return nil
+    case .putObject(_, _, _, let contentLength, let opcClientRequestId, let storageTier):
+      let keyValuePairs: [(String, String)] = [
+        ("content-length", contentLength.map { String($0) }),
+        ("opc-client-request-id", opcClientRequestId),
+        ("storage-tier", storageTier),
+      ].compactMap { key, value in
+        value.map { (key, $0) }
+      }
+
+      let headers = Dictionary(uniqueKeysWithValues: keyValuePairs)
+      return headers.isEmpty ? nil : headers
     }
   }
 }
