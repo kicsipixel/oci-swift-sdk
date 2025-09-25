@@ -122,6 +122,14 @@ public enum ObjectStorageAPI: API {
   )
   /// Reencrypts bucket
   case reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+  /// Reencrypts object
+  case reencryptObject(
+    namespaceName: String,
+    bucketName: String,
+    objectName: String,
+    versionId: String? = nil,
+    opcClientRequestId: String? = nil
+  )
   /// Updates bucket
   case updateBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Updates namespace metadata
@@ -145,6 +153,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)"
     case .reencryptBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
+    case .reencryptObject(let namespaceName, let bucketName, let objectName, _, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt/\(objectName)"
     case .copyObject(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/copyObject"
     case .listObjects(let namespaceName, let bucketName, _, _, _, _, _, _, _, _):
@@ -165,6 +175,7 @@ public enum ObjectStorageAPI: API {
     case .copyObject,
       .createBucket,
       .reencryptBucket,
+      .reencryptObject,
       .updateBucket:
       return .post
     case .deleteBucket,
@@ -212,7 +223,8 @@ public enum ObjectStorageAPI: API {
     case .listBuckets(_, let compartmentId, _):
       return [URLQueryItem(name: "compartmentId", value: compartmentId)]
 
-    case .deleteObject(_, _, _, _, let versionId):
+    case .deleteObject(_, _, _, _, let versionId),
+      .reencryptObject(_, _, _, let versionId, _):
       if let versionId {
         return [
           URLQueryItem(name: "versionId", value: versionId)
@@ -318,6 +330,7 @@ public enum ObjectStorageAPI: API {
       .listObjects(_, _, _, _, _, _, _, _, let opcClientRequestId, _),
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
       .reencryptBucket(_, _, let opcClientRequestId),
+      .reencryptObject(_, _, _, _, let opcClientRequestId),
       .updateBucket(_, _, let opcClientRequestId),
       .updateNamespaceMetadata(_, let opcClientRequestId):
       if let opcClientRequestId {

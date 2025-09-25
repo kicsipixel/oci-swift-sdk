@@ -975,6 +975,42 @@ public struct TSzObjectStorageClient {
     }
   }
 
+    // MARK: - Reencrypts object
+    /// Re-encrypts the data encryption keys that protect the object and its chunks.
+    ///
+    /// By default, Object Storage manages the master encryption key used to encrypt each object's data encryption keys.
+    /// You can alternatively:
+    /// - Assign a key that you control via Oracle Cloud Infrastructure Vault.
+    /// - Encrypt the object using a customer-provided encryption key (SSE-C).
+    ///
+    /// - Parameters:
+    ///   - namespaceName: The Object Storage namespace used for the request.
+    ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+    ///   - objectName: The name of the object. Avoid entering confidential information. Example: `"test/object1.log"`
+    ///   - reencryptObjectDetails: Request object containing re-encryption configuration.
+    ///   - versionId: Version ID used to identify a specific version of the object. Optional.
+    ///   - opcClientRequestId: Client request ID for tracing. Optional.
+    ///
+    /// - Returns: A `Response` object with no data payload (`Void`).
+    ///
+    /// TODO:
+    ///   - retryConfig: Retry configuration for the operation. Optional.
+    public func reencryptObject(
+        namespaceName: String,
+        bucketName: String,
+        objectName: String,
+        reencryptObjectDetails: ReencryptObjectDetails,
+        versionId: String? = nil,
+        opcClientRequestId: String? = nil
+    ) async throws {
+        guard let endpoint else {
+          throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+        }
+
+        let api = ObjectStorageAPI.updateBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+        var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    }
+
   // MARK: - Updates bucket
   /// Performs a partial or full update of a bucket's user-defined metadata.
   ///
