@@ -585,7 +585,7 @@ public struct TSzObjectStorageClient {
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)  // keys lowercased
+    let headers = convertHeadersToDictionary(httpResponse)
 
     if let etag = headers["ETag"],
       let archivalState = headers["archival-state"],
@@ -825,6 +825,106 @@ public struct TSzObjectStorageClient {
     let listObjectVersions = try JSONDecoder().decode(ObjectVersionCollection.self, from: data)
     return listObjectVersions
   }
+
+  // MARK: - Puts object
+  /// Creates a new object or overwrites an existing object with the same name in Object Storage.
+  ///
+  /// The maximum object size allowed is 50 GiB.
+  ///
+  /// See [Object Names](https://docs.cloud.oracle.com/Content/Object/Tasks/managingobjects.htm#namerequirements)
+  /// and [Special Instructions for Object Storage PUT](https://docs.cloud.oracle.com/Content/API/Concepts/signingrequests.htm#ObjectStoragePut)
+  /// for naming and signature requirements.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - objectName: The name of the object. Avoid entering confidential information. Example: `"test/object1.log"`
+  ///   - putObjectBody: The object data to upload.
+  ///   - contentLength: Optional content length of the body.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - storageTier: Optional storage tier for the object (e.g., Standard, Archive).
+  /// - Returns: A `Response` object with no data payload (`Void`).
+  ///
+  /// TODO:
+  ///   - ifMatch: Optional ETag to match with the existing resource.
+  ///   - ifNoneMatch: ETag to avoid matching. Use `"*"` to fail if the resource exists. Optional.
+  ///   - expect: Use `"100-Continue"` to request preliminary verification before sending the body. Optional.
+  ///   - contentMD5: Base64-encoded MD5 hash of the body for integrity check. Optional.
+  ///   - opcChecksumAlgorithm: Checksum algorithm to use (e.g., CRC32C, SHA256, SHA384). Optional.
+  ///   - opcContentCRC32C: Base64-encoded CRC32C checksum of the body. Optional.
+  ///   - opcContentSHA256: Base64-encoded SHA256 hash of the body. Optional.
+  ///   - opcContentSHA384: Base64-encoded SHA384 hash of the body. Optional.
+  ///   - contentType: MIME type of the object. Defaults to `"application/octet-stream"`. Optional.
+  ///   - contentLanguage: Language of the object content. Optional.
+  ///   - contentEncoding: Encoding applied to the object. Optional.
+  ///   - contentDisposition: Presentation info for download behavior. Optional.
+  ///   - cacheControl: Caching behavior for the object. Optional.
+  ///   - opcSseCustomerAlgorithm: Encryption algorithm (e.g., `"AES256"`). Optional.
+  ///   - opcSseCustomerKey: Base64-encoded 256-bit encryption key. Optional.
+  ///   - opcSseCustomerKeySHA256: Base64-encoded SHA256 hash of the encryption key. Optional.
+  ///   - opcSseKmsKeyId: OCID of a master encryption key for KMS. Optional.
+  ///       ///   - opcMeta: User-defined metadata as key-value pairs. Keys will be prefixed with `"opc-meta-"`. Optional.
+  ///   - retryConfig: Retry configuration for the operation. Optional.
+  public func putObject(
+    namespaceName: String,
+    bucketName: String,
+    objectName: String,
+    putObjectBody: Data,
+    contentLength: Int? = nil,
+    opcClientRequestId: String? = nil,
+    storageTier: String? = nil,
+  ) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.putObject(
+      namespaceName: namespaceName,
+      bucketName: bucketName,
+      objectName: objectName,
+      contentLenght: contentLength,
+      opcClientRequestId: opcClientRequestId,
+      StorageTier: storageTier
+    )
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    req.httpBody = putObjectBody
+
+    try signer.sign(&req)
+
+    let (_, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+
+    if let etag = headers["ETag"],
+      let lastModified = headers["last-modified"],
+      let opcClientRequestId = headers["opc-client-request-id"],
+      let opcContentMd5 = headers["opc-content-md5"],
+      let opcRequestId = headers["opc-request-id"],
+      let versionId = headers["version-id"]
+    {
+
+      logger.debug(
+        """
+        ETag: \(etag)
+        Last-Modified: \(lastModified)
+        opc-client-request-id: \(opcClientRequestId)
+        opc-content-md5: \(opcContentMd5)
+        opc-request-id: \(opcRequestId)
+        Version-Id: \(versionId)
+        """
+      )
+    }
+  }
+
   // MARK: - Reencrypts bucket
   /// Re-encrypts the unique data encryption key used for each object in the bucket using the most recent
   /// version of the master encryption key assigned to the bucket.

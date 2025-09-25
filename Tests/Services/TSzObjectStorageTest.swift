@@ -380,6 +380,33 @@ struct TSzObjectStorageTest {
     }
     #expect(listOfObjectVersions != nil, "The operation should succeed")
   }
+
+  // MARK: - Puts object
+  @Test func putsObjectWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let fileToUploadPath = NSHomeDirectory() + "/Desktop/Frame.png"
+    let fileToUploadURL = URL(fileURLWithPath: fileToUploadPath)
+    let data: Data = try Data(contentsOf: fileToUploadURL)
+
+    let putObject: Void? = try? await sut.putObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      objectName: "\(fileToUploadURL.lastPathComponent)",
+      putObjectBody: data
+    )
+
+    #expect(putObject != nil, "The operation should succeed")
+  }
+
   // MARK: - Reencrypts bucket
   ///  If you call this API and there is no kmsKeyId associated with the bucket, the call will fail.
   @Test func reencryptsBucketWithAPIKeySigner() async throws {
