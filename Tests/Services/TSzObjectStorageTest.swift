@@ -429,6 +429,31 @@ struct TSzObjectStorageTest {
     #expect(reencryptBucket != nil, "The operation should succeed")
   }
 
+  // MARK: - Reencrypts object
+  @Test func reencryptsObjectWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    // If the request payload is empty, the object is encrypted using the encryption key assigned to the bucket.
+    let reecryptObjectDetails = ReencryptObjectDetails()
+
+    let reencryptObject: Void? = try? await sut.reencryptObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      objectName: "Frame.png",
+      reencryptObjectDetails: reecryptObjectDetails
+    )
+
+    #expect(reencryptObject != nil, "The operation should succeed")
+  }
+
   // MARK: - Updates bucket
   @Test func updatesBucketWithMovingToCompartmentWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(

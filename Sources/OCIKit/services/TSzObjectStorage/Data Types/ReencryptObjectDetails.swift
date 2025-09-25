@@ -21,4 +21,10 @@ public struct ReencryptObjectDetails: Codable {
   public let sourceSseCustomerKey: SSECustomerKeyDetails?
   // Specifies the details of the customer-provided encryption key (SSE-C) associated with an object.
   public let sseCustomerKey: SSECustomerKeyDetails?
+
+  public init(kmsKeyId: String? = nil, sourceSseCustomerKey: SSECustomerKeyDetails? = nil, sseCustomerKey: SSECustomerKeyDetails? = nil) {
+    self.kmsKeyId = kmsKeyId
+    self.sourceSseCustomerKey = sourceSseCustomerKey
+    self.sseCustomerKey = sseCustomerKey
+  }
 }
