@@ -138,6 +138,8 @@ public enum ObjectStorageAPI: API {
   case updateBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Updates namespace metadata
   case updateNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil)
+  /// Updates object storage tier
+  case updadateObjectStorageTier(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
 
   // Path
   public var path: String {
@@ -174,6 +176,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/o/\(objectName)"
     case .restoreObject(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/restoreObject"
+    case .updadateObjectStorageTier(let namespaceName, let bucketName, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/actions/updateObjectStorageTier"
     }
   }
 
@@ -186,7 +190,8 @@ public enum ObjectStorageAPI: API {
       .reencryptObject,
       .renameObject,
       .restoreObject,
-      .updateBucket:
+      .updateBucket,
+      .updadateObjectStorageTier:
       return .post
     case .deleteBucket,
       .deleteObject:
@@ -222,7 +227,8 @@ public enum ObjectStorageAPI: API {
       .renameObject,
       .restoreObject,
       .updateBucket,
-      .updateNamespaceMetadata:
+      .updateNamespaceMetadata,
+      .updadateObjectStorageTier:
       return nil
     case .getNamespace(let compartmentId, _):
       if let compartmentId {
@@ -346,7 +352,8 @@ public enum ObjectStorageAPI: API {
       .renameObject(_, _, let opcClientRequestId),
       .restoreObject(_, _, let opcClientRequestId),
       .updateBucket(_, _, let opcClientRequestId),
-      .updateNamespaceMetadata(_, let opcClientRequestId):
+      .updateNamespaceMetadata(_, let opcClientRequestId),
+      .updadateObjectStorageTier(_, _, let opcClientRequestId):
       if let opcClientRequestId {
         return ["opc-client-request-id": opcClientRequestId]
       }

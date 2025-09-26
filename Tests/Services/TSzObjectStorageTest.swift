@@ -88,36 +88,36 @@ struct TSzObjectStorageTest {
 
     #expect(createBucket != nil, "The return value should not be nil")
   }
-    
-    @Test func createsArchiveBucketWithAPIKeySigner() async throws {
-      let regionId = try extractUserRegion(
-        from: ociConfigFilePath,
-        profile: ociProfileName
-      )
-      let region = Region.from(regionId: regionId ?? "") ?? .iad
-      let signer = try APIKeySigner(
-        configFilePath: ociConfigFilePath,
-        configName: ociProfileName
-      )
-      let sut = try TSzObjectStorageClient(region: region, signer: signer)
-      let bucket = CreateBucketDetails(
-        compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q",
-        name: "archive_test_bucket_by_sdk",
-        storageTier: StorageTier.archive
-      )
 
-      let createBucket = try await sut.createBucket(
-        namespaceName: "frjfldcyl3la",
-        createBucketDetails: bucket
-      )
+  @Test func createsArchiveBucketWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let bucket = CreateBucketDetails(
+      compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q",
+      name: "archive_test_bucket_by_sdk",
+      storageTier: StorageTier.archive
+    )
 
-      // Prints the name of the new bucket
-      if let createBucket {
-        print(createBucket.name)
-      }
+    let createBucket = try await sut.createBucket(
+      namespaceName: "frjfldcyl3la",
+      createBucketDetails: bucket
+    )
 
-      #expect(createBucket != nil, "The return value should not be nil")
+    // Prints the name of the new bucket
+    if let createBucket {
+      print(createBucket.name)
     }
+
+    #expect(createBucket != nil, "The return value should not be nil")
+  }
 
   // MARK: - Deletes bucket
   @Test func deletesBucketWithAPIKeySigner() async throws {
@@ -484,53 +484,53 @@ struct TSzObjectStorageTest {
     #expect(reencryptObject != nil, "The operation should succeed")
   }
 
-    // MARK: - Renames object
-    @Test func renamesObjectWithAPIKeySigner() async throws {
-        let regionId = try extractUserRegion(
-          from: ociConfigFilePath,
-          profile: ociProfileName
-        )
-        let region = Region.from(regionId: regionId ?? "") ?? .iad
-        let signer = try APIKeySigner(
-          configFilePath: ociConfigFilePath,
-          configName: ociProfileName
-        )
-        let sut = try TSzObjectStorageClient(region: region, signer: signer)
-        let renameObjectDetails = RenameObjectDetails(newName: "NewFrame.png", sourceName: "Frame.png")
-        
-        let renameObject: Void? = try? await sut.renameObject(
-            namespaceName: "frjfldcyl3la",
-            bucketName: "test_bucket_by_sdk",
-            renameObjectDetails: renameObjectDetails
-        )
-        
-        #expect(renameObject != nil, "The operation should succeed")
-    }
-    
-    // MARK: - Restore object
-    // TODO: Needs to test further
-    @Test func restoreObjectWithAPIKeySigner() async throws {
-        let regionId = try extractUserRegion(
-          from: ociConfigFilePath,
-          profile: ociProfileName
-        )
-        let region = Region.from(regionId: regionId ?? "") ?? .iad
-        let signer = try APIKeySigner(
-          configFilePath: ociConfigFilePath,
-          configName: ociProfileName
-        )
-        let sut = try TSzObjectStorageClient(region: region, signer: signer)
-        let restoreObjectDetails = RestoreObjectsDetails(objectName:"Frame.png")
-        
-        let restoreObject: Void? = try? await sut.restoreObject(
-            namespaceName: "frjfldcyl3la",
-            bucketName: "archive_test_bucket_by_sdk",
-            restoreObjectsDetails: restoreObjectDetails
-        )
-        
-        #expect(restoreObject != nil, "The operation should succeed")
-    }
-    
+  // MARK: - Renames object
+  @Test func renamesObjectWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let renameObjectDetails = RenameObjectDetails(newName: "NewFrame.png", sourceName: "Frame.png")
+
+    let renameObject: Void? = try? await sut.renameObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      renameObjectDetails: renameObjectDetails
+    )
+
+    #expect(renameObject != nil, "The operation should succeed")
+  }
+
+  // MARK: - Restore object
+  // TODO: Needs to test further
+  @Test func restoreObjectWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let restoreObjectDetails = RestoreObjectsDetails(objectName: "Frame.png")
+
+    let restoreObject: Void? = try? await sut.restoreObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "archieve_test_bucket_by_sdk",
+      restoreObjectsDetails: restoreObjectDetails
+    )
+
+    #expect(restoreObject != nil, "The operation should succeed")
+  }
+
   // MARK: - Updates bucket
   @Test func updatesBucketWithMovingToCompartmentWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -623,5 +623,31 @@ struct TSzObjectStorageTest {
       )
     }
     #expect(updateNamespaceMetadata != nil, "The operation should succeed")
+  }
+
+  // MARK: - Updates object storage tier
+  @Test func updatesObjectStorageTierWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let updateObjectStorageTierDetails = UpdateObjectStorageTierDetails(
+      objectName: "NewFrame.png",
+      storageTier: StorageTier.archive.rawValue
+    )
+
+      let updateObjectStorageTier: Void? = try? await sut.updateObjectStorageTier(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      updateObjectStorageTierDetails: updateObjectStorageTierDetails
+    )
+
+      #expect(updateObjectStorageTier != nil, "The operation should succeed")
   }
 }
