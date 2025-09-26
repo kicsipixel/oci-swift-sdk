@@ -1156,7 +1156,6 @@ public struct TSzObjectStorageClient {
       }
 
       if httpResponse.statusCode != 202 {
-          print(httpResponse.statusCode)
         throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
       }
 
@@ -1321,8 +1320,71 @@ public struct TSzObjectStorageClient {
       throw error
     }
   }
+
+  // MARK: - Updates object storage tier
+  /// Changes the storage tier of the object specified by the `objectName` parameter.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - updateObjectStorageTierDetails: The object name and the desired storage tier.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object with no data payload.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for the operation. If not provided, the service-level retry configuration will be used. If `nil`, the operation will not retry.
+  public func updateObjectStorageTier(
+    namespaceName: String,
+    bucketName: String,
+    updateObjectStorageTierDetails: UpdateObjectStorageTierDetails,
+    opcClientRequestId: String? = nil
+  ) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.updadateObjectStorageTier(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    do {
+      let payload: Data
+      do {
+        payload = try JSONEncoder().encode(updateObjectStorageTierDetails)
+      }
+      catch {
+        throw ObjectStorageError.jsonEncodingError("RestoreObjectDetails cannot be encoded to data")
+      }
+
+      req.httpBody = payload
+
+      try signer.sign(&req)
+
+      let (_, response) = try await URLSession.shared.data(for: req)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+      }
+
+      if httpResponse.statusCode != 200 {
+        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      }
+
+      let headers = convertHeadersToDictionary(httpResponse)
+
+      if let opcClientRequestId = headers["opc-client-request-id"], let opcRequestId = headers["opc-request-id"] {
+        logger.debug(
+          """
+          opc-client-request-id: \(opcClientRequestId)
+          opc-request-id: \(opcRequestId)d)
+          """
+        )
+      }
+    }
+  }
 }
 
+// TODO: Find proper place for these below
 // Retry configuration
 public struct RetryConfig {
   let maxAttempts: Int
