@@ -1040,6 +1040,139 @@ public struct TSzObjectStorageClient {
     }
   }
 
+  // MARK: - Reanames object
+  /// Renames an object in the specified Object Storage namespace.
+  ///
+  /// See [Object Names](https://docs.cloud.oracle.com/Content/Object/Tasks/managingobjects.htm#namerequirements)
+  /// for object naming requirements.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - renameObjectDetails: The source and destination object names for the rename operation. Avoid entering confidential information.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object with no data payload.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for the operation. If not provided, the service-level retry configuration will be used. If `nil`, the operation will not retry.
+  public func renameObject(
+    namespaceName: String,
+    bucketName: String,
+    renameObjectDetails: RenameObjectDetails,
+    opcClientRequestId: String? = nil
+  ) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.renameObject(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    do {
+      let payload: Data
+      do {
+        payload = try JSONEncoder().encode(renameObjectDetails)
+      }
+      catch {
+        throw ObjectStorageError.jsonEncodingError("RenameObjectDetails cannot be encoded to data")
+      }
+
+      req.httpBody = payload
+
+      try signer.sign(&req)
+
+      let (_, response) = try await URLSession.shared.data(for: req)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+      }
+
+      if httpResponse.statusCode != 200 {
+        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      }
+
+      let headers = convertHeadersToDictionary(httpResponse)
+
+      if let etag = headers["ETag"],
+        let lastModified = headers["last-modified"],
+        let opcClientRequestId = headers["opc-client-request-id"],
+        let opcRequestId = headers["opc-request-id"],
+        let versionId = headers["version-id"]
+      {
+
+        logger.debug(
+          """
+          ETag: \(etag)
+          Last-Modified: \(lastModified)
+          opc-client-request-id: \(opcClientRequestId)
+          opc-request-id: \(opcRequestId)
+          Version-Id: \(versionId)
+          """
+        )
+      }
+    }
+  }
+
+  // MARK: - Restores object
+  /// Restores the object specified by the `objectName` parameter.
+  /// By default, the object will be restored for 24 hours. You can configure the duration using the `hours` parameter.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - restoreObjectsDetails: The request payload containing the object name and restore duration.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object with no data payload.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for the operation. If not provided, the service-level retry configuration will be used. If `nil`, the operation will not retry.
+  public func restoreObject(namespaceName: String, bucketName: String, restoreObjectsDetails: RestoreObjectsDetails, opcClientRequestId: String? = nil) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.restoreObject(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    do {
+      let payload: Data
+      do {
+        payload = try JSONEncoder().encode(restoreObjectsDetails)
+      }
+      catch {
+        throw ObjectStorageError.jsonEncodingError("RestoreObjectDetails cannot be encoded to data")
+      }
+
+      req.httpBody = payload
+
+      try signer.sign(&req)
+
+      let (_, response) = try await URLSession.shared.data(for: req)
+
+      guard let httpResponse = response as? HTTPURLResponse else {
+        throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+      }
+
+      if httpResponse.statusCode != 202 {
+          print(httpResponse.statusCode)
+        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      }
+
+      let headers = convertHeadersToDictionary(httpResponse)
+
+      if let opcClientRequestId = headers["opc-client-request-id"], let opcRequestId = headers["opc-request-id"] {
+        logger.debug(
+          """
+          opc-client-request-id: \(opcClientRequestId)
+          opc-request-id: \(opcRequestId)d)
+          """
+        )
+      }
+    }
+  }
+
   // MARK: - Updates bucket
   /// Performs a partial or full update of a bucket's user-defined metadata.
   ///

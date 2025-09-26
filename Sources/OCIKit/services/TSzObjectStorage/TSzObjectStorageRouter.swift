@@ -130,6 +130,10 @@ public enum ObjectStorageAPI: API {
     versionId: String? = nil,
     opcClientRequestId: String? = nil
   )
+  /// Renames object
+  case renameObject(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+  /// Rstores object
+  case restoreObject(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Updates bucket
   case updateBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Updates namespace metadata
@@ -155,6 +159,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
     case .reencryptObject(let namespaceName, let bucketName, let objectName, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt/\(objectName)"
+    case .renameObject(let namespaceName, let bucketName, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/actions/renameObject"
     case .copyObject(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/copyObject"
     case .listObjects(let namespaceName, let bucketName, _, _, _, _, _, _, _, _):
@@ -166,6 +172,8 @@ public enum ObjectStorageAPI: API {
       .headObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _),
       .putObject(let namespaceName, let bucketName, let objectName, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/o/\(objectName)"
+    case .restoreObject(let namespaceName, let bucketName, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/actions/restoreObject"
     }
   }
 
@@ -176,6 +184,8 @@ public enum ObjectStorageAPI: API {
       .createBucket,
       .reencryptBucket,
       .reencryptObject,
+      .renameObject,
+      .restoreObject,
       .updateBucket:
       return .post
     case .deleteBucket,
@@ -209,6 +219,8 @@ public enum ObjectStorageAPI: API {
       .headBucket,
       .putObject,
       .reencryptBucket,
+      .renameObject,
+      .restoreObject,
       .updateBucket,
       .updateNamespaceMetadata:
       return nil
@@ -331,6 +343,8 @@ public enum ObjectStorageAPI: API {
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
       .reencryptBucket(_, _, let opcClientRequestId),
       .reencryptObject(_, _, _, _, let opcClientRequestId),
+      .renameObject(_, _, let opcClientRequestId),
+      .restoreObject(_, _, let opcClientRequestId),
       .updateBucket(_, _, let opcClientRequestId),
       .updateNamespaceMetadata(_, let opcClientRequestId):
       if let opcClientRequestId {
