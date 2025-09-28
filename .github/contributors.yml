@@ -1,0 +1,9 @@
+jobs:
+  generate-contributors-list-job:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./scripts
+    steps:
+      - name: Run the script
+        run: ./generate-contributors-list.swift
