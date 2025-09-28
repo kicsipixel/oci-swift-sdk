@@ -3,7 +3,7 @@ name: Generate Contributors List
 on:
   push:
     branches:
-      - script
+      - main
 
 jobs:
   generate-contributors-list-job:
