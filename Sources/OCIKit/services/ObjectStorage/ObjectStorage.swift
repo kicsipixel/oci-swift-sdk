@@ -19,7 +19,7 @@ import Logging
   import FoundationNetworking
 #endif
 
-public struct TSzObjectStorageClient {
+public struct ObjectStorageClient {
   let endpoint: URL?
   let region: Region?
   let retryConfig: RetryConfig?
