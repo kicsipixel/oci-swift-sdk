@@ -47,6 +47,8 @@ public enum ObjectStorageAPI: API {
   case deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Deletes object
   case deleteObject(namespaceName: String, bucketName: String, objectName: String, opcClientRequestId: String? = nil, versionId: String? = nil)
+  /// Deletes preauthenticated request
+  case deletePreauthenticatedRequest(namespaceName: String, bucketName: String, parId: String, opcClientRequestId: String? = nil)
   /// Gets bucket
   case getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Gets object
@@ -161,6 +163,8 @@ public enum ObjectStorageAPI: API {
       .headBucket(let namespaceName, let bucketName, _),
       .updateBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)"
+    case .deletePreauthenticatedRequest(let namespaceName, let bucketName, let parId, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/p/\(parId)"
     case .reencryptBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
     case .reencryptObject(let namespaceName, let bucketName, let objectName, _, _):
@@ -199,7 +203,8 @@ public enum ObjectStorageAPI: API {
       .updadateObjectStorageTier:
       return .post
     case .deleteBucket,
-      .deleteObject:
+      .deleteObject,
+      .deletePreauthenticatedRequest:
       return .delete
     case .getNamespace,
       .getBucket,
@@ -225,6 +230,7 @@ public enum ObjectStorageAPI: API {
       .createBucket,
       .createPreauthenticatedRequest,
       .deleteBucket,
+      .deletePreauthenticatedRequest,
       .getBucket,
       .getNamespaceMetadata,
       .headBucket,
@@ -345,6 +351,7 @@ public enum ObjectStorageAPI: API {
       .createPreauthenticatedRequest(_, _, let opcClientRequestId),
       .deleteBucket(_, _, let opcClientRequestId),
       .deleteObject(_, _, _, let opcClientRequestId, _),
+      .deletePreauthenticatedRequest(_, _, _, let opcClientRequestId),
       .getBucket(_, _, let opcClientRequestId),
       .getObject(_, _, _, _, let opcClientRequestId, _, _, _, _, _, _, _, _, _, _),
       .getNamespace(_, let opcClientRequestId),

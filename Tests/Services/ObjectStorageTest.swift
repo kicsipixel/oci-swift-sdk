@@ -43,7 +43,7 @@ struct ObjectStorageTest {
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
     let object = CopyObjectDetails(
-      destinationBucket: "Bucket_Parks_of_Prague",
+      destinationBucket: "test_bucket_by_sdk_2",
       destinationNamespace: "frjfldcyl3la",
       destinationObjectName: "Frame.png",
       destinationRegion: "eu-frankfurt-1",
@@ -119,27 +119,27 @@ struct ObjectStorageTest {
     #expect(createBucket != nil, "The return value should not be nil")
   }
 
-    // MARK: - Creates preauthenticated request
-    @Test func createsPreauthenticatedRequestWithAPIKeySigner() async throws {
-        let regionId = try extractUserRegion(
-          from: ociConfigFilePath,
-          profile: ociProfileName
-        )
-        let region = Region.from(regionId: regionId ?? "") ?? .iad
-        let signer = try APIKeySigner(
-          configFilePath: ociConfigFilePath,
-          configName: ociProfileName
-        )
-        let sut = try ObjectStorageClient(region: region, signer: signer)
-        let requestDetails = CreatePreauthenticatedRequestDetails(accessType: AccessType.objectRead, name: "Object_read", objectName: "Frame.png", timeExpires: "2025-12-31T23:59:59Z")
-        
-        let createPreauthenticatedRequest = try await sut.createPreauthenticatedRequest(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", requestDetails: requestDetails)
-        
-        if let createPreauthenticatedRequest {
-            print("The object can be access on: \(createPreauthenticatedRequest.fullPath)")
-        }
-        #expect(createPreauthenticatedRequest != nil, "The operation should succeed")
+  // MARK: - Creates preauthenticated request
+  @Test func createsPreauthenticatedRequestWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+    let requestDetails = CreatePreauthenticatedRequestDetails(accessType: AccessType.objectRead, name: "Object_read", objectName: "Frame.png", timeExpires: "2025-12-31T23:59:59Z")
+
+    let createPreauthenticatedRequest = try await sut.createPreauthenticatedRequest(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", requestDetails: requestDetails)
+
+    if let createPreauthenticatedRequest {
+      print("The object can be access on: \(createPreauthenticatedRequest.fullPath)")
     }
+    #expect(createPreauthenticatedRequest != nil, "The operation should succeed")
+  }
   // MARK: - Deletes bucket
   @Test func deletesBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -205,6 +205,27 @@ struct ObjectStorageTest {
     #expect(deleteObject != nil, "The operation should succeed")
   }
 
+  // MARK: - Deletes preauthenticated request
+  @Test func deletesPreauthenticatedRequestWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+      let deletePreauthRequest: Void? = try await sut.deletePreauthenticatedRequest(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      parId: "v5PRaVnfT4yE6LFk2SUoXe/ilqJX/Qv/gvglehsnR/wY66SiB9p+XuTfCKFPC1jw:Frame.png"
+    )
+
+    #expect(deletePreauthRequest != nil, "The operation should succeed")
+  }
   // MARK: - Gets bucket
   @Test func getsBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -663,12 +684,12 @@ struct ObjectStorageTest {
       storageTier: StorageTier.archive.rawValue
     )
 
-      let updateObjectStorageTier: Void? = try? await sut.updateObjectStorageTier(
+    let updateObjectStorageTier: Void? = try? await sut.updateObjectStorageTier(
       namespaceName: "frjfldcyl3la",
       bucketName: "test_bucket_by_sdk",
       updateObjectStorageTierDetails: updateObjectStorageTierDetails
     )
 
-      #expect(updateObjectStorageTier != nil, "The operation should succeed")
+    #expect(updateObjectStorageTier != nil, "The operation should succeed")
   }
 }
