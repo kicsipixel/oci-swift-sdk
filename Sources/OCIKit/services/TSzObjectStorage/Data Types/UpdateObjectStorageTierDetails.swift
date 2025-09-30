@@ -22,11 +22,11 @@ public struct UpdateObjectStorageTierDetails: Codable {
   /// - Standard
   /// - InfrequentAccess
   /// - Archive
-  public let storageTier: String
+  public let storageTier: StorageTier
   /// The versionId of the object. Current object version is used by default.
   public let versionId: String?
 
-  public init(objectName: String, storageTier: String, versionId: String? = nil) {
+  public init(objectName: String, storageTier: StorageTier, versionId: String? = nil) {
     self.objectName = objectName
     self.storageTier = storageTier
     self.versionId = versionId
