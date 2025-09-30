@@ -49,7 +49,7 @@ struct InstancePrincipalObjectStorageTest {
         }
 
         let signer = try InstancePrincipalSigner()
-        let client = ObjectStorageClient(region: region, signer: signer)
+        let client = try ObjectStorageClient(region: region, signer: signer)
 
         let namespace = try await client.getNamespace()
         print("Namespace (Instance Principal): \(namespace)")
