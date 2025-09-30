@@ -119,6 +119,27 @@ struct ObjectStorageTest {
     #expect(createBucket != nil, "The return value should not be nil")
   }
 
+    // MARK: - Creates preauthenticated request
+    @Test func createsPreauthenticatedRequestWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+          from: ociConfigFilePath,
+          profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+          configFilePath: ociConfigFilePath,
+          configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        let requestDetails = CreatePreauthenticatedRequestDetails(accessType: AccessType.objectRead, name: "Object_read", objectName: "Frame.png", timeExpires: "2025-12-31T23:59:59Z")
+        
+        let createPreauthenticatedRequest = try await sut.createPreauthenticatedRequest(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", requestDetails: requestDetails)
+        
+        if let createPreauthenticatedRequest {
+            print("The object can be access on: \(createPreauthenticatedRequest.fullPath)")
+        }
+        #expect(createPreauthenticatedRequest != nil, "The operation should succeed")
+    }
   // MARK: - Deletes bucket
   @Test func deletesBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(

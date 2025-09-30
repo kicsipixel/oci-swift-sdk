@@ -41,6 +41,8 @@ public enum ObjectStorageAPI: API {
   case copyObject(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Creates bucket
   case createBucket(namespaceName: String, opcClientRequestId: String? = nil)
+  /// Creates preauthenticated request
+  case createPreauthenticatedRequest(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Deletes bucket
   case deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Deletes object
@@ -152,6 +154,8 @@ public enum ObjectStorageAPI: API {
     case .createBucket(let namespaceName, _),
       .listBuckets(let namespaceName, _, _):
       return "/n/\(namespaceName)/b"
+    case .createPreauthenticatedRequest(let namespaceName, let bucketName, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/p"
     case .deleteBucket(let namespaceName, let bucketName, _),
       .getBucket(let namespaceName, let bucketName, _),
       .headBucket(let namespaceName, let bucketName, _),
@@ -186,6 +190,7 @@ public enum ObjectStorageAPI: API {
     switch self {
     case .copyObject,
       .createBucket,
+      .createPreauthenticatedRequest,
       .reencryptBucket,
       .reencryptObject,
       .renameObject,
@@ -218,6 +223,7 @@ public enum ObjectStorageAPI: API {
     switch self {
     case .copyObject,
       .createBucket,
+      .createPreauthenticatedRequest,
       .deleteBucket,
       .getBucket,
       .getNamespaceMetadata,
@@ -336,6 +342,7 @@ public enum ObjectStorageAPI: API {
     switch self {
     case .copyObject(_, _, let opcClientRequestId),
       .createBucket(_, let opcClientRequestId),
+      .createPreauthenticatedRequest(_, _, let opcClientRequestId),
       .deleteBucket(_, _, let opcClientRequestId),
       .deleteObject(_, _, _, let opcClientRequestId, _),
       .getBucket(_, _, let opcClientRequestId),
