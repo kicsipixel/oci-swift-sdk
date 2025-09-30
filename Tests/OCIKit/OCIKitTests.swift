@@ -20,7 +20,7 @@ final class OCIKitTests: XCTestCase {
     
     func test_if_namespace_returns_valid_string() async throws {
         let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
-        let objectStorage =  ObjectStorageClient(region: .fra, signer: signer)
+        let objectStorage =  try ObjectStorageClient(region: .fra, signer: signer)
         let namespace = try await objectStorage.getNamespace(compartmentId: "ocid1.tenancy.oc1..aaaaaaaapt3esrvwldrfekea5ucasigr2nof7tjx6ysyb4oo3yiqgx2d72ha")
         
         XCTAssertFalse(namespace.isEmpty, "Namespace should not be empty")

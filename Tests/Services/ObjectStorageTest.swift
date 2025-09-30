@@ -496,7 +496,11 @@ struct ObjectStorageTest {
       configName: ociProfileName
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
+<<<<<<< HEAD
     let renameObjectDetails = RenameObjectDetails(newName: "New Frame.png", sourceName: "Frame.png")
+=======
+    let renameObjectDetails = RenameObjectDetails(newName: "NewFrame.png", sourceName: "Frame.png")
+>>>>>>> upstream/main
 
     let renameObject: Void? = try? await sut.renameObject(
       namespaceName: "frjfldcyl3la",
