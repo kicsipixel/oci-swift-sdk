@@ -594,6 +594,51 @@ public struct ObjectStorageClient {
     return data
   }
 
+  // MARK: - Gets preauthenticated request
+  /// Retrieves the pre-authenticated request for the specified bucket.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - parId: The unique identifier for the pre-authenticated request. This can be used to manage operations against the request, such as GET or DELETE.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object containing `PreauthenticatedRequestSummary`.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func getPreauthenticatedRequest(
+    namespaceName: String,
+    bucketName: String,
+    parId: String,
+    opcClientRequestId: String? = nil
+  ) async throws -> PreauthenticatedRequestSummary? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+    let api = ObjectStorageAPI.getPreauthenticatedRequest(namespaceName: namespaceName, bucketName: bucketName, parId: parId, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let preauthenticatedRequestSummary = try JSONDecoder().decode(PreauthenticatedRequestSummary.self, from: data)
+
+    return preauthenticatedRequestSummary
+  }
+
   // MARK: - Heads bucket
   /// Efficiently checks whether a bucket exists and retrieves the current entity tag (ETag) for the bucket.
   ///

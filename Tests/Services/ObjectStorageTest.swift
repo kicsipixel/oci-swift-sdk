@@ -218,7 +218,7 @@ struct ObjectStorageTest {
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
 
-      let deletePreauthRequest: Void? = try await sut.deletePreauthenticatedRequest(
+    let deletePreauthRequest: Void? = try await sut.deletePreauthenticatedRequest(
       namespaceName: "frjfldcyl3la",
       bucketName: "test_bucket_by_sdk",
       parId: "v5PRaVnfT4yE6LFk2SUoXe/ilqJX/Qv/gvglehsnR/wY66SiB9p+XuTfCKFPC1jw:Frame.png"
@@ -342,6 +342,32 @@ struct ObjectStorageTest {
     let getObject = try? await sut.getObject(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", objectName: "bucket.svg")
 
     #expect(getObject != nil, "The operation should succeed")
+  }
+
+  // MARK: - Get preauthenticated request
+  @Test func getPreauthenticatedRequestWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let getPreauthenticatedRequest = try await sut.getPreauthenticatedRequest(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      parId: "cX+WG6JFkx9HKjV7ryUv68lqBKVJGquhJHTXLGhy8MzrlcseRyil9dj2dadcTQDh:Frame.png"
+    )
+
+    // Print preauthenticated request
+    if let request = getPreauthenticatedRequest {
+      print("Request name: \(request.name), expires on: \(request.timeExpires)")
+    }
+    #expect(getPreauthenticatedRequest != nil, "The operation should succeed")
   }
 
   // MARK: - Heads bucket
