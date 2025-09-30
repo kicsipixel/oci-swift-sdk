@@ -16,7 +16,7 @@ import Foundation
 import OCIKit
 import Testing
 
-struct TSzObjectStorageTest {
+struct ObjectStorageTest {
   let ociConfigFilePath: String
   let ociProfileName: String
 
@@ -41,7 +41,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
     let object = CopyObjectDetails(
       destinationBucket: "Bucket_Parks_of_Prague",
       destinationNamespace: "frjfldcyl3la",
@@ -70,7 +70,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
     let bucket = CreateBucketDetails(
       compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q",
       name: "test_bucket_by_sdk"
@@ -99,7 +99,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
     let bucket = CreateBucketDetails(
       compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q",
       name: "archive_test_bucket_by_sdk",
@@ -130,7 +130,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let deleteBucket: Void? = try? await sut.deleteBucket(
       namespaceName: "frjfldcyl3la",
@@ -151,7 +151,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let deleteObject: Void? = try? await sut.deleteObject(
       namespaceName: "frjfldcyl3la",
@@ -172,7 +172,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let deleteObject: Void? = try? await sut.deleteObject(
       namespaceName: "frjfldcyl3la",
@@ -195,7 +195,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let createBucket = try await sut.getBucket(
       namespaceName: "frjfldcyl3la",
@@ -223,7 +223,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let namespace = try await sut.getNamespace()
 
@@ -242,7 +242,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let namespace = try await sut.getNamespace(
       compartmentId: "ocid1.tenancy.oc1..aaaaaaaapt3esrvwldrfekea5ucasigr2nof7tjx6ysyb4oo3yiqgx2d72ha"
@@ -269,7 +269,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let getNamespaceMetadata = try? await sut.getNamespaceMetadata(
       namespaceName: "frjfldcyl3la"
@@ -295,7 +295,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let getObject = try? await sut.getObject(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", objectName: "bucket.svg")
 
@@ -313,7 +313,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let headBucket: Void? = try? await sut.headBucket(
       namespaceName: "frjfldcyl3la",
@@ -335,7 +335,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let listOfBuckets = try await sut.listBuckets(
       namespaceName: "frjfldcyl3la",
@@ -363,7 +363,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     // Allowed values are: name (default), size, etag, timeCreated, md5, timeModified, storageTier, archivalState
     let fields: [Field] = [.name, .size, .md5]
@@ -391,7 +391,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     // Allowed values are: name (default), size, etag, timeCreated, md5, timeModified, storageTier, archivalState
     let fields: [Field] = [.name, .size, .md5]
@@ -422,7 +422,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
     let fileToUploadPath = NSHomeDirectory() + "/Desktop/Frame.png"
     let fileToUploadURL = URL(fileURLWithPath: fileToUploadPath)
     let data: Data = try Data(contentsOf: fileToUploadURL)
@@ -449,7 +449,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let reencryptBucket: Void? = try? await sut.reencryptBucket(
       namespaceName: "frjfldcyl3la",
@@ -470,7 +470,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
     // If the request payload is empty, the object is encrypted using the encryption key assigned to the bucket.
     let reecryptObjectDetails = ReencryptObjectDetails()
 
@@ -495,8 +495,8 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
-    let renameObjectDetails = RenameObjectDetails(newName: "NewFrame.png", sourceName: "Frame.png")
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+    let renameObjectDetails = RenameObjectDetails(newName: "New Frame.png", sourceName: "Frame.png")
 
     let renameObject: Void? = try? await sut.renameObject(
       namespaceName: "frjfldcyl3la",
@@ -508,7 +508,6 @@ struct TSzObjectStorageTest {
   }
 
   // MARK: - Restore object
-  // TODO: Needs to test further
   @Test func restoreObjectWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -519,12 +518,12 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
     let restoreObjectDetails = RestoreObjectsDetails(objectName: "Frame.png")
 
     let restoreObject: Void? = try? await sut.restoreObject(
       namespaceName: "frjfldcyl3la",
-      bucketName: "archieve_test_bucket_by_sdk",
+      bucketName: "test_bucket_by_sdk",
       restoreObjectsDetails: restoreObjectDetails
     )
 
@@ -542,7 +541,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
     let bucket = UpdateBucketDetails(
       compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q"
     )
@@ -564,6 +563,7 @@ struct TSzObjectStorageTest {
     #expect(updateBucket != nil, "The return value should not be nil")
   }
 
+  // Once a bucket versioning was "Enabled" you can "Suspend" it only.
   @Test func updatesBucketWithVersioningWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -574,8 +574,8 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
-    let bucket = UpdateBucketDetails(versioning: Versoning.enabled)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+    let bucket = UpdateBucketDetails(versioning: Versoning.suspended)
 
     let updateBucket: Bucket? = try? await sut.updateBucket(
       namespaceName: "frjfldcyl3la",
@@ -605,7 +605,7 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
     let metadata = UpdateNamespaceMetadataDetails(
       defaultS3CompartmentId: "ocid1.compartment.oc1..aaaaaaaar3gnsxd7vomtvklspmmmjl5i43vd6umbuqa3f6vtgsfmmk4oeuwa",
       defaultSwiftCompartmentId: "ocid1.compartment.oc1..aaaaaaaar3gnsxd7vomtvklspmmmjl5i43vd6umbuqa3f6vtgsfmmk4oeuwa"
@@ -636,18 +636,18 @@ struct TSzObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try TSzObjectStorageClient(region: region, signer: signer)
+    let sut = try ObjectStorageClient(region: region, signer: signer)
     let updateObjectStorageTierDetails = UpdateObjectStorageTierDetails(
-      objectName: "NewFrame.png",
-      storageTier: StorageTier.archive.rawValue
+      objectName: "Frame.png",
+      storageTier: StorageTier.infrequentAccess
     )
 
-      let updateObjectStorageTier: Void? = try? await sut.updateObjectStorageTier(
+    let updateObjectStorageTier: Void? = try? await sut.updateObjectStorageTier(
       namespaceName: "frjfldcyl3la",
       bucketName: "test_bucket_by_sdk",
       updateObjectStorageTierDetails: updateObjectStorageTierDetails
     )
 
-      #expect(updateObjectStorageTier != nil, "The operation should succeed")
+    #expect(updateObjectStorageTier != nil, "The operation should succeed")
   }
 }
