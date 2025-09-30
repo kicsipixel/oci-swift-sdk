@@ -699,8 +699,9 @@ public struct ObjectStorageClient {
   ///   - limit: Optional maximum number of results per page. See [List Pagination](https://docs.cloud.oracle.com/iaas/Content/API/Concepts/usingapi.htm#nine).
   ///   - delimiter: Optional. When set, only objects without the delimiter character (after an optional prefix) are returned.
   ///     Objects with the delimiter are grouped as prefixes. Only `'/'` is supported.
-  ///   - fields: Optional Comma-separated list of additional fields to include in the response.
-  ///     Valid values: `name`, `size`, `etag`, `md5`, `timeCreated`, `timeModified`, `storageTier`, `archivalState`.
+  ///   - fields: Comma-separated list of additional fields to include in the response.
+  ///     Valid values: - `basicFields`:  `size`, `timeCreated`, `timeModified`.
+  ///                 - `fullFields`: `size`, `etag`, `md5`, `timeCreated`, `timeModified`, `storageTier`, `archivalState`.
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - startAfter: Optional returns object names lexicographically strictly greater than this value.
   ///
@@ -713,7 +714,7 @@ public struct ObjectStorageClient {
     end: String? = nil,
     limit: Int? = nil,
     delimiter: String? = nil,
-    fields: String? = nil,
+    fields: String = basicFields,
     opcClientRequestId: String? = nil,
     startAfter: String? = nil
   ) async throws -> ListObject? {

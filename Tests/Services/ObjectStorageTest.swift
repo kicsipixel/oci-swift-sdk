@@ -353,6 +353,7 @@ struct ObjectStorageTest {
   }
 
   // MARK: - List objects
+  // Returning with `name`, `size`, `timeCreated` and `timeModified`
   @Test func listObjectsWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -365,21 +366,42 @@ struct ObjectStorageTest {
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
 
-    // Allowed values are: name (default), size, etag, timeCreated, md5, timeModified, storageTier, archivalState
-    let fields: [Field] = [.name, .size, .md5]
-    let fieldsString = fields.map { $0.rawValue }.joined(separator: ",")
     let listOfObjects = try await sut.listObjects(
       namespaceName: "frjfldcyl3la",
       bucketName: "test_bucket_by_sdk",
-      fields: fieldsString
     )
 
-    if let name = listOfObjects?.objects.first?.name, let size = listOfObjects?.objects.first?.size, let md5 = listOfObjects?.objects.first?.md5 {
-      print("The name of the file: \(name), size: \(size) and md5: \(md5)")
+    if let name = listOfObjects?.objects.first?.name, let size = listOfObjects?.objects.first?.size, let timeCreated = listOfObjects?.objects.first?.timeCreated {
+      print("The name of the file: \(name), size: \(size) on \(timeCreated)")
     }
     #expect(listOfObjects != nil, "The operation should succeed")
   }
 
+    // Returning with `size`, `etag`, `timeCreated`, `md5`,`timeModified`, `storageTier` and  `archivalState`
+    @Test func listObjectsFullFieldsWithAPIKeySigner() async throws {
+      let regionId = try extractUserRegion(
+        from: ociConfigFilePath,
+        profile: ociProfileName
+      )
+      let region = Region.from(regionId: regionId ?? "") ?? .iad
+      let signer = try APIKeySigner(
+        configFilePath: ociConfigFilePath,
+        configName: ociProfileName
+      )
+      let sut = try ObjectStorageClient(region: region, signer: signer)
+
+      let listOfObjects = try await sut.listObjects(
+        namespaceName: "frjfldcyl3la",
+        bucketName: "test_bucket_by_sdk",
+        fields: fullFields
+      )
+
+        if let name = listOfObjects?.objects.first?.name, let size = listOfObjects?.objects.first?.size, let timeCreated = listOfObjects?.objects.first?.timeCreated, let md5 = listOfObjects?.objects.first?.md5 {
+        print("The name of the file: \(name), size: \(size) on \(timeCreated) with md5: \(md5)")
+      }
+      #expect(listOfObjects != nil, "The operation should succeed")
+    }
+    
   // MARK: - Lists object versions
   @Test func listObjectVersionsWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -642,12 +664,12 @@ struct ObjectStorageTest {
       storageTier: StorageTier.archive.rawValue
     )
 
-      let updateObjectStorageTier: Void? = try? await sut.updateObjectStorageTier(
+    let updateObjectStorageTier: Void? = try? await sut.updateObjectStorageTier(
       namespaceName: "frjfldcyl3la",
       bucketName: "test_bucket_by_sdk",
       updateObjectStorageTierDetails: updateObjectStorageTierDetails
     )
 
-      #expect(updateObjectStorageTier != nil, "The operation should succeed")
+    #expect(updateObjectStorageTier != nil, "The operation should succeed")
   }
 }

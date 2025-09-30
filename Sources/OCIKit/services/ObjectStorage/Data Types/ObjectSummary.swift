@@ -49,3 +49,6 @@ public enum Field: String, CaseIterable {
   case storageTier
   case archivalState
 }
+
+public let basicFields = "size,timeCreated,timeModified"
+public let fullFields = "size,etag,timeCreated,md5,timeModified,storageTier,archivalState"
