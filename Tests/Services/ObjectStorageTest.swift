@@ -479,6 +479,33 @@ struct ObjectStorageTest {
     #expect(listOfObjectVersions != nil, "The operation should succeed")
   }
 
+  // MARK: - Lists preauthenticated requests
+  @Test func listPreauthenticatedRequestsWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let listOfPreauthenticatedRequests = try? await sut.listPreauthenticatedRequests(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk"
+    )
+
+    // Print preauthenticated requests
+    if let requests = listOfPreauthenticatedRequests {
+      print("Number of requests found: \(requests.count)")
+      for request in requests {
+        print("Request name: \(request.name), expires on: \(request.timeExpires)")
+      }
+    }
+    #expect(listOfPreauthenticatedRequests != nil, "The operation should succeed")
+  }
   // MARK: - Puts object
   @Test func putsObjectWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(

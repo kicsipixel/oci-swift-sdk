@@ -117,6 +117,8 @@ public enum ObjectStorageAPI: API {
     startAfter: String? = nil,
     page: String? = nil
   )
+  /// List preauthenticated requests
+  case listPreauthenticatedRequests(namespaceName: String, bucketName: String, objectNamePrefix: String? = nil, limit: Int? = nil, page: String? = nil, opcClientRequestId: String? = nil)
   /// Puts object
   case putObject(
     namespaceName: String,
@@ -158,7 +160,8 @@ public enum ObjectStorageAPI: API {
     case .createBucket(let namespaceName, _),
       .listBuckets(let namespaceName, _, _):
       return "/n/\(namespaceName)/b"
-    case .createPreauthenticatedRequest(let namespaceName, let bucketName, _):
+    case .createPreauthenticatedRequest(let namespaceName, let bucketName, _),
+      .listPreauthenticatedRequests(let namespaceName, let bucketName, _, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/p"
     case .deleteBucket(let namespaceName, let bucketName, _),
       .getBucket(let namespaceName, let bucketName, _),
@@ -216,7 +219,8 @@ public enum ObjectStorageAPI: API {
       .getPreauthenticatedRequest,
       .listBuckets,
       .listObjects,
-      .listObjectVersions:
+      .listObjectVersions,
+      .listPreauthenticatedRequests:
       return .get
     case .headBucket,
       .headObject:
@@ -345,6 +349,20 @@ public enum ObjectStorageAPI: API {
       }
 
       return queryItems.isEmpty ? nil : queryItems
+
+    case .listPreauthenticatedRequests(_, _, let objectNamePrefix, let limit, let page, _):
+      let keyValuePairs: [(String, String?)] = [
+        ("objectNamePrefix", objectNamePrefix),
+        ("limit", limit.map { String($0) }),
+        ("page", page),
+      ]
+
+      // Convert non-nil values into URLQueryItems
+      let queryItems = keyValuePairs.compactMap { key, value in
+        value.map { URLQueryItem(name: key, value: $0) }
+      }
+
+      return queryItems.isEmpty ? nil : queryItems
     }
   }
 
@@ -367,6 +385,7 @@ public enum ObjectStorageAPI: API {
       .listBuckets(_, _, let opcClientRequestId),
       .listObjects(_, _, _, _, _, _, _, _, let opcClientRequestId, _),
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
+      .listPreauthenticatedRequests(_, _, _, _, _, let opcClientRequestId),
       .reencryptBucket(_, _, let opcClientRequestId),
       .reencryptObject(_, _, _, _, let opcClientRequestId),
       .renameObject(_, _, let opcClientRequestId),
