@@ -27,6 +27,7 @@ public enum PublicAccessType: String, Codable {
 
 public enum StorageTier: String, Codable {
     case standard = "Standard"
+    case infrequentAccess = "InfrequentAccess"
     case archive = "Archive"
 }
 

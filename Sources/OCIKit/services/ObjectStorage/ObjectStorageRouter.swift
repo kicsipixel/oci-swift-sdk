@@ -175,7 +175,7 @@ public enum ObjectStorageAPI: API {
       .putObject(let namespaceName, let bucketName, let objectName, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/o/\(objectName)"
     case .restoreObject(let namespaceName, let bucketName, _):
-      return "/n/\(namespaceName)/b/\(bucketName)/actions/restoreObject"
+      return "/n/\(namespaceName)/b/\(bucketName)/actions/restoreObjects"
     case .updadateObjectStorageTier(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/updateObjectStorageTier"
     }

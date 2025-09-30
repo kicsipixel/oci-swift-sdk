@@ -1360,13 +1360,16 @@ public struct ObjectStorageClient {
 
       try signer.sign(&req)
 
-      let (_, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await URLSession.shared.data(for: req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
       }
 
       if httpResponse.statusCode != 200 {
+          if let body = String(data: data, encoding: .utf8) {
+                      print("Error response body: \(body)")
+                  }
         throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
       }
 

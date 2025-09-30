@@ -496,7 +496,11 @@ struct ObjectStorageTest {
       configName: ociProfileName
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
+<<<<<<< HEAD
+    let renameObjectDetails = RenameObjectDetails(newName: "New Frame.png", sourceName: "Frame.png")
+=======
     let renameObjectDetails = RenameObjectDetails(newName: "NewFrame.png", sourceName: "Frame.png")
+>>>>>>> upstream/main
 
     let renameObject: Void? = try? await sut.renameObject(
       namespaceName: "frjfldcyl3la",
@@ -508,7 +512,6 @@ struct ObjectStorageTest {
   }
 
   // MARK: - Restore object
-  // TODO: Needs to test further
   @Test func restoreObjectWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -524,7 +527,7 @@ struct ObjectStorageTest {
 
     let restoreObject: Void? = try? await sut.restoreObject(
       namespaceName: "frjfldcyl3la",
-      bucketName: "archieve_test_bucket_by_sdk",
+      bucketName: "test_bucket_by_sdk",
       restoreObjectsDetails: restoreObjectDetails
     )
 
@@ -564,6 +567,7 @@ struct ObjectStorageTest {
     #expect(updateBucket != nil, "The return value should not be nil")
   }
 
+  // Once a bucket versioning was "Enabled" you can "Suspend" it only.
   @Test func updatesBucketWithVersioningWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -575,7 +579,7 @@ struct ObjectStorageTest {
       configName: ociProfileName
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
-    let bucket = UpdateBucketDetails(versioning: Versoning.enabled)
+    let bucket = UpdateBucketDetails(versioning: Versoning.suspended)
 
     let updateBucket: Bucket? = try? await sut.updateBucket(
       namespaceName: "frjfldcyl3la",
@@ -638,16 +642,16 @@ struct ObjectStorageTest {
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
     let updateObjectStorageTierDetails = UpdateObjectStorageTierDetails(
-      objectName: "NewFrame.png",
-      storageTier: StorageTier.archive.rawValue
+      objectName: "Frame.png",
+      storageTier: StorageTier.infrequentAccess
     )
 
-      let updateObjectStorageTier: Void? = try? await sut.updateObjectStorageTier(
+    let updateObjectStorageTier: Void? = try? await sut.updateObjectStorageTier(
       namespaceName: "frjfldcyl3la",
       bucketName: "test_bucket_by_sdk",
       updateObjectStorageTierDetails: updateObjectStorageTierDetails
     )
 
-      #expect(updateObjectStorageTier != nil, "The operation should succeed")
+    #expect(updateObjectStorageTier != nil, "The operation should succeed")
   }
 }
