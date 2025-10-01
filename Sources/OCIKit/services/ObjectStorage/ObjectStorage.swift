@@ -584,6 +584,51 @@ public struct ObjectStorageClient {
     return data
   }
 
+    // MARK: - Get replication policy
+    /// Retrieves the replication policy for the specified bucket.
+    ///
+    /// - Parameters:
+    ///   - namespaceName: The Object Storage namespace used for the request.
+    ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+    ///   - replicationId: The ID of the replication policy to retrieve.
+    ///   - opcClientRequestId: Optional client request ID for tracing.
+    ///
+    /// - Returns: A response object containing `ReplicationPolicy`.
+    ///
+    /// TODO:
+    ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+    public func getReplicationPolicy(
+        namespaceName: String,
+        bucketName: String,
+        replicationId: String,
+        opcClientRequestId: String? = nil
+    ) async throws -> ReplicationPolicy? {
+
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.getReplicationPolicy(namespaceName: namespaceName, bucketName: bucketName, replicationId: replicationId, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+        if httpResponse.statusCode != 200 {
+          if let body = String(data: data, encoding: .utf8) {
+            print("Error: \(body)")
+          }
+          throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        }
+
+      let replicationPolicy = try JSONDecoder().decode(ReplicationPolicy.self, from: data)
+      return replicationPolicy
+    }
   // MARK: - Heads bucket
   /// Efficiently checks whether a bucket exists and retrieves the current entity tag (ETag) for the bucket.
   ///

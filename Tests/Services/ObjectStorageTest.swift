@@ -343,6 +343,25 @@ struct ObjectStorageTest {
     #expect(getObject != nil, "The operation should succeed")
   }
 
+    // MARK: - Gets replication policy
+    @Test func getsReplicationPolicyWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+          from: ociConfigFilePath,
+          profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+          configFilePath: ociConfigFilePath,
+          configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+
+        let getReplicationPolicy: ReplicationPolicy? = try await sut.getReplicationPolicy(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", replicationId: "")
+        
+        // Print policy details
+        // TODO:
+        #expect(getReplicationPolicy != nil, "The operation should succeed")
+    }
   // MARK: - Heads bucket
   @Test func headsBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
