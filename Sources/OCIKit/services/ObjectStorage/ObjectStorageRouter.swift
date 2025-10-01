@@ -121,6 +121,8 @@ public enum ObjectStorageAPI: API {
   case listReplicationPolicies(namespaceName: String, bucketName: String, page: String? = nil, limit: Int? = 100, opcClientRequestId: String? = nil)
   /// Lists replication sources
   case listReplicationSources(namespaceName: String, bucketName: String, page: String? = nil, limit: Int? = 100, opcClientRequestId: String? = nil)
+  /// Makes bucket writable
+  case makeBucketWritable(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Puts object
   case putObject(
     namespaceName: String,
@@ -187,6 +189,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/objectversions"
     case .listReplicationSources(let namespaceName, let bucketName, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/replicationSources"
+    case .makeBucketWritable(let namespaceName, let bucketName, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/actions/makeBucketWritable"
     case .deleteObject(let namespaceName, let bucketName, let objectName, _, _),
       .getObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _, _, _, _, _, _, _, _),
       .headObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _),
@@ -205,6 +209,7 @@ public enum ObjectStorageAPI: API {
     case .copyObject,
       .createBucket,
       .createReplicationPolicy,
+      .makeBucketWritable,
       .reencryptBucket,
       .reencryptObject,
       .renameObject,
@@ -248,6 +253,7 @@ public enum ObjectStorageAPI: API {
       .getNamespaceMetadata,
       .getReplicationPolicy,
       .headBucket,
+      .makeBucketWritable,
       .putObject,
       .reencryptBucket,
       .renameObject,
@@ -392,6 +398,7 @@ public enum ObjectStorageAPI: API {
       .listReplicationSources(_, _, _, _, let opcClientRequestId),
       .listObjects(_, _, _, _, _, _, _, _, let opcClientRequestId, _),
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
+      .makeBucketWritable(_, _, let opcClientRequestId),
       .reencryptBucket(_, _, let opcClientRequestId),
       .reencryptObject(_, _, _, _, let opcClientRequestId),
       .renameObject(_, _, let opcClientRequestId),

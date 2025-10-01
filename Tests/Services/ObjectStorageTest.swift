@@ -535,6 +535,23 @@ struct ObjectStorageTest {
     #expect(listOfObjectVersions != nil, "The operation should succeed")
   }
 
+    // MARK: - Makes bucket writable
+    @Test func makeBucketWritableWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+          from: ociConfigFilePath,
+          profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+          configFilePath: ociConfigFilePath,
+          configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        
+        let makeBucketWritable: ()? = try? await sut.makeBucketWritable(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk_replica")
+        
+        #expect(makeBucketWritable != nil, "The operation should succeed")
+    }
   // MARK: - Puts object
   @Test func putsObjectWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
