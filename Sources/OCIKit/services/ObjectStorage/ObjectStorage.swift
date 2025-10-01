@@ -99,13 +99,16 @@ public struct ObjectStorageClient {
 
       try signer.sign(&req)
 
-      let (_, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await URLSession.shared.data(for: req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
       }
 
       if httpResponse.statusCode != 202 {
+        if let body = String(data: data, encoding: .utf8) {
+          print("Error: \(body)")
+        }
         throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
       }
 
@@ -168,6 +171,66 @@ public struct ObjectStorageClient {
     }
     catch {
       throw error
+    }
+  }
+
+  // MARK: - Creates preauthenticated request
+  /// Creates a pre-authenticated request specific to the bucket.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - requestDetails: Information needed to create the pre-authenticated request.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object containing `PreauthenticatedRequest`.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func createPreauthenticatedRequest(
+    namespaceName: String,
+    bucketName: String,
+    requestDetails: CreatePreauthenticatedRequestDetails,
+    opcClientRequestId: String? = nil
+  ) async throws -> PreauthenticatedRequest? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.createPreauthenticatedRequest(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    let payload: Data
+    do {
+      payload = try JSONEncoder().encode(requestDetails)
+    }
+    catch {
+      throw ObjectStorageError.jsonEncodingError("CreatePreauthenticatedRequestDetails cannot be encoded to data")
+    }
+
+    req.httpBody = payload
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    do {
+      let preauthenticatedRequest = try JSONDecoder().decode(PreauthenticatedRequest.self, from: data)
+      return preauthenticatedRequest
+    }
+    catch {
+      throw ObjectStorageError.jsonDecodingError("Failed to decode response data to PreauthenticatedRequest")
     }
   }
 
@@ -262,6 +325,54 @@ public struct ObjectStorageClient {
       let opcRequestId = headers["opc-request-id"], let versionId = headers["version-id"]
     {
       logger.debug("is-delete-marker: \(isDeleteMarker), last-modified: \(lastModified), opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId), version-id: \(versionId)")
+    }
+  }
+
+  // MARK: - Deletes preauthenticated request
+  /// Deletes the pre-authenticated request for the specified bucket.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - parId: The unique identifier for the pre-authenticated request. This can be used to manage operations against the request, such as GET or DELETE.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object with no data (void).
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func deletePreauthenticatedRequest(
+    namespaceName: String,
+    bucketName: String,
+    parId: String,
+    opcClientRequestId: String? = nil
+  ) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.deletePreauthenticatedRequest(namespaceName: namespaceName, bucketName: bucketName, parId: parId, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 204 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+
+    if let opcClientRequestId = headers["opc-client-request-id"], let opcRequestId = headers["opc-request-id"] {
+      logger.debug("opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId)")
     }
   }
 
@@ -481,6 +592,51 @@ public struct ObjectStorageClient {
     }
 
     return data
+  }
+
+  // MARK: - Gets preauthenticated request
+  /// Retrieves the pre-authenticated request for the specified bucket.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - parId: The unique identifier for the pre-authenticated request. This can be used to manage operations against the request, such as GET or DELETE.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object containing `PreauthenticatedRequestSummary`.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func getPreauthenticatedRequest(
+    namespaceName: String,
+    bucketName: String,
+    parId: String,
+    opcClientRequestId: String? = nil
+  ) async throws -> PreauthenticatedRequestSummary? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+    let api = ObjectStorageAPI.getPreauthenticatedRequest(namespaceName: namespaceName, bucketName: bucketName, parId: parId, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let preauthenticatedRequestSummary = try JSONDecoder().decode(PreauthenticatedRequestSummary.self, from: data)
+
+    return preauthenticatedRequestSummary
   }
 
   // MARK: - Heads bucket
@@ -824,6 +980,63 @@ public struct ObjectStorageClient {
 
     let listObjectVersions = try JSONDecoder().decode(ObjectVersionCollection.self, from: data)
     return listObjectVersions
+  }
+
+  // MARK: - List preauthenticated requests
+  /// Lists pre-authenticated requests for the specified bucket.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - objectNamePrefix: Optional user-specified object name prefix to filter the list of pre-authenticated requests.
+  ///   - limit: Optional maximum number of results per page for pagination.
+  ///   - page: Optional pagination token from a previous response's `opc-next-page` header.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object containing an array of `PreauthenticatedRequestSummary`.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func listPreauthenticatedRequests(
+    namespaceName: String,
+    bucketName: String,
+    objectNamePrefix: String? = nil,
+    limit: Int? = nil,
+    page: String? = nil,
+    opcClientRequestId: String? = nil
+  ) async throws -> [PreauthenticatedRequestSummary] {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.listPreauthenticatedRequests(
+      namespaceName: namespaceName,
+      bucketName: bucketName,
+      objectNamePrefix: objectNamePrefix,
+      limit: limit,
+      page: page,
+      opcClientRequestId: opcClientRequestId
+    )
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+      let preauthenticatedRequestSummaryList = try JSONDecoder().decode([PreauthenticatedRequestSummary].self, from: data)
+
+    return preauthenticatedRequestSummaryList
   }
 
   // MARK: - Puts object

@@ -41,10 +41,14 @@ public enum ObjectStorageAPI: API {
   case copyObject(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Creates bucket
   case createBucket(namespaceName: String, opcClientRequestId: String? = nil)
+  /// Creates preauthenticated request
+  case createPreauthenticatedRequest(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Deletes bucket
   case deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Deletes object
   case deleteObject(namespaceName: String, bucketName: String, objectName: String, opcClientRequestId: String? = nil, versionId: String? = nil)
+  /// Deletes preauthenticated request
+  case deletePreauthenticatedRequest(namespaceName: String, bucketName: String, parId: String, opcClientRequestId: String? = nil)
   /// Gets bucket
   case getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Gets object
@@ -65,6 +69,8 @@ public enum ObjectStorageAPI: API {
     httpResponseContentEncoding: String? = nil,
     httpResponseExpires: String? = nil
   )
+  /// Gets preauthenticated request
+  case getPreauthenticatedRequest(namespaceName: String, bucketName: String, parId: String, opcClientRequestId: String? = nil)
   /// HEAD bucket
   case headBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// HEAD object
@@ -111,6 +117,8 @@ public enum ObjectStorageAPI: API {
     startAfter: String? = nil,
     page: String? = nil
   )
+  /// List preauthenticated requests
+  case listPreauthenticatedRequests(namespaceName: String, bucketName: String, objectNamePrefix: String? = nil, limit: Int? = nil, page: String? = nil, opcClientRequestId: String? = nil)
   /// Puts object
   case putObject(
     namespaceName: String,
@@ -152,11 +160,17 @@ public enum ObjectStorageAPI: API {
     case .createBucket(let namespaceName, _),
       .listBuckets(let namespaceName, _, _):
       return "/n/\(namespaceName)/b"
+    case .createPreauthenticatedRequest(let namespaceName, let bucketName, _),
+      .listPreauthenticatedRequests(let namespaceName, let bucketName, _, _, _, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/p"
     case .deleteBucket(let namespaceName, let bucketName, _),
       .getBucket(let namespaceName, let bucketName, _),
       .headBucket(let namespaceName, let bucketName, _),
       .updateBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)"
+    case .deletePreauthenticatedRequest(let namespaceName, let bucketName, let parId, _),
+      .getPreauthenticatedRequest(let namespaceName, let bucketName, let parId, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/p/\(parId)"
     case .reencryptBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
     case .reencryptObject(let namespaceName, let bucketName, let objectName, _, _):
@@ -186,6 +200,7 @@ public enum ObjectStorageAPI: API {
     switch self {
     case .copyObject,
       .createBucket,
+      .createPreauthenticatedRequest,
       .reencryptBucket,
       .reencryptObject,
       .renameObject,
@@ -194,15 +209,18 @@ public enum ObjectStorageAPI: API {
       .updadateObjectStorageTier:
       return .post
     case .deleteBucket,
-      .deleteObject:
+      .deleteObject,
+      .deletePreauthenticatedRequest:
       return .delete
     case .getNamespace,
       .getBucket,
       .getObject,
       .getNamespaceMetadata,
+      .getPreauthenticatedRequest,
       .listBuckets,
       .listObjects,
-      .listObjectVersions:
+      .listObjectVersions,
+      .listPreauthenticatedRequests:
       return .get
     case .headBucket,
       .headObject:
@@ -218,9 +236,12 @@ public enum ObjectStorageAPI: API {
     switch self {
     case .copyObject,
       .createBucket,
+      .createPreauthenticatedRequest,
       .deleteBucket,
+      .deletePreauthenticatedRequest,
       .getBucket,
       .getNamespaceMetadata,
+      .getPreauthenticatedRequest,
       .headBucket,
       .putObject,
       .reencryptBucket,
@@ -328,6 +349,20 @@ public enum ObjectStorageAPI: API {
       }
 
       return queryItems.isEmpty ? nil : queryItems
+
+    case .listPreauthenticatedRequests(_, _, let objectNamePrefix, let limit, let page, _):
+      let keyValuePairs: [(String, String?)] = [
+        ("objectNamePrefix", objectNamePrefix),
+        ("limit", limit.map { String($0) }),
+        ("page", page),
+      ]
+
+      // Convert non-nil values into URLQueryItems
+      let queryItems = keyValuePairs.compactMap { key, value in
+        value.map { URLQueryItem(name: key, value: $0) }
+      }
+
+      return queryItems.isEmpty ? nil : queryItems
     }
   }
 
@@ -336,17 +371,21 @@ public enum ObjectStorageAPI: API {
     switch self {
     case .copyObject(_, _, let opcClientRequestId),
       .createBucket(_, let opcClientRequestId),
+      .createPreauthenticatedRequest(_, _, let opcClientRequestId),
       .deleteBucket(_, _, let opcClientRequestId),
       .deleteObject(_, _, _, let opcClientRequestId, _),
+      .deletePreauthenticatedRequest(_, _, _, let opcClientRequestId),
       .getBucket(_, _, let opcClientRequestId),
       .getObject(_, _, _, _, let opcClientRequestId, _, _, _, _, _, _, _, _, _, _),
       .getNamespace(_, let opcClientRequestId),
       .getNamespaceMetadata(_, let opcClientRequestId),
+      .getPreauthenticatedRequest(_, _, _, let opcClientRequestId),
       .headBucket(_, _, let opcClientRequestId),
       .headObject(_, _, _, _, let opcClientRequestId, _, _, _),
       .listBuckets(_, _, let opcClientRequestId),
       .listObjects(_, _, _, _, _, _, _, _, let opcClientRequestId, _),
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
+      .listPreauthenticatedRequests(_, _, _, _, _, let opcClientRequestId),
       .reencryptBucket(_, _, let opcClientRequestId),
       .reencryptObject(_, _, _, _, let opcClientRequestId),
       .renameObject(_, _, let opcClientRequestId),
