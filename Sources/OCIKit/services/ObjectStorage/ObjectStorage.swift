@@ -700,8 +700,7 @@ public struct ObjectStorageClient {
   ///   - delimiter: Optional. When set, only objects without the delimiter character (after an optional prefix) are returned.
   ///     Objects with the delimiter are grouped as prefixes. Only `'/'` is supported.
   ///   - fields: Comma-separated list of additional fields to include in the response.
-  ///     Valid values: - `basicFields`:  `size`, `timeCreated`, `timeModified`.
-  ///                 - `fullFields`: `size`, `etag`, `md5`, `timeCreated`, `timeModified`, `storageTier`, `archivalState`.
+  ///     Allowed values: `fullFields`: `size`, `etag`, `md5`, `timeCreated`, `timeModified`, `storageTier`, `archivalState`.
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - startAfter: Optional returns object names lexicographically strictly greater than this value.
   ///
