@@ -139,6 +139,7 @@ struct ObjectStorageTest {
 
     #expect(createReplicationPolicy != nil, "The operation should succeed")
   }
+    
   // MARK: - Deletes bucket
   @Test func deletesBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -445,6 +446,36 @@ struct ObjectStorageTest {
     }
     #expect(listReplicationPolicies != nil, "The operation should succeed")
   }
+    
+    // MARK: - List replication resources
+    /// At least one replication policy is required on the queried bucket
+    @Test func listReplicationResourcesWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+          from: ociConfigFilePath,
+          profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+          configFilePath: ociConfigFilePath,
+          configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        
+        let listReplicationResources = try await sut.listReplicationPolicies(
+            namespaceName: "frjfldcyl3la",
+            bucketName: "test_bucket_by_sdk",
+            limit: 10
+        )
+        
+        // Print resources
+        if let resources = listReplicationResources {
+            for resource in resources {
+                print("id: \(resource.id) - name: \(resource.name) - destination: \(resource.destinationBucketName)")
+            }
+        }
+        #expect(listReplicationResources != nil, "The operation should succeed")
+    }
+    
   // MARK: - List objects
   @Test func listObjectsWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(

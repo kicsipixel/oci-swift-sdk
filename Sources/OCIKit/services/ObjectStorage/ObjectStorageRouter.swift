@@ -119,6 +119,8 @@ public enum ObjectStorageAPI: API {
   )
   /// Lists replication policies
   case listReplicationPolicies(namespaceName: String, bucketName: String, page: String? = nil, limit: Int? = 100, opcClientRequestId: String? = nil)
+  /// Lists replication sources
+  case listReplicationSources(namespaceName: String, bucketName: String, page: String? = nil, limit: Int? = 100, opcClientRequestId: String? = nil)
   /// Puts object
   case putObject(
     namespaceName: String,
@@ -183,6 +185,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/o"
     case .listObjectVersions(let namespaceName, let bucketName, _, _, _, _, _, _, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/objectversions"
+    case .listReplicationSources(let namespaceName, let bucketName, _, _, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/replicationSources"
     case .deleteObject(let namespaceName, let bucketName, let objectName, _, _),
       .getObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _, _, _, _, _, _, _, _),
       .headObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _),
@@ -220,7 +224,8 @@ public enum ObjectStorageAPI: API {
       .listBuckets,
       .listObjects,
       .listObjectVersions,
-      .listReplicationPolicies:
+      .listReplicationPolicies,
+      .listReplicationSources:
       return .get
     case .headBucket,
       .headObject:
@@ -313,7 +318,8 @@ public enum ObjectStorageAPI: API {
       }
       return nil
 
-    case .listReplicationPolicies(_, _, let page, let limit, _):
+    case .listReplicationPolicies(_, _, let page, let limit, _),
+      .listReplicationSources(_, _, let page, let limit, _):
       let keyValuePairs: [(String, String?)] = [
         ("page", page),
         ("limit", limit.map { String($0) }),
@@ -383,6 +389,7 @@ public enum ObjectStorageAPI: API {
       .headObject(_, _, _, _, let opcClientRequestId, _, _, _),
       .listBuckets(_, _, let opcClientRequestId),
       .listReplicationPolicies(_, _, _, _, let opcClientRequestId),
+      .listReplicationSources(_, _, _, _, let opcClientRequestId),
       .listObjects(_, _, _, _, _, _, _, _, let opcClientRequestId, _),
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
       .reencryptBucket(_, _, let opcClientRequestId),
