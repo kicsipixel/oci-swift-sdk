@@ -171,6 +171,61 @@ public struct ObjectStorageClient {
     }
   }
 
+  // MARK: - Creates replication policy
+  /// Creates a replication policy for the specified bucket.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - policyDetails: The replication policy details to be created.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object containing `ReplicationPolicy`.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func createReplicationPolicy(
+    namespaceName: String,
+    bucketName: String,
+    policyDetails: CreateReplicationPolicyDetails,
+    opcClientRequestId: String? = nil
+  ) async throws -> ReplicationPolicy? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.createReplicationPolicy(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    let payload: Data
+    do {
+      payload = try JSONEncoder().encode(policyDetails)
+    }
+    catch {
+      throw ObjectStorageError.jsonEncodingError("CreateReplicationPloicyDetails cannot be encoded to data")
+    }
+
+    req.httpBody = payload
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let replicationPolicy = try JSONDecoder().decode(ReplicationPolicy.self, from: data)
+    return replicationPolicy
+  }
+
   // MARK: - Deletes bucket
   /// Deletes a bucket if the bucket is already empty.
   /// If the bucket is not empty, use `deleteObject` first.
@@ -1286,7 +1341,6 @@ public struct ObjectStorageClient {
       let (data, response) = try await URLSession.shared.data(for: req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
-        print(response)
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
       }
 
@@ -1367,9 +1421,9 @@ public struct ObjectStorageClient {
       }
 
       if httpResponse.statusCode != 200 {
-          if let body = String(data: data, encoding: .utf8) {
-                      print("Error response body: \(body)")
-                  }
+        if let body = String(data: data, encoding: .utf8) {
+          print("Error: \(body)")
+        }
         throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
       }
 

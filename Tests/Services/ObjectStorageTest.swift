@@ -119,6 +119,26 @@ struct ObjectStorageTest {
     #expect(createBucket != nil, "The return value should not be nil")
   }
 
+    // MARK: - Creates replication policy
+    /// `Allow service objectstorage-eu-frankfurt-1 to manage object-family in compartment your_comparment_name`
+    /// Always Free Tier allows only one policy
+    @Test func createsReplicationPolicyWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+            from: ociConfigFilePath,
+            profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+            configFilePath: ociConfigFilePath,
+            configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        let replicationPolicy = CreateReplicationPolicyDetails(destinationBucketName: "test_bucket_by_sdk_replica", destinationRegionName: "eu-frankfurt-1", name: "Test_policy")
+        
+        let createReplicationPolicy = try await sut.createReplicationPolicy(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", policyDetails: replicationPolicy)
+        
+        #expect(createReplicationPolicy != nil, "The operation should succeed")
+    }
   // MARK: - Deletes bucket
   @Test func deletesBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -496,11 +516,7 @@ struct ObjectStorageTest {
       configName: ociProfileName
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
-<<<<<<< HEAD
     let renameObjectDetails = RenameObjectDetails(newName: "New Frame.png", sourceName: "Frame.png")
-=======
-    let renameObjectDetails = RenameObjectDetails(newName: "NewFrame.png", sourceName: "Frame.png")
->>>>>>> upstream/main
 
     let renameObject: Void? = try? await sut.renameObject(
       namespaceName: "frjfldcyl3la",
