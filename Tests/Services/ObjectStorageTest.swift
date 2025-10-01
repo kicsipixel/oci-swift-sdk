@@ -398,14 +398,14 @@ struct ObjectStorageTest {
       let listOfObjects = try await sut.listObjects(
         namespaceName: "frcjtpiacekz",
         bucketName: "szabolcs_toth_demo_bucket",
-        fields: [.name, .size, .etag, .timeCreated, .md5, .timeModified, .storageTier, .archivalState]
+        fields: Field.allCases
       )
 
         // Print objects
       if let objectsInBucket = listOfObjects {
         for object in objectsInBucket.objects {
           if let size = object.size, let md5 = object.md5, let storageTier = object.storageTier {
-            print("Name: \(object.name), size: \(size), md5: \(md5), storageTier: \(storageTier)")
+            print("Name: \(object.name), size: \(size), md5: \(md5), storageTier: \(storageTier)\n---")
           }
         }
       }
