@@ -584,25 +584,25 @@ public struct ObjectStorageClient {
     return data
   }
 
-    // MARK: - Get replication policy
-    /// Retrieves the replication policy for the specified bucket.
-    ///
-    /// - Parameters:
-    ///   - namespaceName: The Object Storage namespace used for the request.
-    ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
-    ///   - replicationId: The ID of the replication policy to retrieve.
-    ///   - opcClientRequestId: Optional client request ID for tracing.
-    ///
-    /// - Returns: A response object containing `ReplicationPolicy`.
-    ///
-    /// TODO:
-    ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
-    public func getReplicationPolicy(
-        namespaceName: String,
-        bucketName: String,
-        replicationId: String,
-        opcClientRequestId: String? = nil
-    ) async throws -> ReplicationPolicy? {
+  // MARK: - Get replication policy
+  /// Retrieves the replication policy for the specified bucket.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - replicationId: The ID of the replication policy to retrieve.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object containing `ReplicationPolicy`.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func getReplicationPolicy(
+    namespaceName: String,
+    bucketName: String,
+    replicationId: String,
+    opcClientRequestId: String? = nil
+  ) async throws -> ReplicationPolicy? {
 
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -619,16 +619,16 @@ public struct ObjectStorageClient {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
-        if httpResponse.statusCode != 200 {
-          if let body = String(data: data, encoding: .utf8) {
-            print("Error: \(body)")
-          }
-          throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
-        }
-
-      let replicationPolicy = try JSONDecoder().decode(ReplicationPolicy.self, from: data)
-      return replicationPolicy
+    if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
+
+    let replicationPolicy = try JSONDecoder().decode(ReplicationPolicy.self, from: data)
+    return replicationPolicy
+  }
   // MARK: - Heads bucket
   /// Efficiently checks whether a bucket exists and retrieves the current entity tag (ETag) for the bucket.
   ///
@@ -822,6 +822,53 @@ public struct ObjectStorageClient {
     let bucketSummary = try JSONDecoder().decode([BucketSummary].self, from: data)
 
     return bucketSummary
+  }
+
+  // MARK: - Lists replication policies
+  /// Lists the replication policies associated with the specified bucket.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - page: Optional pagination token from the previous response's `opc-next-page` header.
+  ///   - limit: Optional maximum number of results per page. Defaults to 100.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object containing an array of `ReplicationPolicySummary`.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func listReplicationPolicies(
+    namespaceName: String,
+    bucketName: String,
+    page: String? = nil,
+    limit: Int? = 100,
+    opcClientRequestId: String? = nil
+  ) async throws -> [ReplicationPolicySummary]? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.listReplicationPolicies(namespaceName: namespaceName, bucketName: bucketName, page: page, limit: limit, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let replicationPolicySummaries = try JSONDecoder().decode([ReplicationPolicySummary].self, from: data)
+    return replicationPolicySummaries
   }
 
   // MARK: - Lists objects

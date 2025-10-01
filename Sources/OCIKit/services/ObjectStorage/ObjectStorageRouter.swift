@@ -117,6 +117,8 @@ public enum ObjectStorageAPI: API {
     startAfter: String? = nil,
     page: String? = nil
   )
+  /// Lists replication policies
+  case listReplicationPolicies(namespaceName: String, bucketName: String, page: String? = nil, limit: Int? = 100, opcClientRequestId: String? = nil)
   /// Puts object
   case putObject(
     namespaceName: String,
@@ -158,7 +160,8 @@ public enum ObjectStorageAPI: API {
     case .createBucket(let namespaceName, _),
       .listBuckets(let namespaceName, _, _):
       return "/n/\(namespaceName)/b"
-    case .createReplicationPolicy(let namespaceName, let bucketName, _):
+    case .createReplicationPolicy(let namespaceName, let bucketName, _),
+      .listReplicationPolicies(let namespaceName, let bucketName, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/replicationPolicies"
     case .deleteReplicationPolicy(let namespaceName, let bucketName, let replicationPolicyId, _),
       .getReplicationPolicy(let namespaceName, let bucketName, let replicationPolicyId, _):
@@ -216,7 +219,8 @@ public enum ObjectStorageAPI: API {
       .getReplicationPolicy,
       .listBuckets,
       .listObjects,
-      .listObjectVersions:
+      .listObjectVersions,
+      .listReplicationPolicies:
       return .get
     case .headBucket,
       .headObject:
@@ -234,6 +238,7 @@ public enum ObjectStorageAPI: API {
       .createBucket,
       .createReplicationPolicy,
       .deleteBucket,
+      .deleteReplicationPolicy,
       .getBucket,
       .getNamespaceMetadata,
       .getReplicationPolicy,
@@ -308,6 +313,19 @@ public enum ObjectStorageAPI: API {
       }
       return nil
 
+    case .listReplicationPolicies(_, _, let page, let limit, _):
+      let keyValuePairs: [(String, String?)] = [
+        ("page", page),
+        ("limit", limit.map { String($0) }),
+      ]
+
+      // Convert non-nil values into URLQueryItems
+      let queryItems = keyValuePairs.compactMap { key, value in
+        value.map { URLQueryItem(name: key, value: $0) }
+      }
+
+      return queryItems.isEmpty ? nil : queryItems
+
     case .listObjects(_, _, let prefix, let start, let end, let limit, let delimiter, let fields, _, let startAfter):
       let keyValuePairs: [(String, String?)] = [
         ("prefix", prefix),
@@ -364,6 +382,7 @@ public enum ObjectStorageAPI: API {
       .headBucket(_, _, let opcClientRequestId),
       .headObject(_, _, _, _, let opcClientRequestId, _, _, _),
       .listBuckets(_, _, let opcClientRequestId),
+      .listReplicationPolicies(_, _, _, _, let opcClientRequestId),
       .listObjects(_, _, _, _, _, _, _, _, let opcClientRequestId, _),
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
       .reencryptBucket(_, _, let opcClientRequestId),
