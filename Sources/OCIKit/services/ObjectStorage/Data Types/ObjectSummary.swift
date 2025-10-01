@@ -49,3 +49,9 @@ public enum Field: String, CaseIterable {
   case storageTier
   case archivalState
 }
+
+extension Array where Element == Field {
+  var queryValue: String {
+    map(\.rawValue).joined(separator: ",")
+  }
+}
