@@ -47,6 +47,8 @@ public enum ObjectStorageAPI: API {
   case deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Deletes object
   case deleteObject(namespaceName: String, bucketName: String, objectName: String, opcClientRequestId: String? = nil, versionId: String? = nil)
+  /// Deletes replication policy
+  case deleteReplicationPolicy(namespaceName: String, bucketName: String, replicationId: String, opcClientRequestId: String? = nil)
   /// Gets bucket
   case getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Gets object
@@ -156,6 +158,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b"
     case .createReplicationPolicy(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/replicationPolicies"
+    case .deleteReplicationPolicy(let namespaceName, let bucketName, let replicationPolicyId, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/replicationPolicies/\(replicationPolicyId)"
     case .deleteBucket(let namespaceName, let bucketName, _),
       .getBucket(let namespaceName, let bucketName, _),
       .headBucket(let namespaceName, let bucketName, _),
@@ -199,7 +203,8 @@ public enum ObjectStorageAPI: API {
       .updadateObjectStorageTier:
       return .post
     case .deleteBucket,
-      .deleteObject:
+      .deleteObject,
+      .deleteReplicationPolicy:
       return .delete
     case .getNamespace,
       .getBucket,
@@ -345,6 +350,7 @@ public enum ObjectStorageAPI: API {
       .createReplicationPolicy(_, _, let opcClientRequestId),
       .deleteBucket(_, _, let opcClientRequestId),
       .deleteObject(_, _, _, let opcClientRequestId, _),
+      .deleteReplicationPolicy(_, _, _, let opcClientRequestId),
       .getBucket(_, _, let opcClientRequestId),
       .getObject(_, _, _, _, let opcClientRequestId, _, _, _, _, _, _, _, _, _, _),
       .getNamespace(_, let opcClientRequestId),

@@ -204,6 +204,27 @@ struct ObjectStorageTest {
     #expect(deleteObject != nil, "The operation should succeed")
   }
 
+    // MARK: - Deletes replication policy
+    @Test func deletesReplicationPolicyWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+          from: ociConfigFilePath,
+          profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+          configFilePath: ociConfigFilePath,
+          configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        
+        let deleteReplicationPolicy: Void? = try? await sut.deleteReplicationPolicy(
+            namespaceName: "frjfldcyl3la",
+            bucketName: "test_bucket_by_sdk",
+            replicationId: ""
+        )
+        
+        #expect(deleteReplicationPolicy != nil, "The operation should succeed")
+    }
   // MARK: - Gets bucket
   @Test func getsBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
