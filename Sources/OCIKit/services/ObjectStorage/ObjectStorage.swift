@@ -714,7 +714,7 @@ public struct ObjectStorageClient {
     end: String? = nil,
     limit: Int? = nil,
     delimiter: String? = nil,
-    fields: String = basicFields,
+    fields: [Field] = [.name, .size, .timeCreated, .timeModified],
     opcClientRequestId: String? = nil,
     startAfter: String? = nil
   ) async throws -> ListObject? {

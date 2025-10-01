@@ -367,12 +367,17 @@ struct ObjectStorageTest {
     let sut = try ObjectStorageClient(region: region, signer: signer)
 
     let listOfObjects = try await sut.listObjects(
-      namespaceName: "frjfldcyl3la",
-      bucketName: "test_bucket_by_sdk",
+      namespaceName: "frcjtpiacekz",
+      bucketName: "szabolcs_toth_demo_bucket",
     )
 
-    if let name = listOfObjects?.objects.first?.name, let size = listOfObjects?.objects.first?.size, let timeCreated = listOfObjects?.objects.first?.timeCreated {
-      print("The name of the file: \(name), size: \(size) on \(timeCreated)")
+    // Print objects
+    if let objectsInBucket = listOfObjects {
+      for object in objectsInBucket.objects {
+        if let size = object.size, let timeCreated = object.timeCreated {
+          print("Name: \(object.name), size: \(size), created on: \(timeCreated)")
+        }
+      }
     }
     #expect(listOfObjects != nil, "The operation should succeed")
   }
@@ -391,13 +396,18 @@ struct ObjectStorageTest {
       let sut = try ObjectStorageClient(region: region, signer: signer)
 
       let listOfObjects = try await sut.listObjects(
-        namespaceName: "frjfldcyl3la",
-        bucketName: "test_bucket_by_sdk",
-        fields: fullFields
+        namespaceName: "frcjtpiacekz",
+        bucketName: "szabolcs_toth_demo_bucket",
+        fields: [.name, .size, .etag, .timeCreated, .md5, .timeModified, .storageTier, .archivalState]
       )
 
-        if let name = listOfObjects?.objects.first?.name, let size = listOfObjects?.objects.first?.size, let timeCreated = listOfObjects?.objects.first?.timeCreated, let md5 = listOfObjects?.objects.first?.md5 {
-        print("The name of the file: \(name), size: \(size) on \(timeCreated) with md5: \(md5)")
+        // Print objects
+      if let objectsInBucket = listOfObjects {
+        for object in objectsInBucket.objects {
+          if let size = object.size, let md5 = object.md5, let storageTier = object.storageTier {
+            print("Name: \(object.name), size: \(size), md5: \(md5), storageTier: \(storageTier)")
+          }
+        }
       }
       #expect(listOfObjects != nil, "The operation should succeed")
     }

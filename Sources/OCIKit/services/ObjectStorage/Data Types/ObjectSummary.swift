@@ -50,5 +50,8 @@ public enum Field: String, CaseIterable {
   case archivalState
 }
 
-public let basicFields = "size,timeCreated,timeModified"
-public let fullFields = "size,etag,timeCreated,md5,timeModified,storageTier,archivalState"
+extension Array where Element == Field {
+  var queryValue: String {
+    map(\.rawValue).joined(separator: ",")
+  }
+}

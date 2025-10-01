@@ -93,7 +93,7 @@ public enum ObjectStorageAPI: API {
     end: String? = nil,
     limit: Int? = nil,
     delimiter: String? = nil,
-    fields: String? = nil,
+    fields: [Field],
     opcClientRequiredId: String? = nil,
     startAfter: String? = nil
   )
@@ -299,7 +299,7 @@ public enum ObjectStorageAPI: API {
         ("end", end),
         ("limit", limit.map { String($0) }),
         ("delimiter", delimiter),
-        ("fields", fields),
+        ("fields", fields.queryValue),
         ("startAfter", startAfter),
       ]
 
