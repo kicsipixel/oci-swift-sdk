@@ -119,6 +119,36 @@ struct ObjectStorageTest {
     #expect(createBucket != nil, "The return value should not be nil")
   }
 
+  // MARK: - Creates replication policy
+  /// `Allow service objectstorage-eu-frankfurt-1 to manage object-family in compartment your_comparment_name`
+  /// Always Free Tier allows only one policy
+  @Test func createsReplicationPolicyWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let replicationPolicy = CreateReplicationPolicyDetails(
+      destinationBucketName: "test_bucket_by_sdk_replica",
+      destinationRegionName: "eu-frankfurt-1",
+      name: "Test_policy"
+    )
+
+    let createReplicationPolicy = try await sut.createReplicationPolicy(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      policyDetails: replicationPolicy
+    )
+
+    #expect(createReplicationPolicy != nil, "The operation should succeed")
+  }
+
   // MARK: - Creates preauthenticated request
   @Test func createsPreauthenticatedRequestWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -131,15 +161,27 @@ struct ObjectStorageTest {
       configName: ociProfileName
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
-    let requestDetails = CreatePreauthenticatedRequestDetails(accessType: AccessType.objectRead, name: "Object_read", objectName: "Frame.png", timeExpires: "2025-12-31T23:59:59Z")
 
-    let createPreauthenticatedRequest = try await sut.createPreauthenticatedRequest(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", requestDetails: requestDetails)
+    let requestDetails = CreatePreauthenticatedRequestDetails(
+      accessType: AccessType.objectRead,
+      name: "Object_read",
+      objectName: "Frame.png",
+      timeExpires: "2025-12-31T23:59:59Z"
+    )
+
+    let createPreauthenticatedRequest = try await sut.createPreauthenticatedRequest(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      requestDetails: requestDetails
+    )
 
     if let createPreauthenticatedRequest {
-      print("The object can be access on: \(createPreauthenticatedRequest.fullPath)")
+      print("The object can be accessed on: \(createPreauthenticatedRequest.fullPath)")
     }
+
     #expect(createPreauthenticatedRequest != nil, "The operation should succeed")
   }
+
   // MARK: - Deletes bucket
   @Test func deletesBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -205,6 +247,28 @@ struct ObjectStorageTest {
     #expect(deleteObject != nil, "The operation should succeed")
   }
 
+  // MARK: - Deletes replication policy
+  @Test func deletesReplicationPolicyWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let deleteReplicationPolicy: Void? = try? await sut.deleteReplicationPolicy(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      replicationId: "824de84a-295d-44ca-be44-23b2f627b1f1"
+    )
+
+    #expect(deleteReplicationPolicy != nil, "The operation should succeed")
+  }
+
   // MARK: - Deletes preauthenticated request
   @Test func deletesPreauthenticatedRequestWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -226,6 +290,7 @@ struct ObjectStorageTest {
 
     #expect(deletePreauthRequest != nil, "The operation should succeed")
   }
+
   // MARK: - Gets bucket
   @Test func getsBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -344,6 +409,32 @@ struct ObjectStorageTest {
     #expect(getObject != nil, "The operation should succeed")
   }
 
+  // MARK: - Gets replication policy
+  @Test func getsReplicationPolicyWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let getReplicationPolicy: ReplicationPolicy? = try await sut.getReplicationPolicy(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      replicationId: "824de84a-295d-44ca-be44-23b2f627b1f1"
+    )
+
+    // Print policy details
+    if let policy = getReplicationPolicy {
+      print("id: \(policy.id) - name: \(policy.name)")
+    }
+    #expect(getReplicationPolicy != nil, "The operation should succeed")
+  }
+
   // MARK: - Get preauthenticated request
   @Test func getPreauthenticatedRequestWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -420,6 +511,63 @@ struct ObjectStorageTest {
     )
   }
 
+  // MARK: - List replication policies
+  @Test func listReplicationPoliciesWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let listReplicationPolicies = try await sut.listReplicationPolicies(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      limit: 10
+    )
+
+    // Print polices
+    if let policies = listReplicationPolicies {
+      for policy in policies {
+        print("id: \(policy.id) - name: \(policy.name)")
+      }
+    }
+    #expect(listReplicationPolicies != nil, "The operation should succeed")
+  }
+
+  // MARK: - List replication resources
+  /// At least one replication policy is required on the queried bucket
+  @Test func listReplicationResourcesWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let listReplicationResources = try await sut.listReplicationPolicies(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      limit: 10
+    )
+
+    // Print resources
+    if let resources = listReplicationResources {
+      for resource in resources {
+        print("id: \(resource.id) - name: \(resource.name) - destination: \(resource.destinationBucketName)")
+      }
+    }
+    #expect(listReplicationResources != nil, "The operation should succeed")
+  }
+
   // MARK: - List objects
   // Returning with `name`, `size`, `timeCreated` and `timeModified`
   @Test func listObjectsWithAPIKeySigner() async throws {
@@ -450,36 +598,36 @@ struct ObjectStorageTest {
     #expect(listOfObjects != nil, "The operation should succeed")
   }
 
-    // Returning with `size`, `etag`, `timeCreated`, `md5`,`timeModified`, `storageTier` and  `archivalState`
-    @Test func listObjectsFullFieldsWithAPIKeySigner() async throws {
-      let regionId = try extractUserRegion(
-        from: ociConfigFilePath,
-        profile: ociProfileName
-      )
-      let region = Region.from(regionId: regionId ?? "") ?? .iad
-      let signer = try APIKeySigner(
-        configFilePath: ociConfigFilePath,
-        configName: ociProfileName
-      )
-      let sut = try ObjectStorageClient(region: region, signer: signer)
+  // Returning with `size`, `etag`, `timeCreated`, `md5`,`timeModified`, `storageTier` and  `archivalState`
+  @Test func listObjectsFullFieldsWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
-      let listOfObjects = try await sut.listObjects(
-        namespaceName: "frcjtpiacekz",
-        bucketName: "szabolcs_toth_demo_bucket",
-        fields: Field.allCases
-      )
+    let listOfObjects = try await sut.listObjects(
+      namespaceName: "frcjtpiacekz",
+      bucketName: "szabolcs_toth_demo_bucket",
+      fields: Field.allCases
+    )
 
-        // Print objects
-      if let objectsInBucket = listOfObjects {
-        for object in objectsInBucket.objects {
-          if let size = object.size, let md5 = object.md5, let storageTier = object.storageTier {
-            print("Name: \(object.name), size: \(size), md5: \(md5), storageTier: \(storageTier)\n---")
-          }
+    // Print objects
+    if let objectsInBucket = listOfObjects {
+      for object in objectsInBucket.objects {
+        if let size = object.size, let md5 = object.md5, let storageTier = object.storageTier {
+          print("Name: \(object.name), size: \(size), md5: \(md5), storageTier: \(storageTier)\n---")
         }
       }
-      #expect(listOfObjects != nil, "The operation should succeed")
     }
-    
+    #expect(listOfObjects != nil, "The operation should succeed")
+  }
+
   // MARK: - Lists object versions
   @Test func listObjectVersionsWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -511,6 +659,24 @@ struct ObjectStorageTest {
     #expect(listOfObjectVersions != nil, "The operation should succeed")
   }
 
+  // MARK: - Makes bucket writable
+  @Test func makeBucketWritableWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let makeBucketWritable: ()? = try? await sut.makeBucketWritable(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk_replica")
+
+    #expect(makeBucketWritable != nil, "The operation should succeed")
+  }
+
   // MARK: - Lists preauthenticated requests
   @Test func listPreauthenticatedRequestsWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -538,6 +704,7 @@ struct ObjectStorageTest {
     }
     #expect(listOfPreauthenticatedRequests != nil, "The operation should succeed")
   }
+
   // MARK: - Puts object
   @Test func putsObjectWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -623,11 +790,7 @@ struct ObjectStorageTest {
       configName: ociProfileName
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
-<<<<<<< HEAD
     let renameObjectDetails = RenameObjectDetails(newName: "New Frame.png", sourceName: "Frame.png")
-=======
-    let renameObjectDetails = RenameObjectDetails(newName: "NewFrame.png", sourceName: "Frame.png")
->>>>>>> upstream/main
 
     let renameObject: Void? = try? await sut.renameObject(
       namespaceName: "frjfldcyl3la",
