@@ -92,6 +92,8 @@ public enum ObjectStorageAPI: API {
   case getNamespace(compartmentId: String? = nil, opcClientRequestId: String? = nil)
   /// Gets namespace metadata
   case getNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil)
+  /// Gets retention rule
+  case getRetentionRule(namespaceName: String, bucketName: String, retentionId: String, opcClientRequestId: String? = nil)
   /// Lists buckets
   case listBuckets(namespaceName: String, compartmentId: String, opcClientRequestId: String? = nil)
   /// Lists objects
@@ -181,7 +183,8 @@ public enum ObjectStorageAPI: API {
       .headBucket(let namespaceName, let bucketName, _),
       .updateBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)"
-    case .deleteRetentionRule(let namespaceName, let bucketName, let retentionRuleId, _):
+    case .deleteRetentionRule(let namespaceName, let bucketName, let retentionRuleId, _),
+      .getRetentionRule(let namespaceName, let bucketName, let retentionRuleId, _):
       return "/n/\(namespaceName)/b/\(bucketName)/retentionRules/\(retentionRuleId)"
     case .reencryptBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
@@ -236,6 +239,7 @@ public enum ObjectStorageAPI: API {
       .getObject,
       .getNamespaceMetadata,
       .getReplicationPolicy,
+      .getRetentionRule,
       .listBuckets,
       .listObjects,
       .listObjectVersions,
@@ -264,6 +268,7 @@ public enum ObjectStorageAPI: API {
       .getBucket,
       .getNamespaceMetadata,
       .getReplicationPolicy,
+      .getRetentionRule,
       .headBucket,
       .makeBucketWritable,
       .putObject,
@@ -405,6 +410,7 @@ public enum ObjectStorageAPI: API {
       .getNamespace(_, let opcClientRequestId),
       .getNamespaceMetadata(_, let opcClientRequestId),
       .getReplicationPolicy(_, _, _, let opcClientRequestId),
+      .getRetentionRule(_, _, _, let opcClientRequestId),
       .headBucket(_, _, let opcClientRequestId),
       .headObject(_, _, _, _, let opcClientRequestId, _, _, _),
       .listBuckets(_, _, let opcClientRequestId),

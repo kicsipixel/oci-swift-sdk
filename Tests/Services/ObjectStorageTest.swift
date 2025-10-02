@@ -418,6 +418,32 @@ struct ObjectStorageTest {
     #expect(getReplicationPolicy != nil, "The operation should succeed")
   }
 
+    // MARK: - Gets retention rule
+    @Test func getRetentionRuleWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+          from: ociConfigFilePath,
+          profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+          configFilePath: ociConfigFilePath,
+          configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        
+        let getRetentionRule: RetentionRule? = try? await sut.getRetentionRule(
+            namespaceName: "frjfldcyl3la",
+            bucketName: "test_bucket_by_sdk",
+            retentionRuleId: ""
+        )
+        
+        // Prints retention rule
+        if let rule = getRetentionRule {
+            print("id: \(rule.id) - name: \(rule.displayName)")
+        }
+        #expect(getRetentionRule != nil, "The operation should succeed")
+    }
+    
   // MARK: - Heads bucket
   @Test func headsBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(

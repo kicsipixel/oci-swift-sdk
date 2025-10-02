@@ -705,7 +705,6 @@ public struct ObjectStorageClient {
     replicationId: String,
     opcClientRequestId: String? = nil
   ) async throws -> ReplicationPolicy? {
-
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -730,6 +729,50 @@ public struct ObjectStorageClient {
 
     let replicationPolicy = try JSONDecoder().decode(ReplicationPolicy.self, from: data)
     return replicationPolicy
+  }
+
+  // MARK: - Gets retention rule
+  /// Retrieves the specified retention rule from the given bucket.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - retentionRuleId: The ID of the retention rule to retrieve.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object containing `RetentionRule`.
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func getRetentionRule(
+    namespaceName: String,
+    bucketName: String,
+    retentionRuleId: String,
+    opcClientRequestId: String? = nil
+  ) async throws -> RetentionRule? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.getRetentionRule(namespaceName: namespaceName, bucketName: bucketName, retentionId: retentionRuleId, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let retentionRule = try JSONDecoder().decode(RetentionRule.self, from: data)
+    return retentionRule
   }
 
   // MARK: - Heads bucket
