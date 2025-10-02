@@ -127,6 +127,8 @@ public enum ObjectStorageAPI: API {
   case listReplicationPolicies(namespaceName: String, bucketName: String, page: String? = nil, limit: Int? = 100, opcClientRequestId: String? = nil)
   /// Lists replication sources
   case listReplicationSources(namespaceName: String, bucketName: String, page: String? = nil, limit: Int? = 100, opcClientRequestId: String? = nil)
+  /// Lists retention rules
+  case listRetentionRules(namespaceName: String, bucketName: String, page: String? = nil, opcClientRequestId: String? = nil)
   /// Makes bucket writable
   case makeBucketWritable(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Puts object
@@ -173,7 +175,8 @@ public enum ObjectStorageAPI: API {
     case .createReplicationPolicy(let namespaceName, let bucketName, _),
       .listReplicationPolicies(let namespaceName, let bucketName, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/replicationPolicies"
-    case .createRetentionRule(let namespaceName, let bucketName, _):
+    case .createRetentionRule(let namespaceName, let bucketName, _),
+      .listRetentionRules(let namespaceName, let bucketName, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/retentionRules"
     case .deleteReplicationPolicy(let namespaceName, let bucketName, let replicationPolicyId, _),
       .getReplicationPolicy(let namespaceName, let bucketName, let replicationPolicyId, _):
@@ -244,7 +247,8 @@ public enum ObjectStorageAPI: API {
       .listObjects,
       .listObjectVersions,
       .listReplicationPolicies,
-      .listReplicationSources:
+      .listReplicationSources,
+      .listRetentionRules:
       return .get
     case .headBucket,
       .headObject:
@@ -391,6 +395,14 @@ public enum ObjectStorageAPI: API {
       }
 
       return queryItems.isEmpty ? nil : queryItems
+
+    case .listRetentionRules(_, _, let page, _):
+      if let page {
+        return [
+          URLQueryItem(name: "page", value: page)
+        ]
+      }
+      return nil
     }
   }
 
@@ -418,6 +430,7 @@ public enum ObjectStorageAPI: API {
       .listReplicationSources(_, _, _, _, let opcClientRequestId),
       .listObjects(_, _, _, _, _, _, _, _, let opcClientRequestId, _),
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
+      .listRetentionRules(_, _, _, let opcClientRequestId),
       .makeBucketWritable(_, _, let opcClientRequestId),
       .reencryptBucket(_, _, let opcClientRequestId),
       .reencryptObject(_, _, _, _, let opcClientRequestId),

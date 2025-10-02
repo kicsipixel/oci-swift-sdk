@@ -269,7 +269,7 @@ struct ObjectStorageTest {
     let deleteRetentionRule: Void? = try? await sut.deleteRetentionRule(
       namespaceName: "frjfldcyl3la",
       bucketName: "test_bucket_by_sdk",
-      retentionRuleId: ""
+      retentionRuleId: "5e29a9ef-d900-4b4d-a76d-b81f5ddf8c55"
     )
 
     #expect(deleteRetentionRule != nil, "The operation should succeed")
@@ -434,7 +434,7 @@ struct ObjectStorageTest {
         let getRetentionRule: RetentionRule? = try? await sut.getRetentionRule(
             namespaceName: "frjfldcyl3la",
             bucketName: "test_bucket_by_sdk",
-            retentionRuleId: ""
+            retentionRuleId: "5e29a9ef-d900-4b4d-a76d-b81f5ddf8c55"
         )
         
         // Prints retention rule
@@ -551,6 +551,35 @@ struct ObjectStorageTest {
     #expect(listReplicationResources != nil, "The operation should succeed")
   }
 
+    // MARK: - List retention rules
+    @Test func listRetentionRulesWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+          from: ociConfigFilePath,
+          profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+          configFilePath: ociConfigFilePath,
+          configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        
+        let listRetentionRules = try? await sut.listRetentionRules(
+            namespaceName: "frjfldcyl3la",
+            bucketName: "test_bucket_by_sdk"
+        )
+    
+        // Prints rules
+        if let rules = listRetentionRules {
+        
+            for rule in rules.items {
+                print("- id: \(rule.id) name: \(rule.displayName)")
+            }
+        }
+        
+        #expect(listRetentionRules != nil, "The operation should succeed")
+    }
+    
   // MARK: - List objects
   @Test func listObjectsWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(

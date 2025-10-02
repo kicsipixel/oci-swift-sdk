@@ -1064,6 +1064,53 @@ public struct ObjectStorageClient {
     return replicationSources
   }
 
+  // MARK: - List retention rules
+  /// Lists the retention rules for the specified bucket.
+  /// The rules are sorted by creation time, with the most recently created rule returned first.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - page: Optional pagination token from the previous response's `opc-next-page` header.
+
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object containing `RetentionRuleCollection`.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func listRetentionRules(
+    namespaceName: String,
+    bucketName: String,
+    page: String? = nil,
+    opcClientRequestId: String? = nil
+  ) async throws -> RetentionRuleCollection {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.listRetentionRules(namespaceName: namespaceName, bucketName: bucketName, page: page, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let retentionRuleCollection = try JSONDecoder().decode(RetentionRuleCollection.self, from: data)
+    return retentionRuleCollection
+  }
+
   // MARK: - Lists objects
   /// Lists the objects in a bucket. By default, only object names are returned.
   /// Use the `fields` parameter to include additional metadata in the response.
