@@ -43,6 +43,8 @@ public enum ObjectStorageAPI: API {
   case createBucket(namespaceName: String, opcClientRequestId: String? = nil)
   /// Creates replication policy
   case createReplicationPolicy(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+  /// Creates retention rule
+  case createRetentionRule(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Deletes bucket
   case deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Deletes object
@@ -167,6 +169,8 @@ public enum ObjectStorageAPI: API {
     case .createReplicationPolicy(let namespaceName, let bucketName, _),
       .listReplicationPolicies(let namespaceName, let bucketName, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/replicationPolicies"
+    case .createRetentionRule(let namespaceName, let bucketName, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/retentionRules"
     case .deleteReplicationPolicy(let namespaceName, let bucketName, let replicationPolicyId, _),
       .getReplicationPolicy(let namespaceName, let bucketName, let replicationPolicyId, _):
       return "/n/\(namespaceName)/b/\(bucketName)/replicationPolicies/\(replicationPolicyId)"
@@ -209,6 +213,7 @@ public enum ObjectStorageAPI: API {
     case .copyObject,
       .createBucket,
       .createReplicationPolicy,
+      .createRetentionRule,
       .makeBucketWritable,
       .reencryptBucket,
       .reencryptObject,
@@ -247,6 +252,7 @@ public enum ObjectStorageAPI: API {
     case .copyObject,
       .createBucket,
       .createReplicationPolicy,
+      .createRetentionRule,
       .deleteBucket,
       .deleteReplicationPolicy,
       .getBucket,
@@ -383,6 +389,7 @@ public enum ObjectStorageAPI: API {
     case .copyObject(_, _, let opcClientRequestId),
       .createBucket(_, let opcClientRequestId),
       .createReplicationPolicy(_, _, let opcClientRequestId),
+      .createRetentionRule(_, _, let opcClientRequestId),
       .deleteBucket(_, _, let opcClientRequestId),
       .deleteObject(_, _, _, let opcClientRequestId, _),
       .deleteReplicationPolicy(_, _, _, let opcClientRequestId),

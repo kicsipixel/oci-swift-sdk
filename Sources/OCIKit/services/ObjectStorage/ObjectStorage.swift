@@ -226,6 +226,58 @@ public struct ObjectStorageClient {
     return replicationPolicy
   }
 
+  // MARK: - Creates retention rule
+  /// Creates a new retention rule in the specified bucket.
+  /// The new rule typically takes effect within 30 seconds.
+  /// Note: A maximum of 100 rules are supported per bucket.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - ruleDetails: The retention rule to create for the bucket.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object containing `RetentionRule`.
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func createRetentionRule(namespaceName: String, bucketName: String, ruleDetails: CreateRetentionRuleDetails, opcClientRequestId: String? = nil) async throws -> RetentionRule? {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.createRetentionRule(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    let payload: Data
+    do {
+      payload = try JSONEncoder().encode(ruleDetails)
+    }
+    catch {
+      throw ObjectStorageError.jsonEncodingError("CreateRetentionRuleDetails cannot be encoded to data")
+    }
+
+    req.httpBody = payload
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let retentionRule = try JSONDecoder().decode(RetentionRule.self, from: data)
+    return retentionRule
+  }
+
   // MARK: - Deletes bucket
   /// Deletes a bucket if the bucket is already empty.
   /// If the bucket is not empty, use `deleteObject` first.

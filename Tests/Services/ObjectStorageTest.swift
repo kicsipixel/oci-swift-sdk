@@ -139,7 +139,33 @@ struct ObjectStorageTest {
 
     #expect(createReplicationPolicy != nil, "The operation should succeed")
   }
-    
+
+  // MARK: - Creates retention rule
+  /// If the bucket versioning is enabled, you cannot add retention policy.
+  /// `timeRuleLocked` must be atleast 14 days ahead of the current time.`
+  @Test func createsRetentionRuleWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+    let twoDaysFromNow = Calendar.current.date(byAdding: .day, value: 22, to: Date.now)
+    let ruleDetails = CreateRetentionRuleDetails(displayName: "Test_retention", duration: Duration(timeAmount: 10, timeUnit: TimeUnit.days), timeRuleLocked: twoDaysFromNow?.toRFC3339())
+
+    let createRetentionRule = try? await sut.createRetentionRule(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", ruleDetails: ruleDetails)
+
+    // Prints rule
+    if let rule = createRetentionRule {
+      print("You applied rule: \(rule.displayName).")
+    }
+    #expect(createRetentionRule != nil, "The operation should succeed")
+  }
+
   // MARK: - Deletes bucket
   @Test func deletesBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -226,6 +252,7 @@ struct ObjectStorageTest {
 
     #expect(deleteReplicationPolicy != nil, "The operation should succeed")
   }
+
   // MARK: - Gets bucket
   @Test func getsBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -369,6 +396,7 @@ struct ObjectStorageTest {
     }
     #expect(getReplicationPolicy != nil, "The operation should succeed")
   }
+
   // MARK: - Heads bucket
   @Test func headsBucketWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -446,36 +474,36 @@ struct ObjectStorageTest {
     }
     #expect(listReplicationPolicies != nil, "The operation should succeed")
   }
-    
-    // MARK: - List replication resources
-    /// At least one replication policy is required on the queried bucket
-    @Test func listReplicationResourcesWithAPIKeySigner() async throws {
-        let regionId = try extractUserRegion(
-          from: ociConfigFilePath,
-          profile: ociProfileName
-        )
-        let region = Region.from(regionId: regionId ?? "") ?? .iad
-        let signer = try APIKeySigner(
-          configFilePath: ociConfigFilePath,
-          configName: ociProfileName
-        )
-        let sut = try ObjectStorageClient(region: region, signer: signer)
-        
-        let listReplicationResources = try await sut.listReplicationPolicies(
-            namespaceName: "frjfldcyl3la",
-            bucketName: "test_bucket_by_sdk",
-            limit: 10
-        )
-        
-        // Print resources
-        if let resources = listReplicationResources {
-            for resource in resources {
-                print("id: \(resource.id) - name: \(resource.name) - destination: \(resource.destinationBucketName)")
-            }
-        }
-        #expect(listReplicationResources != nil, "The operation should succeed")
+
+  // MARK: - List replication resources
+  /// At least one replication policy is required on the queried bucket
+  @Test func listReplicationResourcesWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let listReplicationResources = try await sut.listReplicationPolicies(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      limit: 10
+    )
+
+    // Print resources
+    if let resources = listReplicationResources {
+      for resource in resources {
+        print("id: \(resource.id) - name: \(resource.name) - destination: \(resource.destinationBucketName)")
+      }
     }
-    
+    #expect(listReplicationResources != nil, "The operation should succeed")
+  }
+
   // MARK: - List objects
   @Test func listObjectsWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -535,23 +563,24 @@ struct ObjectStorageTest {
     #expect(listOfObjectVersions != nil, "The operation should succeed")
   }
 
-    // MARK: - Makes bucket writable
-    @Test func makeBucketWritableWithAPIKeySigner() async throws {
-        let regionId = try extractUserRegion(
-          from: ociConfigFilePath,
-          profile: ociProfileName
-        )
-        let region = Region.from(regionId: regionId ?? "") ?? .iad
-        let signer = try APIKeySigner(
-          configFilePath: ociConfigFilePath,
-          configName: ociProfileName
-        )
-        let sut = try ObjectStorageClient(region: region, signer: signer)
-        
-        let makeBucketWritable: ()? = try? await sut.makeBucketWritable(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk_replica")
-        
-        #expect(makeBucketWritable != nil, "The operation should succeed")
-    }
+  // MARK: - Makes bucket writable
+  @Test func makeBucketWritableWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let makeBucketWritable: ()? = try? await sut.makeBucketWritable(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk_replica")
+
+    #expect(makeBucketWritable != nil, "The operation should succeed")
+  }
+
   // MARK: - Puts object
   @Test func putsObjectWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
