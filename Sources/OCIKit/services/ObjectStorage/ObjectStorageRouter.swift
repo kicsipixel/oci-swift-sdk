@@ -51,6 +51,8 @@ public enum ObjectStorageAPI: API {
   case deleteObject(namespaceName: String, bucketName: String, objectName: String, opcClientRequestId: String? = nil, versionId: String? = nil)
   /// Deletes replication policy
   case deleteReplicationPolicy(namespaceName: String, bucketName: String, replicationId: String, opcClientRequestId: String? = nil)
+  /// Deletes retention rule
+  case deleteRetentionRule(namespaceName: String, bucketName: String, retentionId: String, opcClientRequestId: String? = nil)
   /// Gets bucket
   case getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Gets object
@@ -179,6 +181,8 @@ public enum ObjectStorageAPI: API {
       .headBucket(let namespaceName, let bucketName, _),
       .updateBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)"
+    case .deleteRetentionRule(let namespaceName, let bucketName, let retentionRuleId, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/retentionRules/\(retentionRuleId)"
     case .reencryptBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
     case .reencryptObject(let namespaceName, let bucketName, let objectName, _, _):
@@ -224,7 +228,8 @@ public enum ObjectStorageAPI: API {
       return .post
     case .deleteBucket,
       .deleteObject,
-      .deleteReplicationPolicy:
+      .deleteReplicationPolicy,
+      .deleteRetentionRule:
       return .delete
     case .getNamespace,
       .getBucket,
@@ -255,6 +260,7 @@ public enum ObjectStorageAPI: API {
       .createRetentionRule,
       .deleteBucket,
       .deleteReplicationPolicy,
+      .deleteRetentionRule,
       .getBucket,
       .getNamespaceMetadata,
       .getReplicationPolicy,
@@ -393,6 +399,7 @@ public enum ObjectStorageAPI: API {
       .deleteBucket(_, _, let opcClientRequestId),
       .deleteObject(_, _, _, let opcClientRequestId, _),
       .deleteReplicationPolicy(_, _, _, let opcClientRequestId),
+      .deleteRetentionRule(_, _, _, let opcClientRequestId),
       .getBucket(_, _, let opcClientRequestId),
       .getObject(_, _, _, _, let opcClientRequestId, _, _, _, _, _, _, _, _, _, _),
       .getNamespace(_, let opcClientRequestId),
