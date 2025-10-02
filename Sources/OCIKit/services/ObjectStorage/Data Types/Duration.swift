@@ -19,6 +19,11 @@ public struct Duration: Codable {
     public let timeAmount: Int
     /// The unit that should be used to interpret timeAmount.
     public let timeUnit: TimeUnit
+    
+    public init(timeAmount: Int, timeUnit: TimeUnit) {
+        self.timeAmount = timeAmount
+        self.timeUnit = timeUnit
+    }
 }
 
 public enum TimeUnit: String, Codable {
