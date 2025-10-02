@@ -30,9 +30,27 @@ extension Date {
   ///     print("Parsed date:", date)
   /// }
   /// ```
-  static func fromRFC3339(_ string: String) -> Date? {
+  public static func fromRFC3339(_ string: String) -> Date? {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return formatter.date(from: string)
+  }
+
+  /// Converts a `Date` instance into an RFC3339 / ISO8601 formatted string.
+  ///
+  /// Useful for sending dates to APIs that expect timestamps in RFC3339 format.
+  ///
+  /// - Returns: A `String` in RFC3339 format, e.g. `"2025-10-01T19:23:45.123Z"`.
+  ///
+  /// ### Example
+  /// ```swift
+  /// let now = Date()
+  /// let rfc3339String = now.toRFC3339()
+  /// print(rfc3339String) // e.g. "2025-10-01T19:23:45.123Z"
+  /// ```
+  public func toRFC3339() -> String {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter.string(from: self)
   }
 }
