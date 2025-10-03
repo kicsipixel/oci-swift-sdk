@@ -127,7 +127,7 @@ public struct ObjectStorageClient {
   ///     - namespaceName: The Object Storage namespace used for the request.
   ///     - opcClientRequestId: Optional client request ID for tracing.
   ///  - Returns: The response body will contain a single Bucket resource.
-  public func createBucket(namespaceName: String, createBucketDetails: CreateBucketDetails, opcClientRequestId: String? = nil) async throws -> Bucket? {
+  public func createBucket(namespaceName: String, createBucketDetails: CreateBucketDetails, opcClientRequestId: String? = nil) async throws -> Bucket {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -189,7 +189,7 @@ public struct ObjectStorageClient {
     bucketName: String,
     policyDetails: CreateReplicationPolicyDetails,
     opcClientRequestId: String? = nil
-  ) async throws -> ReplicationPolicy? {
+  ) async throws -> ReplicationPolicy {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -250,7 +250,7 @@ public struct ObjectStorageClient {
     bucketName: String,
     ruleDetails: CreateRetentionRuleDetails,
     opcClientRequestId: String? = nil
-  ) async throws -> RetentionRule? {
+  ) async throws -> RetentionRule {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -309,7 +309,7 @@ public struct ObjectStorageClient {
     bucketName: String,
     requestDetails: CreatePreauthenticatedRequestDetails,
     opcClientRequestId: String? = nil
-  ) async throws -> PreauthenticatedRequest? {
+  ) async throws -> PreauthenticatedRequest {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -632,7 +632,7 @@ public struct ObjectStorageClient {
   ///     - `approximateSize`: Total approximate size in bytes of all objects in the bucket.
   ///     - `autoTiering`: State of auto tiering on the bucket.
   ///
-  public func getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil) async throws -> Bucket? {
+  public func getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil) async throws -> Bucket {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -719,7 +719,7 @@ public struct ObjectStorageClient {
   ///
   /// TODO:
   ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
-  public func getNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil) async throws -> NamespaceMetadata? {
+  public func getNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil) async throws -> NamespaceMetadata {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -901,7 +901,7 @@ public struct ObjectStorageClient {
     bucketName: String,
     replicationId: String,
     opcClientRequestId: String? = nil
-  ) async throws -> ReplicationPolicy? {
+  ) async throws -> ReplicationPolicy {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -952,7 +952,7 @@ public struct ObjectStorageClient {
     bucketName: String,
     retentionRuleId: String,
     opcClientRequestId: String? = nil
-  ) async throws -> RetentionRule? {
+  ) async throws -> RetentionRule {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -1003,7 +1003,7 @@ public struct ObjectStorageClient {
     bucketName: String,
     parId: String,
     opcClientRequestId: String? = nil
-  ) async throws -> PreauthenticatedRequestSummary? {
+  ) async throws -> PreauthenticatedRequestSummary {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -1250,7 +1250,7 @@ public struct ObjectStorageClient {
     page: String? = nil,
     limit: Int? = 100,
     opcClientRequestId: String? = nil
-  ) async throws -> [ReplicationPolicySummary]? {
+  ) async throws -> [ReplicationPolicySummary] {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -1409,7 +1409,7 @@ public struct ObjectStorageClient {
     fields: [Field] = [.name, .size, .timeCreated, .timeModified],
     opcClientRequestId: String? = nil,
     startAfter: String? = nil
-  ) async throws -> ListObject? {
+  ) async throws -> ListObject {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -1459,7 +1459,7 @@ public struct ObjectStorageClient {
     fields: [Field] = [.name, .size, .timeCreated, .timeModified],
     opcClientRequestId: String? = nil,
     startAfter: String? = nil
-  ) async throws -> ListObject? {
+  ) async throws -> ListObject {
 
     let api = ObjectStorageAPI.listObjectsWithPAR(
       parURL: parURL,
@@ -1532,7 +1532,7 @@ public struct ObjectStorageClient {
     opcClientRequestId: String? = nil,
     startAfter: String? = nil,
     page: String? = nil,
-  ) async throws -> ObjectVersionCollection? {
+  ) async throws -> ObjectVersionCollection {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -1892,7 +1892,7 @@ public struct ObjectStorageClient {
     }
   }
 
-  // MARK: - Reanames object
+  // MARK: - Renames object
   /// Renames an object in the specified Object Storage namespace.
   ///
   /// See [Object Names](https://docs.cloud.oracle.com/Content/Object/Tasks/managingobjects.htm#namerequirements)
@@ -2047,7 +2047,7 @@ public struct ObjectStorageClient {
     bucketName: String,
     updateBucketDetails: UpdateBucketDetails,
     opcClientRequestId: String? = nil
-  ) async throws -> Bucket? {
+  ) async throws -> Bucket {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -2114,7 +2114,7 @@ public struct ObjectStorageClient {
     namespaceName: String,
     metadata: UpdateNamespaceMetadataDetails,
     opcClientRequestId: String? = nil
-  ) async throws -> NamespaceMetadata? {
+  ) async throws -> NamespaceMetadata {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
