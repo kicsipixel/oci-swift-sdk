@@ -2236,6 +2236,66 @@ public struct ObjectStorageClient {
       }
     }
   }
+    
+    // MARK: - Updates retenion rule
+    /// Updates the specified retention rule. Rule changes typically take effect within 30 seconds.
+    ///
+    /// - Parameters:
+    ///   - namespaceName: The Object Storage namespace used for the request.
+    ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+    ///   - retentionRuleId: The ID of the retention rule.
+    ///   - updateRetentionRuleDetails: Request object for updating the retention rule.
+    ///   - opcClientRequestId: Optional client request ID for tracing.
+    ///
+    /// - Returns: A response object containing the updated `RetentionRule`.
+    ///
+    /// TODO:
+    ///   - retryConfig: (Optional) The retry configuration to apply to this operation. If not provided, the service-level retry configuration will be used. If `nil`, the operation will not retry.
+    ///   - ifMatch: (Optional) The entity tag (ETag) to match with the ETag of an existing resource. If matched, GET and HEAD requests will return the resource, and PUT and POST requests will upload the resource.
+    public func updateRetentionRule(
+        namespaceName: String,
+        bucketName: String,
+        retentionRuleId: String,
+        updateRetentionRuleDetails: UpdateRetentionRuleDetails,
+        opcClientRequestId: String? = nil
+    ) async throws -> RetentionRule {
+        guard let endpoint else {
+            throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+        }
+        
+        let api = ObjectStorageAPI.updateRetentionRule(namespaceName: namespaceName, bucketName: bucketName, retentionId: retentionRuleId, opcClientRequestId: opcClientRequestId)
+        var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+        
+        do {
+            let payload: Data
+            do {
+                payload = try JSONEncoder().encode(updateRetentionRuleDetails)
+            }
+            catch {
+                throw ObjectStorageError.jsonEncodingError("UpdateRetentionRuleDetails cannot be encoded to data")
+            }
+            
+            req.httpBody = payload
+            
+            try signer.sign(&req)
+            
+            let (data, response) = try await URLSession.shared.data(for: req)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+            }
+            
+            if httpResponse.statusCode != 200 {
+                if let body = String(data: data, encoding: .utf8) {
+                    print("Error: \(body)")
+                }
+                throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+            }
+            
+            let retenetiobRule = try JSONDecoder().decode(RetentionRule.self, from: data)
+            return retenetiobRule
+        }
+    }
 }
 
 // TODO: Find proper place for these below

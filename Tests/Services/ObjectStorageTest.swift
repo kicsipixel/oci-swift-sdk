@@ -162,11 +162,11 @@ struct ObjectStorageTest {
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
 
-    let twoDaysFromNow = Calendar.current.date(byAdding: .day, value: 22, to: Date.now)
+    let twentyTwoDaysFromNow = Calendar.current.date(byAdding: .day, value: 22, to: Date.now)
     let ruleDetails = CreateRetentionRuleDetails(
-      displayName: "Test_retention",
+      displayName: "Test_retention_by_SDK",
       duration: Duration(timeAmount: 10, timeUnit: TimeUnit.days),
-      timeRuleLocked: twoDaysFromNow?.toRFC3339()
+      timeRuleLocked: twentyTwoDaysFromNow
     )
 
     let createRetentionRule = try? await sut.createRetentionRule(
@@ -544,13 +544,15 @@ struct ObjectStorageTest {
     let getRetentionRule: RetentionRule? = try? await sut.getRetentionRule(
       namespaceName: "frjfldcyl3la",
       bucketName: "test_bucket_by_sdk",
-      retentionRuleId: "5e29a9ef-d900-4b4d-a76d-b81f5ddf8c55"
+      retentionRuleId: "35c5bf43-def0-458b-a6a2-296be65d456c"
     )
 
     // Prints retention rule
-    if let rule = getRetentionRule {
-      print("id: \(rule.id) - name: \(rule.displayName)")
-    }
+      if let rule = getRetentionRule {
+          if let timeCreated = rule.timeCreated {
+              print("id: \(rule.id) - name: \(rule.displayName) on \(timeCreated)")
+          }
+      }
     #expect(getRetentionRule != nil, "The operation should succeed")
   }
 
@@ -682,11 +684,12 @@ struct ObjectStorageTest {
     // Prints rules
     if let rules = listRetentionRules {
 
-      for rule in rules.items {
-        print("- id: \(rule.id) name: \(rule.displayName)")
-      }
+        for rule in rules.items {
+            if let timeCreated = rule.timeCreated{
+                print("- id: \(rule.id) name: \(rule.displayName) on \(timeCreated)")
+            }
+        }
     }
-
     #expect(listRetentionRules != nil, "The operation should succeed")
   }
 
@@ -1080,4 +1083,30 @@ struct ObjectStorageTest {
 
     #expect(updateObjectStorageTier != nil, "The operation should succeed")
   }
+    
+    // MARK: - Updates retention rule
+    @Test func updatesRetentionRuleWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+          from: ociConfigFilePath,
+          profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+          configFilePath: ociConfigFilePath,
+          configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        let fortyTwoDaysFromNow = Calendar.current.date(byAdding: .day, value: 42, to: Date.now)
+        let updateRetentionRuleDetails = UpdateRetentionRuleDetails(displayName: "Test_retention_by_SDK_modified", duration: Duration(timeAmount: 20, timeUnit: TimeUnit.days), timeRuleLocked: fortyTwoDaysFromNow)
+        
+        let updateRetentionRule =  try? await sut.updateRetentionRule(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", retentionRuleId:"7da01af4-236e-45eb-b37e-91ba51e2e87b", updateRetentionRuleDetails: updateRetentionRuleDetails)
+        
+        // Prints updated retention rule
+        if let rule = updateRetentionRule {
+            if let timeRuleLocked = rule.timeRuleLocked {
+                print("New rule applies lock on \(timeRuleLocked)")
+            }
+        }
+        #expect(updateRetentionRule != nil, "The operation should succeed")
+    }
 }

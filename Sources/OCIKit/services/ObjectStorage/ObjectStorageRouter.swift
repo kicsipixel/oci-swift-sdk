@@ -197,6 +197,8 @@ public enum ObjectStorageAPI: API {
   case updateNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil)
   /// Updates object storage tier
   case updadateObjectStorageTier(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+  /// Updates retention rule
+  case updateRetentionRule(namespaceName: String, bucketName: String, retentionId: String, opcClientRequestId: String? = nil)
 
   // Path
   public var path: String {
@@ -230,7 +232,8 @@ public enum ObjectStorageAPI: API {
       .getPreauthenticatedRequest(let namespaceName, let bucketName, let parId, _):
       return "/n/\(namespaceName)/b/\(bucketName)/p/\(parId)"
     case .deleteRetentionRule(let namespaceName, let bucketName, let retentionRuleId, _),
-      .getRetentionRule(let namespaceName, let bucketName, let retentionRuleId, _):
+      .getRetentionRule(let namespaceName, let bucketName, let retentionRuleId, _),
+      .updateRetentionRule(let namespaceName, let bucketName, let retentionRuleId, _):
       return "/n/\(namespaceName)/b/\(bucketName)/retentionRules/\(retentionRuleId)"
     case .reencryptBucket(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/reencrypt"
@@ -307,7 +310,8 @@ public enum ObjectStorageAPI: API {
       .headObject:
       return .head
     case .putObject,
-      .updateNamespaceMetadata:
+      .updateNamespaceMetadata,
+      .updateRetentionRule:
       return .put
     }
   }
@@ -337,7 +341,8 @@ public enum ObjectStorageAPI: API {
       .restoreObject,
       .updateBucket,
       .updateNamespaceMetadata,
-      .updadateObjectStorageTier:
+      .updadateObjectStorageTier,
+      .updateRetentionRule:
       return nil
     case .getNamespace(let compartmentId, _):
       if let compartmentId {
@@ -531,7 +536,8 @@ public enum ObjectStorageAPI: API {
       .restoreObject(_, _, let opcClientRequestId),
       .updateBucket(_, _, let opcClientRequestId),
       .updateNamespaceMetadata(_, let opcClientRequestId),
-      .updadateObjectStorageTier(_, _, let opcClientRequestId):
+      .updadateObjectStorageTier(_, _, let opcClientRequestId),
+      .updateRetentionRule(_, _, _, let opcClientRequestId):
       if let opcClientRequestId {
         return ["opc-client-request-id": opcClientRequestId]
       }
