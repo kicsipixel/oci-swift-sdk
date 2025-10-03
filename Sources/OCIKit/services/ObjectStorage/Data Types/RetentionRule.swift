@@ -23,10 +23,37 @@ public struct RetentionRule: Codable {
   public let etag: String
   /// Unique identifier for the retention rule.
   public let id: String
-  /// The date and time that the retention rule was created as per RFC3339.
-  public let timeCreated: String
-  /// The date and time that the retention rule was modified as per RFC3339.
-  public let timeModified: String
-  /// The date and time as per RFC 3339 after which this rule becomes locked. and can only be deleted by deleting the bucket.
-  public let timeRuleLocked: String?
+  /// The raw string value of the creation time from the server.
+  public let timeCreatedRaw: String
+  /// The raw string value of the modified time from the server.
+  private let timeModifiedRaw: String
+  /// The raw string value of the rule lock time from the server.
+  private let timeRuleLockedRaw: String?
+
+  /// The date and time that the retention rule was created as a `Date`.
+  public var timeCreated: Date? {
+    Date.fromRFC3339(timeCreatedRaw)
+  }
+
+  /// The date and time that the retention rule was modified as a `Date`.
+  public var timeModified: Date? {
+    Date.fromRFC3339(timeModifiedRaw)
+  }
+
+  /// The date and time as per as `Date` after which this rule becomes locked.
+  public var timeRuleLocked: Date? {
+    guard let raw = timeRuleLockedRaw else { return nil }
+    return Date.fromRFC3339(raw)
+  }
+
+  // Custom CodingKeys to map raw string fields to their JSON keys
+  private enum CodingKeys: String, CodingKey {
+    case displayName
+    case duration
+    case etag
+    case id
+    case timeCreatedRaw = "timeCreated"
+    case timeModifiedRaw = "timeModified"
+    case timeRuleLockedRaw = "timeRuleLocked"
+  }
 }
