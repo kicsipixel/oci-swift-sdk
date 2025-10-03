@@ -73,6 +73,23 @@ public enum ObjectStorageAPI: API {
     httpResponseContentEncoding: String? = nil,
     httpResponseExpires: String? = nil
   )
+  /// Gets object using PAR
+  case getObjectWithPAR(
+    parURL: URL,
+    objectName: String,
+    versionId: String? = nil,
+    opcClientRequestId: String? = nil,
+    range: String? = nil,
+    opcSseCustomerAlgorithm: String? = nil,
+    opcSseCustomerKey: String? = nil,
+    opcSseCustomerKeySha256: String? = nil,
+    httpResponseContentDisposition: String? = nil,
+    httpResponseCacheControl: String? = nil,
+    httpResponseContentType: String? = nil,
+    httpResponseContentLanguage: String? = nil,
+    httpResponseContentEncoding: String? = nil,
+    httpResponseExpires: String? = nil
+  )
   /// Gets replication policy
   case getReplicationPolicy(namespaceName: String, bucketName: String, replicationId: String, opcClientRequestId: String? = nil)
   /// Gets preauthenticated request
@@ -100,6 +117,18 @@ public enum ObjectStorageAPI: API {
   case listObjects(
     namespaceName: String,
     bucketName: String,
+    prefix: String? = nil,
+    start: String? = nil,
+    end: String? = nil,
+    limit: Int? = nil,
+    delimiter: String? = nil,
+    fields: [Field],
+    opcClientRequiredId: String? = nil,
+    startAfter: String? = nil
+  )
+  /// Lists objects using PAR
+  case listObjectsWithPAR(
+    parURL: URL,
     prefix: String? = nil,
     start: String? = nil,
     end: String? = nil,
@@ -199,6 +228,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/actions/copyObject"
     case .listObjects(let namespaceName, let bucketName, _, _, _, _, _, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/o"
+    case .listObjectsWithPAR(let parURL, _, _, _, _, _, _, _, _):
+        return parURL.path()
     case .listObjectVersions(let namespaceName, let bucketName, _, _, _, _, _, _, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/objectversions"
     case .listReplicationSources(let namespaceName, let bucketName, _, _, _):
@@ -210,6 +241,8 @@ public enum ObjectStorageAPI: API {
       .headObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _),
       .putObject(let namespaceName, let bucketName, let objectName, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/o/\(objectName)"
+    case .getObjectWithPAR(let parURL, let objectName, _, _, _, _, _, _, _, _, _, _, _, _):
+        return "\(parURL.path())\(objectName)"
     case .restoreObject(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/restoreObjects"
     case .updadateObjectStorageTier(let namespaceName, let bucketName, _):
@@ -240,10 +273,12 @@ public enum ObjectStorageAPI: API {
     case .getNamespace,
       .getBucket,
       .getObject,
+      .getObjectWithPAR,
       .getNamespaceMetadata,
       .getReplicationPolicy,
       .listBuckets,
       .listObjects,
+      .listObjectsWithPAR,
       .listObjectVersions,
       .listReplicationPolicies,
       .listReplicationSources,
@@ -271,10 +306,7 @@ public enum ObjectStorageAPI: API {
       .getNamespaceMetadata,
       .getReplicationPolicy,
       .createPreauthenticatedRequest,
-      .deleteBucket,
       .deletePreauthenticatedRequest,
-      .getBucket,
-      .getNamespaceMetadata,
       .getPreauthenticatedRequest,
       .headBucket,
       .makeBucketWritable,
@@ -308,6 +340,22 @@ public enum ObjectStorageAPI: API {
 
     case .getObject(
       _,
+      _,
+      _,
+      let versionId,
+      _,
+      _,
+      _,
+      _,
+      _,
+      let httpResponseContentDisposition,
+      let httpResponseCacheControl,
+      let httpResponseContentType,
+      let httpResponseContentLanguage,
+      let httpResponseContentEncoding,
+      let httpResponseExpires
+    ),
+    .getObjectWithPAR(
       _,
       _,
       let versionId,
@@ -362,7 +410,8 @@ public enum ObjectStorageAPI: API {
 
       return queryItems.isEmpty ? nil : queryItems
 
-    case .listObjects(_, _, let prefix, let start, let end, let limit, let delimiter, let fields, _, let startAfter):
+    case .listObjects(_, _, let prefix, let start, let end, let limit, let delimiter, let fields, _, let startAfter),
+          .listObjectsWithPAR(_, let prefix, let start, let end, let limit, let delimiter, let fields, _, let startAfter):
       let keyValuePairs: [(String, String?)] = [
         ("prefix", prefix),
         ("start", start),
@@ -428,6 +477,7 @@ public enum ObjectStorageAPI: API {
       .deletePreauthenticatedRequest(_, _, _, let opcClientRequestId),
       .getBucket(_, _, let opcClientRequestId),
       .getObject(_, _, _, _, let opcClientRequestId, _, _, _, _, _, _, _, _, _, _),
+      .getObjectWithPAR(_, _, _, let opcClientRequestId, _, _, _, _, _, _, _, _, _, _),
       .getNamespace(_, let opcClientRequestId),
       .getNamespaceMetadata(_, let opcClientRequestId),
       .getReplicationPolicy(_, _, _, let opcClientRequestId),
@@ -438,6 +488,7 @@ public enum ObjectStorageAPI: API {
       .listReplicationPolicies(_, _, _, _, let opcClientRequestId),
       .listReplicationSources(_, _, _, _, let opcClientRequestId),
       .listObjects(_, _, _, _, _, _, _, _, let opcClientRequestId, _),
+      .listObjectsWithPAR(_, _, _, _, _, _, _, let opcClientRequestId, _),
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
       .makeBucketWritable(_, _, let opcClientRequestId),
       .listPreauthenticatedRequests(_, _, _, _, _, let opcClientRequestId),

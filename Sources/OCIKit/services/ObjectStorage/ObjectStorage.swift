@@ -714,6 +714,61 @@ public struct ObjectStorageClient {
 
     return data
   }
+  
+  /// Same as above but uring Pre-Authenticated Request (PAR) URL
+  public func getObject(
+    parURL: URL,
+    objectName: String,
+    versionId: String? = nil,
+    opcClientRequestId: String? = nil,
+    range: String? = nil,
+    opcSseCustomerAlgorithm: String? = nil,
+    opcSseCustomerKey: String? = nil,
+    opcSseCustomerKeySha256: String? = nil,
+    httpResponseContentDisposition: String? = nil,
+    httpResponseCacheControl: String? = nil,
+    httpResponseContentType: String? = nil,
+    httpResponseContentLanguage: String? = nil,
+    httpResponseContentEncoding: String? = nil,
+    httpResponseExpires: String? = nil
+  ) async throws -> Data {
+    
+    // The endpoint here is different from the above implementation because it already contains /p, /n, and /b in it.
+    guard let host = parURL.host(), let baseURL = URL(string: "https://\(host)") else {
+      throw ObjectStorageError.missingRequiredParameter("Malformed PAR URL")
+    }
+    
+    let api = ObjectStorageAPI.getObjectWithPAR(
+      parURL: parURL,
+      objectName: objectName,
+      versionId: versionId,
+      opcClientRequestId: opcClientRequestId,
+      range: range,
+      opcSseCustomerAlgorithm: opcSseCustomerAlgorithm,
+      opcSseCustomerKey: opcSseCustomerKey,
+      opcSseCustomerKeySha256: opcSseCustomerKeySha256,
+      httpResponseContentDisposition: httpResponseContentDisposition,
+      httpResponseCacheControl: httpResponseCacheControl,
+      httpResponseContentType: httpResponseContentType,
+      httpResponseContentLanguage: httpResponseContentLanguage,
+      httpResponseContentEncoding: httpResponseContentEncoding,
+      httpResponseExpires: httpResponseExpires
+    )
+
+    let req = try buildRequest(objectStorageAPI: api, endpoint: baseURL)
+    
+    let (data, response) = try await URLSession.shared.data(for: req)
+    
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+    
+    if httpResponse.statusCode != 200 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+    
+    return data
+  }
 
   // MARK: - Get replication policy
   /// Retrieves the replication policy for the specified bucket.
@@ -1176,6 +1231,53 @@ public struct ObjectStorageClient {
 
     let listObjects = try JSONDecoder().decode(ListObject.self, from: data)
 
+    return listObjects
+  }
+  
+  /// Lists objects in a bucket given a Pre-Authenticated Request (PAR)
+  ///  With PAR, we don't need to sign the request, nor do we need the namespace and the bucket name
+  public func listObjects(
+    parURL: URL,
+    prefix: String? = nil,
+    start: String? = nil,
+    end: String? = nil,
+    limit: Int? = nil,
+    delimiter: String? = nil,
+    fields: [Field] = [.name, .size, .timeCreated, .timeModified],
+    opcClientRequestId: String? = nil,
+    startAfter: String? = nil
+  ) async throws -> ListObject? {
+    
+    let api = ObjectStorageAPI.listObjectsWithPAR(
+      parURL: parURL,
+      prefix: prefix,
+      start: start,
+      end: end,
+      limit: limit,
+      delimiter: delimiter,
+      fields: fields,
+      opcClientRequiredId: opcClientRequestId,
+      startAfter: startAfter
+    )
+    
+    // The endpoint here is different from the above implementation because it already contains /p, /n, and /b in it.
+    guard let host = parURL.host(), let baseURL = URL(string: "https://\(host)") else {
+      throw ObjectStorageError.missingRequiredParameter("Malformed PAR URL")
+    }
+    let req = try buildRequest(objectStorageAPI: api, endpoint: baseURL)
+        
+    let (data, response) = try await URLSession.shared.data(for: req)
+    
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+    
+    if httpResponse.statusCode != 200 {
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+    
+    let listObjects = try JSONDecoder().decode(ListObject.self, from: data)
+    
     return listObjects
   }
 

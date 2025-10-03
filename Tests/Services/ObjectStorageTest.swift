@@ -408,6 +408,23 @@ struct ObjectStorageTest {
 
     #expect(getObject != nil, "The operation should succeed")
   }
+  
+  @Test func getsObjectWithPAR() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+    
+    let getObject = try? await sut.getObject(parURL: URL(string: "https://objectstorage.us-ashburn-1.oraclecloud.com/p/ugf-ZiRD-jayajvUvmJ1Uzva5ICb36kRaok7SNA1iOZU00Z1ujTPa6StuGfKSAcj/n/idhwcifwd5xy/b/myTestBucket/o/")!, objectName: "dir1/test_file.txt")
+    print("downloaded object size: \(getObject?.count ?? -1)")
+    #expect(getObject != nil, "The operation should succeed")
+  }
 
   // MARK: - Gets replication policy
   @Test func getsReplicationPolicyWithAPIKeySigner() async throws {
@@ -622,6 +639,35 @@ struct ObjectStorageTest {
       for object in objectsInBucket.objects {
         if let size = object.size, let md5 = object.md5, let storageTier = object.storageTier {
           print("Name: \(object.name), size: \(size), md5: \(md5), storageTier: \(storageTier)\n---")
+        }
+      }
+    }
+    #expect(listOfObjects != nil, "The operation should succeed")
+  }
+  
+  // Returning with `name`, `size`, `timeCreated` and `timeModified` using PAR
+  @Test func listObjectsWithPAR() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+    
+    let listOfObjects = try await sut.listObjects(
+      parURL: URL(string: "https://objectstorage.us-ashburn-1.oraclecloud.com/p/ugf-ZiRD-jayajvUvmJ1Uzva5ICb36kRaok7SNA1iOZU00Z1ujTPa6StuGfKSAcj/n/idhwcifwd5xy/b/myTestBucket/o/")!,
+      limit: 10
+    )
+    
+    // Print objects
+    if let objectsInBucket = listOfObjects {
+      for object in objectsInBucket.objects {
+        if let size = object.size, let timeCreated = object.timeCreated {
+          print("Name: \(object.name), size: \(size), created on: \(timeCreated)")
         }
       }
     }
