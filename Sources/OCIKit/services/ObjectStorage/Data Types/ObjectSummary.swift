@@ -27,10 +27,31 @@ public struct ObjectSummary: Codable {
   public let size: Int?
   /// The storage tier that the object is stored in.
   public let storageTier: StorageTier?
+  /// The raw string value of the creation time from the server.
+  private let timeCreatedRaw: String
+  /// The raw string value of the modified time from the server.
+  private let timeModifiedRaw: String
+
   ///  The date and time the object was created, as described in RFC 2616.
-  public let timeCreated: String?
+  public var timeCreated: Date? {
+    Date.fromRFC3339(timeCreatedRaw)
+  }
+
   /// The date and time the object was modified, as described in RFC 2616, section 14.29.
-  public let timeModified: String?
+  public var timeModified: Date? {
+    Date.fromRFC3339(timeModifiedRaw)
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case archivalState
+    case etag
+    case md5
+    case name
+    case size
+    case storageTier
+    case timeCreatedRaw = "timeCreated"
+    case timeModifiedRaw = "timeModified"
+  }
 }
 
 public enum ArchivalState: String, Codable {

@@ -548,11 +548,11 @@ struct ObjectStorageTest {
     )
 
     // Prints retention rule
-      if let rule = getRetentionRule {
-          if let timeCreated = rule.timeCreated {
-              print("id: \(rule.id) - name: \(rule.displayName) on \(timeCreated)")
-          }
+    if let rule = getRetentionRule {
+      if let timeCreated = rule.timeCreated {
+        print("id: \(rule.id) - name: \(rule.displayName) on \(timeCreated)")
       }
+    }
     #expect(getRetentionRule != nil, "The operation should succeed")
   }
 
@@ -684,11 +684,11 @@ struct ObjectStorageTest {
     // Prints rules
     if let rules = listRetentionRules {
 
-        for rule in rules.items {
-            if let timeCreated = rule.timeCreated{
-                print("- id: \(rule.id) name: \(rule.displayName) on \(timeCreated)")
-            }
+      for rule in rules.items {
+        if let timeCreated = rule.timeCreated {
+          print("- id: \(rule.id) name: \(rule.displayName) on \(timeCreated)")
         }
+      }
     }
     #expect(listRetentionRules != nil, "The operation should succeed")
   }
@@ -712,8 +712,13 @@ struct ObjectStorageTest {
       bucketName: "test_bucket_by_sdk"
     )
 
-    if let name = listOfObjects?.objects.first?.name, let size = listOfObjects?.objects.first?.size {
-      print("The name of the file: \(name), size: \(size).")
+    // Print objects
+    if let objects = listOfObjects {
+      for object in objects.objects {
+        if let timeCreated = object.timeCreated {
+          print("The name of the file: \(object.name), size: \(object.size) on \(timeCreated)")
+        }
+      }
     }
     #expect(listOfObjects != nil, "The operation should succeed")
   }
@@ -740,8 +745,8 @@ struct ObjectStorageTest {
     // Print objects
     if let objectsInBucket = listOfObjects {
       for object in objectsInBucket.objects {
-        if let size = object.size, let md5 = object.md5, let storageTier = object.storageTier {
-          print("Name: \(object.name), size: \(size), md5: \(md5), storageTier: \(storageTier)\n---")
+        if let size = object.size, let timeCreated = object.timeCreated, let md5 = object.md5, let storageTier = object.storageTier {
+          print("Name: \(object.name), size: \(size), created on: \(timeCreated), md5: \(md5), storageTier: \(storageTier)")
         }
       }
     }
@@ -1083,30 +1088,39 @@ struct ObjectStorageTest {
 
     #expect(updateObjectStorageTier != nil, "The operation should succeed")
   }
-    
-    // MARK: - Updates retention rule
-    @Test func updatesRetentionRuleWithAPIKeySigner() async throws {
-        let regionId = try extractUserRegion(
-          from: ociConfigFilePath,
-          profile: ociProfileName
-        )
-        let region = Region.from(regionId: regionId ?? "") ?? .iad
-        let signer = try APIKeySigner(
-          configFilePath: ociConfigFilePath,
-          configName: ociProfileName
-        )
-        let sut = try ObjectStorageClient(region: region, signer: signer)
-        let fortyTwoDaysFromNow = Calendar.current.date(byAdding: .day, value: 42, to: Date.now)
-        let updateRetentionRuleDetails = UpdateRetentionRuleDetails(displayName: "Test_retention_by_SDK_modified", duration: Duration(timeAmount: 20, timeUnit: TimeUnit.days), timeRuleLocked: fortyTwoDaysFromNow)
-        
-        let updateRetentionRule =  try? await sut.updateRetentionRule(namespaceName: "frjfldcyl3la", bucketName: "test_bucket_by_sdk", retentionRuleId:"7da01af4-236e-45eb-b37e-91ba51e2e87b", updateRetentionRuleDetails: updateRetentionRuleDetails)
-        
-        // Prints updated retention rule
-        if let rule = updateRetentionRule {
-            if let timeRuleLocked = rule.timeRuleLocked {
-                print("New rule applies lock on \(timeRuleLocked)")
-            }
-        }
-        #expect(updateRetentionRule != nil, "The operation should succeed")
+
+  // MARK: - Updates retention rule
+  @Test func updatesRetentionRuleWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+    let fortyTwoDaysFromNow = Calendar.current.date(byAdding: .day, value: 42, to: Date.now)
+    let updateRetentionRuleDetails = UpdateRetentionRuleDetails(
+      displayName: "Test_retention_by_SDK_modified",
+      duration: Duration(timeAmount: 20, timeUnit: TimeUnit.days),
+      timeRuleLocked: fortyTwoDaysFromNow
+    )
+
+    let updateRetentionRule = try? await sut.updateRetentionRule(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      retentionRuleId: "7da01af4-236e-45eb-b37e-91ba51e2e87b",
+      updateRetentionRuleDetails: updateRetentionRuleDetails
+    )
+
+    // Prints updated retention rule
+    if let rule = updateRetentionRule {
+      if let timeRuleLocked = rule.timeRuleLocked {
+        print("New rule applies lock on \(timeRuleLocked)")
+      }
     }
+    #expect(updateRetentionRule != nil, "The operation should succeed")
+  }
 }

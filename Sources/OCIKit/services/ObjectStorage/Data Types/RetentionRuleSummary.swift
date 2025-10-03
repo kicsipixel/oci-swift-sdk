@@ -24,7 +24,7 @@ public struct RetentionRuleSummary: Codable {
   /// Unique identifier for the retention rule.
   public let id: String
   /// The raw string value of the creation time from the server.
-  public let timeCreatedRaw: String
+  private let timeCreatedRaw: String
   /// The raw string value of the modified time from the server.
   private let timeModifiedRaw: String
   /// The raw string value of the rule lock time from the server.
