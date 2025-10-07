@@ -1409,7 +1409,7 @@ public struct ObjectStorageClient {
     fields: [Field] = [.name, .size, .timeCreated, .timeModified],
     opcClientRequestId: String? = nil,
     startAfter: String? = nil
-  ) async throws -> ListObject {
+  ) async throws -> ListObjects {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
