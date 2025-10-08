@@ -22,4 +22,4 @@ jobs:
               run: swift --version
 
             - name: Run Linux-safe tests
-              run: swift test --disable-discovery --target Linux
+              run: swift test
