@@ -15,6 +15,8 @@
 import Foundation
 
 public struct ObjectSummary: Codable {
+  /// A unique ID for SwiftUI's Identifiable conformance and efficient list rendering
+  public let id = UUID()
   /// Archival state of an object. This field is set only for objects in Archive tier.
   public let archivalState: ArchivalState?
   /// The current entity tag (ETag) for the object.

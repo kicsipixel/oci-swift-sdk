@@ -696,11 +696,11 @@ public struct ObjectStorageClient {
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
-    guard let responseBody = String(data: data, encoding: .utf8) else {
-      throw ObjectStorageError.invalidUTF8
-    }
+      guard let responseBody = String(data: data, encoding: .utf8) else {
+        throw ObjectStorageError.invalidUTF8
+      }
 
-    return responseBody
+      return responseBody.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
   }
 
   // MARK: - Gets namespace metadata

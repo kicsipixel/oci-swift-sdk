@@ -77,7 +77,7 @@ struct ObjectStorageTestOnLinux {
     // Print objects
     for object in originalObjects.objects {
       if let timeCreated = object.timeCreated, let size = object.size {
-        print("The name of the file: \(object.name), size: \(size) on \(timeCreated)")
+          print("ID: \(object.id ), Name: \(object.name), Size: \(size), Created: \(timeCreated)")
       }
     }
     #expect(!originalObjects.objects.isEmpty, "Expected non-empty object list after API execution")
