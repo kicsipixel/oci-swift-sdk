@@ -4,8 +4,6 @@ on:
     push:
         branches:
             - listobject-fix
-        paths:
-            - "**.swift"
     pull_request:
     workflow_dispatch:
 
