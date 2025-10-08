@@ -32,4 +32,5 @@ jobs:
               env:
                   OCI_CONFIG_FILE: /root/.oci/config
                   OCI_PROFILE: DEFAULT
-              run: swift test --disable-discovery --target Linux
+              run: swift test
+
