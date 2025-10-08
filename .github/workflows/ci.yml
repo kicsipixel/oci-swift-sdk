@@ -4,28 +4,32 @@ on:
     push:
         branches:
             - listobject-fix
+        paths:
+            - "**.swift"
     pull_request:
     workflow_dispatch:
 
 jobs:
-  linux:
-    runs-on: ubuntu-latest
-    container:
-      image: swift:6.1
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    linux:
+        runs-on: ubuntu-latest
+        container:
+            image: swift:6.1
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
 
-      - name: Inject OCI config and key
-        run: |
-          mkdir -p ~/.oci/Personal
-          echo "${{ secrets.OCI_CONFIG_FILE_CONTENT }}" > ~/.oci/config
-          echo "${{ secrets.OCI_API_KEY_CONTENT }}" > ~/.oci/Personal/oci_personal_api_key.pem
-          chmod 600 ~/.oci/Personal/oci_personal_api_key.pem
+            - name: Show Swift version
+              run: swift --version
 
-      - name: Run Linux-safe tests
-        env:
-          OCI_CONFIG_FILE: /root/.oci/config
-          OCI_PROFILE: DEFAULT
-        run: swift test
+            - name: Inject OCI config and key
+              run: |
+                  mkdir -p /root/.oci/Personal
+                  echo "${{ secrets.OCI_CONFIG_FILE_CONTENT }}" > /root/.oci/config
+                  echo "${{ secrets.OCI_API_KEY_CONTENT }}" > /root/.oci/Personal/oci_personal_api_key.pem
+                  chmod 600 /root/.oci/Personal/oci_personal_api_key.pem
 
+            - name: Run Linux-safe tests
+              env:
+                  OCI_CONFIG_FILE: /root/.oci/config
+                  OCI_PROFILE: DEFAULT
+              run: swift test --disable-discovery --target Linux
