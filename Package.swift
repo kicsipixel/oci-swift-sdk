@@ -28,7 +28,8 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
             ]
         ),
-        .testTarget(name: "OCIKItTests",
-                   dependencies: ["OCIKit"])
+        .testTarget(name: "Linux",
+                   dependencies: ["OCIKit"],
+                   path: "Tests/Linux")
     ]
 )
