@@ -16,6 +16,10 @@ import Foundation
 import OCIKit
 import Testing
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 struct ObjectStorageTestOnLinux {
     let ociConfigFilePath: String
     let ociProfileName: String
