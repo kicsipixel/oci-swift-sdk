@@ -1440,7 +1440,7 @@ public struct ObjectStorageClient {
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
-    let listObjects = try JSONDecoder().decode(ListObject.self, from: data)
+    let listObjects = try JSONDecoder().decode(ListObjects.self, from: data)
 
     return listObjects
   }
@@ -1459,7 +1459,7 @@ public struct ObjectStorageClient {
     fields: [Field] = [.name, .size, .timeCreated, .timeModified],
     opcClientRequestId: String? = nil,
     startAfter: String? = nil
-  ) async throws -> ListObject {
+  ) async throws -> ListObjects {
 
     let api = ObjectStorageAPI.listObjectsWithPAR(
       parURL: parURL,
@@ -1489,7 +1489,7 @@ public struct ObjectStorageClient {
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
-    let listObjects = try JSONDecoder().decode(ListObject.self, from: data)
+    let listObjects = try JSONDecoder().decode(ListObjects.self, from: data)
 
     return listObjects
   }
