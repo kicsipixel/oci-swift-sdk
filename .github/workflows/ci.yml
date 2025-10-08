@@ -1,0 +1,25 @@
+name: CI
+
+on:
+    push:
+        branches:
+            - listobject-fix
+        paths:
+            - "**.swift"
+    pull_request:
+    workflow_dispatch:
+
+jobs:
+    linux:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                image:
+                    - "swift:latest"
+        container:
+            image: ${{ matrix.image }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Test
+              run: swift test
