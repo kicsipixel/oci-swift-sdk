@@ -716,7 +716,7 @@ struct ObjectStorageTest {
     if let objects = listOfObjects {
       for object in objects.objects {
         if let timeCreated = object.timeCreated, let size = object.size {
-          print("The name of the file: \(object.name), size: \(object.size) on \(timeCreated)")
+          print("The name of the file: \(object.name), size: \(size) on \(timeCreated)")
         }
       }
     }
