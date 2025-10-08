@@ -31,6 +31,7 @@ struct ObjectStorageTestOnLinux {
     }
     
     // MARK: - Gets namespace
+    // Returns with a string. e.g.:"frjfldcyl3la"
     @Test func getsNamespaceWithAPIKeySignerReturnsValidString() async throws {
       let regionId = try extractUserRegion(
         from: ociConfigFilePath,
@@ -48,5 +49,35 @@ struct ObjectStorageTestOnLinux {
       // Prints the namespace
       print("The current namespace is: \(namespace)")
       #expect(!namespace.isEmpty, "Namespace should not be empty")
+    }
+    
+    // MARK: - List objects
+    // Returning with `name`, `size`, `timeCreated` and `timeModified`
+    @Test func listObjectsWithAPIKeySigner() async throws {
+      let regionId = try extractUserRegion(
+        from: ociConfigFilePath,
+        profile: ociProfileName
+      )
+      let region = Region.from(regionId: regionId ?? "") ?? .iad
+      let signer = try APIKeySigner(
+        configFilePath: ociConfigFilePath,
+        configName: ociProfileName
+      )
+      let sut = try ObjectStorageClient(region: region, signer: signer)
+
+      let listOfObjects = try? await sut.listObjects(
+        namespaceName: "frjfldcyl3la",
+        bucketName: "test_bucket_by_sdk"
+      )
+
+      // Print objects
+      if let objects = listOfObjects {
+        for object in objects.objects {
+            if let timeCreated = object.timeCreated, let size = object.size {
+            print("The name of the file: \(object.name), size: \(size) on \(timeCreated)")
+          }
+        }
+      }
+      #expect(listOfObjects != nil, "The operation should succeed")
     }
 }
