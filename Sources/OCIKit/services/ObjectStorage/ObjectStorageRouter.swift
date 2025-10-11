@@ -37,6 +37,8 @@ public protocol API {
 
 // API
 public enum ObjectStorageAPI: API {
+  /// Cancels work request
+  case cancelWorkRequest(workRequestId: String, opcClientRequestId: String? = nil)
   /// Copies object
   case copyObject(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Creates bucket
@@ -98,6 +100,8 @@ public enum ObjectStorageAPI: API {
   )
   /// Gets preauthenticated request
   case getPreauthenticatedRequest(namespaceName: String, bucketName: String, parId: String, opcClientRequestId: String? = nil)
+  /// Get work request
+  case getWorkRequest(workRequestId: String, opcClientRequestId: String? = nil)
   /// HEAD bucket
   case headBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// HEAD object
@@ -203,6 +207,9 @@ public enum ObjectStorageAPI: API {
   // Path
   public var path: String {
     switch self {
+    case .cancelWorkRequest(let workRequestId, _),
+      .getWorkRequest(let workRequestId, _):
+      return "/workRequests/\(workRequestId)"
     case .getNamespace:
       return "/n"
     case .getNamespaceMetadata(let namespaceName, _),
@@ -283,7 +290,8 @@ public enum ObjectStorageAPI: API {
       .updateBucket,
       .updadateObjectStorageTier:
       return .post
-    case .deleteBucket,
+    case .cancelWorkRequest,
+      .deleteBucket,
       .deleteObject,
       .deleteReplicationPolicy,
       .deleteRetentionRule,
@@ -296,6 +304,7 @@ public enum ObjectStorageAPI: API {
       .getNamespaceMetadata,
       .getReplicationPolicy,
       .getRetentionRule,
+      .getWorkRequest,
       .listBuckets,
       .listObjects,
       .listObjectsWithPAR,
@@ -319,20 +328,22 @@ public enum ObjectStorageAPI: API {
   // QueryItems
   public var queryItems: [URLQueryItem]? {
     switch self {
-    case .copyObject,
+    case .cancelWorkRequest,
+      .copyObject,
       .createBucket,
       .createReplicationPolicy,
       .createRetentionRule,
+      .createPreauthenticatedRequest,
       .deleteBucket,
       .deleteReplicationPolicy,
       .deleteRetentionRule,
+      .deletePreauthenticatedRequest,
       .getBucket,
       .getNamespaceMetadata,
       .getReplicationPolicy,
       .getRetentionRule,
-      .createPreauthenticatedRequest,
-      .deletePreauthenticatedRequest,
       .getPreauthenticatedRequest,
+      .getWorkRequest,
       .headBucket,
       .makeBucketWritable,
       .putObject,
@@ -501,7 +512,8 @@ public enum ObjectStorageAPI: API {
   // Headers
   public var headers: [String: String]? {
     switch self {
-    case .copyObject(_, _, let opcClientRequestId),
+    case .cancelWorkRequest(_, let opcClientRequestId),
+      .copyObject(_, _, let opcClientRequestId),
       .createBucket(_, let opcClientRequestId),
       .createReplicationPolicy(_, _, let opcClientRequestId),
       .createRetentionRule(_, _, let opcClientRequestId),
@@ -519,6 +531,7 @@ public enum ObjectStorageAPI: API {
       .getReplicationPolicy(_, _, _, let opcClientRequestId),
       .getRetentionRule(_, _, _, let opcClientRequestId),
       .getPreauthenticatedRequest(_, _, _, let opcClientRequestId),
+      .getWorkRequest(_, let opcClientRequestId),
       .headBucket(_, _, let opcClientRequestId),
       .headObject(_, _, _, _, let opcClientRequestId, _, _, _),
       .listBuckets(_, _, let opcClientRequestId),
