@@ -1644,59 +1644,6 @@ public struct ObjectStorageClient {
     return listObjectVersions
   }
 
-  // MARK: - Makes bucket writable
-  /// Stops replication to the destination bucket and removes the replication policy.
-  /// Once removed, the bucket becomes writable again, allowing users to modify its contents.
-  ///
-  /// - Parameters:
-  ///   - namespaceName: The Object Storage namespace used for the request.
-  ///   - bucketName: The name of the destination bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
-  ///   - opcClientRequestId: Optional client request ID for tracing.
-  ///
-  /// - Returns: A response object with no data (void).
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
-  public func makeBucketWritable(
-    namespaceName: String,
-    bucketName: String,
-    opcClientRequestId: String? = nil
-  ) async throws {
-    guard let endpoint else {
-      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
-    }
-
-    let api = ObjectStorageAPI.makeBucketWritable(
-      namespaceName: namespaceName,
-      bucketName: bucketName,
-      opcClientRequestId: opcClientRequestId
-    )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
-
-    try signer.sign(&req)
-
-    let (data, response) = try await URLSession.shared.data(for: req)
-
-    guard let httpResponse = response as? HTTPURLResponse else {
-      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
-    }
-
-    if httpResponse.statusCode != 204 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
-    }
-
-    let headers = convertHeadersToDictionary(httpResponse)
-
-    if let opcClientRequestId = headers["opc-client-request-id"],
-      let opcRequestId = headers["opc-request-id"]
-    {
-      logger.debug("opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId)")
-    }
-  }
-
   // MARK: - List preauthenticated requests
   /// Lists pre-authenticated requests for the specified bucket.
   ///
@@ -1752,6 +1699,102 @@ public struct ObjectStorageClient {
     let preauthenticatedRequestSummaryList = try JSONDecoder().decode([PreauthenticatedRequestSummary].self, from: data)
 
     return preauthenticatedRequestSummaryList
+  }
+
+  // MARK: - Lists work requests
+  /// Lists the work requests in a compartment.
+  ///
+  /// - Parameters:
+  ///   - compartmentId: The OCID of the compartment in which to list work requests.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - page: Optional pagination token from a previous list response (`opc-next-page`).
+  ///   - limit: Optional maximum number of results to return per page.
+  ///
+  /// - Returns: A `[WorkRequestSummary]` containing the list of work requests.
+  func listWorkRequests(
+    compartmentId: String,
+    opcClientRequestId: String? = nil,
+    page: String? = nil,
+    limit: Int? = nil,
+  ) async throws -> [WorkRequestSummary] {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.listWorkRequests(compartmentId: compartmentId, opcCLientRequestId: opcClientRequestId, page: page, limit: limit)
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      let bodyText = String(data: data, encoding: .utf8) ?? "No response body"
+      throw ObjectStorageError.invalidResponse(
+        "Unexpected status code \(httpResponse.statusCode): \(bodyText)"
+      )
+    }
+
+    let workRequestSummaries = try JSONDecoder().decode([WorkRequestSummary].self, from: data)
+
+    return workRequestSummaries
+  }
+
+  // MARK: - Makes bucket writable
+  /// Stops replication to the destination bucket and removes the replication policy.
+  /// Once removed, the bucket becomes writable again, allowing users to modify its contents.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the destination bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///
+  /// - Returns: A response object with no data (void).
+  ///
+  /// TODO:
+  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
+  public func makeBucketWritable(
+    namespaceName: String,
+    bucketName: String,
+    opcClientRequestId: String? = nil
+  ) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.makeBucketWritable(
+      namespaceName: namespaceName,
+      bucketName: bucketName,
+      opcClientRequestId: opcClientRequestId
+    )
+    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 204 {
+      if let body = String(data: data, encoding: .utf8) {
+        print("Error: \(body)")
+      }
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+
+    if let opcClientRequestId = headers["opc-client-request-id"],
+      let opcRequestId = headers["opc-request-id"]
+    {
+      logger.debug("opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId)")
+    }
   }
 
   // MARK: - Puts object

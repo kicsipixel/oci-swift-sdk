@@ -170,8 +170,10 @@ public enum ObjectStorageAPI: API {
   case listRetentionRules(namespaceName: String, bucketName: String, page: String? = nil, opcClientRequestId: String? = nil)
   /// Makes bucket writable
   case makeBucketWritable(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
-  /// List preauthenticated requests
+  /// Lists preauthenticated requests
   case listPreauthenticatedRequests(namespaceName: String, bucketName: String, objectNamePrefix: String? = nil, limit: Int? = nil, page: String? = nil, opcClientRequestId: String? = nil)
+  /// Lists work request
+  case listWorkRequests(compartmentId: String, opcCLientRequestId: String? = nil, page: String? = nil, limit: Int? = nil)
   /// Puts object
   case putObject(
     namespaceName: String,
@@ -258,6 +260,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/objectversions"
     case .listReplicationSources(let namespaceName, let bucketName, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/replicationSources"
+    case .listWorkRequests(_, _, _, _):
+      return "/workRequests"
     case .makeBucketWritable(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/makeBucketWritable"
     case .deleteObject(let namespaceName, let bucketName, let objectName, _, _),
@@ -304,6 +308,7 @@ public enum ObjectStorageAPI: API {
       .getNamespaceMetadata,
       .getReplicationPolicy,
       .getRetentionRule,
+      .getPreauthenticatedRequest,
       .getWorkRequest,
       .listBuckets,
       .listObjects,
@@ -312,7 +317,7 @@ public enum ObjectStorageAPI: API {
       .listReplicationPolicies,
       .listReplicationSources,
       .listRetentionRules,
-      .getPreauthenticatedRequest,
+      .listWorkRequests,
       .listPreauthenticatedRequests:
       return .get
     case .headBucket,
@@ -506,6 +511,20 @@ public enum ObjectStorageAPI: API {
       }
 
       return queryItems.isEmpty ? nil : queryItems
+
+    case .listWorkRequests(let compartmentId, _, let page, let limit):
+      let keyValuePairs: [(String, String?)] = [
+        ("compartmentId", compartmentId),
+        ("page", page),
+        ("limit", limit.map { String($0) }),
+      ]
+
+      // Convert non-nil values into URLQueryItems
+      let queryItems = keyValuePairs.compactMap { key, value in
+        value.map { URLQueryItem(name: key, value: $0) }
+      }
+
+      return queryItems.isEmpty ? nil : queryItems
     }
   }
 
@@ -541,8 +560,9 @@ public enum ObjectStorageAPI: API {
       .listObjectsWithPAR(_, _, _, _, _, _, _, let opcClientRequestId, _),
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
       .listRetentionRules(_, _, _, let opcClientRequestId),
-      .makeBucketWritable(_, _, let opcClientRequestId),
       .listPreauthenticatedRequests(_, _, _, _, _, let opcClientRequestId),
+      .listWorkRequests(_, let opcClientRequestId, _, _),
+      .makeBucketWritable(_, _, let opcClientRequestId),
       .reencryptBucket(_, _, let opcClientRequestId),
       .reencryptObject(_, _, _, _, let opcClientRequestId),
       .renameObject(_, _, let opcClientRequestId),
