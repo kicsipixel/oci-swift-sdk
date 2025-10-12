@@ -29,6 +29,15 @@ public struct BatchDetectHealthEntity {
         var isDetectRelationships: Bool = false
         var linkOntologies: [String]?
         var profile: Profile?
+      
+      public init(documents: [TextDocument], endpointId: String, isDetectAssertions: Bool, isDetectRelationships: Bool, linkOntologies: [String]? = nil, profile: Profile? = nil) {
+        self.documents = documents
+        self.endpointId = endpointId
+        self.isDetectAssertions = isDetectAssertions
+        self.isDetectRelationships = isDetectRelationships
+        self.linkOntologies = linkOntologies
+        self.profile = profile
+      }
     }
     
     public struct BatchDetectHealthEntityResult: Codable {

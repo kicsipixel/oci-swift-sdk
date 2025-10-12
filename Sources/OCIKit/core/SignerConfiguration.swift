@@ -37,7 +37,7 @@ private func extractPemPrivateKeyBlock(from raw: String) -> String? {
         if let beginRange = raw.range(of: v.begin),
            let endRange = raw.range(of: v.end),
            beginRange.lowerBound < endRange.upperBound {
-            let block = raw[beginRange.lowerBound...endRange.upperBound]
+            let block = raw[beginRange.lowerBound..<endRange.upperBound]
             return String(block)
         }
     }
