@@ -11,7 +11,7 @@ import INIParser
 import Crypto
 import _CryptoExtras
 
-public enum ConfigErrors: Error {
+public enum ConfigErrors: Error, LocalizedError {
     case missingConfig
     case missingFingerprint
     case missingKeyfile
@@ -21,6 +21,20 @@ public enum ConfigErrors: Error {
     case badKeyfile
     case notPemFormat
     case badSecurityTokenFile
+  
+  public var errorDescription: String? {
+    switch self {
+      case .missingConfig: return "Missing OCI configuration file"
+      case .missingFingerprint: return "Fingerprint is missing in OCI configuration"
+      case .missingKeyfile: return "Keyfile is missing in OCI configuration"
+      case .missingTenancy: return "Tenancy is missing in OCI configuration"
+      case .missingUser: return "User is missing in OCI configuration"
+      case .missingSecurityTokenFile: return "Security Token File is missing in OCI configuration"
+      case .badKeyfile: return "Key file does not have a valid private key"
+      case .notPemFormat: return "Key is not in Pem format"
+      case .badSecurityTokenFile: return "Security Token file is malformed or missing"
+    }
+  }
 }
 
 private func expandTilde(_ path: String) -> String {

@@ -2315,6 +2315,19 @@ public enum ObjectStorageError: Error {
   case jsonDecodingError(String)
 }
 
+extension ObjectStorageError: LocalizedError {
+  public var errorDescription: String? {
+    switch self {
+      case .missingRequiredParameter(let param): return "Missing required parameter \(param)"
+      case .invalidURL(let url): return "Provided URL is invalid: \(url)"
+      case .invalidResponse(let response): return "API returned an invalid reponse: \(response)"
+      case .invalidUTF8: return "Malformed UTF8 representation"
+      case .jsonEncodingError(let errorString): return "JSON encoding error: \(errorString)"
+      case .jsonDecodingError(let errorString): return "JSON decoding error: \(errorString)"
+    }
+  }
+}
+
 // Convert HTTPURLResponse to dictionary
 func convertHeadersToDictionary(_ httpResponse: HTTPURLResponse) -> [String: String] {
   return httpResponse.allHeaderFields

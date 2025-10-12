@@ -78,8 +78,14 @@ public struct BatchDetectHealthEntity {
         let score: Double
     }
     
-    public enum APIError: Error {
-        case badURL
+    public enum APIError: Error, LocalizedError {
+      case badURL
+      
+      public var errorDescription: String? {
+        switch self {
+          case .badURL: return "Service URL is invalid"
+        }
+      }
     }
     
     public func getHealthEntities(_ req: BatchDetectHealthEntityDetails) async throws -> BatchDetectHealthEntityResult {

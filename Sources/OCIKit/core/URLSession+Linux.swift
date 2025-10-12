@@ -14,8 +14,15 @@ import FoundationNetworking
 #if os(Linux)
 
 /// Defines the possible errors
-public enum URLSessionAsyncErrors: Error {
-    case invalidUrlResponse, missingResponseData
+public enum URLSessionAsyncErrors: Error, LocalizedError {
+  case invalidUrlResponse, missingResponseData
+  
+  public var errorDescription: String? {
+    switch self {
+      case .invalidUrlResponse: return "Received invalid response"
+      case .missingResponseData: return "Missing response data"
+    }
+  }
 }
 
 /// An extension that provides async support for fetching a URL
