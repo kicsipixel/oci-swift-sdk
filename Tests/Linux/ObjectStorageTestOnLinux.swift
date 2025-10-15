@@ -51,7 +51,7 @@ struct ObjectStorageTestOnLinux {
     #expect(!namespace.isEmpty, "Namespace should not be empty")
   }
 
-  // MARK: - List objects with Observable
+  // MARK: - Lists objects with Observable
   // Returning with `name`, `size`, `timeCreated` and `timeModified`
   @Test func listObjectsObservableWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -82,4 +82,22 @@ struct ObjectStorageTestOnLinux {
     }
     #expect(!originalObjects.objects.isEmpty, "Expected non-empty object list after API execution")
   }
+    
+    // MARK: - Lists work requests
+    @Test func listWorkRequestsWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+          from: ociConfigFilePath,
+          profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+          configFilePath: ociConfigFilePath,
+          configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        
+        let listsWorkRequests = try? await sut.listWorkRequests(compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q")
+        
+        #expect(listsWorkRequests != nil, "The operation should succeed") 
+    }
 }

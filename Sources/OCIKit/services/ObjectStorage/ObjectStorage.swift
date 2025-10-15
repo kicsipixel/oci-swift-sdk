@@ -61,7 +61,7 @@ public struct ObjectStorageClient {
   /// - Parameters:
   ///   - workRequestId: The ID of the asynchronous request.
   ///   - opcClientRequestId: Optional client request ID for tracing.
-  func cancelWorkRequest(
+  public func cancelWorkRequest(
     workRequestId: String,
     opcClientRequestId: String? = nil
   ) async throws {
@@ -1081,7 +1081,7 @@ public struct ObjectStorageClient {
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///
   /// - Returns: A `WorkRequest` object containing the status of the work request.
-  func getWorkRequestStatus(
+  public func getWorkRequestStatus(
     workRequestId: String,
     opcClientRequestId: String? = nil
   ) async throws -> WorkRequest {
@@ -1711,7 +1711,7 @@ public struct ObjectStorageClient {
   ///   - limit: Optional maximum number of results to return per page.
   ///
   /// - Returns: A `[WorkRequestSummary]` containing the list of work requests.
-  func listWorkRequests(
+  public func listWorkRequests(
     compartmentId: String,
     opcClientRequestId: String? = nil,
     page: String? = nil,
