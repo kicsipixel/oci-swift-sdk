@@ -33,5 +33,15 @@ let package = Package(
       dependencies: ["OCIKit"],
       path: "Tests/Linux"
     ),
+    .testTarget(
+      name: "OCIKitCoreTests",
+      dependencies: ["OCIKit"],
+      path: "Tests/OCIKit"
+    ),
+    .testTarget(
+      name: "OCIKitServiceTests",
+      dependencies: ["OCIKit"],
+      path: "Tests/Services"
+    ),
   ]
 )
