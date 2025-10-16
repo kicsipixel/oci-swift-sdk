@@ -29,6 +29,15 @@ public struct BatchDetectHealthEntity {
         var isDetectRelationships: Bool = false
         var linkOntologies: [String]?
         var profile: Profile?
+      
+      public init(documents: [TextDocument], endpointId: String, isDetectAssertions: Bool, isDetectRelationships: Bool, linkOntologies: [String]? = nil, profile: Profile? = nil) {
+        self.documents = documents
+        self.endpointId = endpointId
+        self.isDetectAssertions = isDetectAssertions
+        self.isDetectRelationships = isDetectRelationships
+        self.linkOntologies = linkOntologies
+        self.profile = profile
+      }
     }
     
     public struct BatchDetectHealthEntityResult: Codable {
@@ -69,8 +78,14 @@ public struct BatchDetectHealthEntity {
         let score: Double
     }
     
-    public enum APIError: Error {
-        case badURL
+    public enum APIError: Error, LocalizedError {
+      case badURL
+      
+      public var errorDescription: String? {
+        switch self {
+          case .badURL: return "Service URL is invalid"
+        }
+      }
     }
     
     public func getHealthEntities(_ req: BatchDetectHealthEntityDetails) async throws -> BatchDetectHealthEntityResult {

@@ -243,8 +243,14 @@ public struct GenerateText {
         public let topLogprobs: [Double]?
     }
     
-    public enum APIError: Error {
-        case badURL
+    public enum APIError: Error, LocalizedError {
+      case badURL
+      
+      public var errorDescription: String? {
+        switch self {
+          case .badURL: return "Service URL is invalid"
+        }
+      }
     }
     
     public func getCompletion(_ req: GenerateTextDetails) async throws -> GenerateTextResult {

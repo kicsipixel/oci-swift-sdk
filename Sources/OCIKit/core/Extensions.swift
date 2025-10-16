@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import Crypto
 
 extension Date {
   /// Creates a `Date` instance from a string in RFC3339 / ISO8601 format.
@@ -52,5 +53,18 @@ extension Date {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return formatter.string(from: self)
+  }
+}
+
+extension Data {
+  public var md5hex: String {
+    Insecure.MD5.hash(data: self)
+      .map { String(format: "%02hhx", $0) }
+      .joined()
+  }
+  
+  public var md5base64: String {
+    let digest = Insecure.MD5.hash(data: self)
+    return Data(digest).base64EncodedString()
   }
 }

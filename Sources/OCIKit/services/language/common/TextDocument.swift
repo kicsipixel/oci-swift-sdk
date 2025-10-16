@@ -7,8 +7,14 @@
 
 import Foundation
 
-struct TextDocument: Codable {
+public struct TextDocument: Codable {
     let key: String
     let languageCode: String?
     let text: String
+  
+  public init(key: String, languageCode: String?, text: String) {
+    self.key = key
+    self.languageCode = languageCode
+    self.text = text
+  }
 }
