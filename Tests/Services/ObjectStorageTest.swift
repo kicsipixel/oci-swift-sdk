@@ -799,6 +799,42 @@ struct ObjectStorageTest {
     }
     #expect(listOfObjects != nil, "The operation should succeed")
   }
+    
+    @Test func listObjectsAndPaginateWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+          from: ociConfigFilePath,
+          profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+          configFilePath: ociConfigFilePath,
+          configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        
+        var nextStartWith = ""
+           for i in 0 ..< 3 {
+             print("start: \(nextStartWith)")
+             do {
+               let list = try await sut.listObjects(
+                 namespaceName: "frjfldcyl3la",
+                 bucketName: "test_bucket_by_sdk",
+                 limit: 10,
+                 fields: Field.allCases,
+                 startAfter: nextStartWith
+               )
+                 print("got \(list.objects.count ?? 0) objects")
+                 for o in list.objects ?? [] {
+                 print(o.name, o.size ?? 0)
+               }
+                 nextStartWith = list.objects.last?.name ?? ""
+               print("nextStartWith: \(nextStartWith)")
+             } catch {
+               print("Error getting list: \(error.localizedDescription)")
+               break
+             }
+           }
+    }
 
   // MARK: - Lists object versions
   @Test func listObjectVersionsWithAPIKeySigner() async throws {

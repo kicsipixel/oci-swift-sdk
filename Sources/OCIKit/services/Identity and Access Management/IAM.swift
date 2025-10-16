@@ -50,7 +50,7 @@ public struct IAMClient {
         throw ObjectStorageError.missingRequiredParameter("Either endpoint or region must be specified.")
       }
       self.region = region
-      let host = Service.objectstorage.getHost(in: region)
+      let host = Service.iam.getHost(in: region)
       self.endpoint = URL(string: "https://\(host)/n")
     }
   }
@@ -83,13 +83,73 @@ public struct IAMClient {
   ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config is used. If explicitly set to `nil`, no retries are performed.
   public func listCompartments(
     compartmentId: String,
-    accessLevel: AccessLevel? = nil,
-    compartmentIdInSubtree: Bool? = nil,
     page: String? = nil,
     limit: Int? = nil,
+    accessLevel: AccessLevel? = nil,
+    compartmentIdInSubtree: Bool? = nil,
     name: String? = nil,
     sortBy: SortBy? = nil,
     sortOrder: SortOrder? = nil,
     lifecycleState: String? = nil
-  ) async throws -> [Compartment] {}
+  ) async throws -> [Compartment] {
+    guard let endpoint else {
+      throw IAMError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = IAMAPI.listCompartments(
+      compartmentId: compartmentId,
+      page: page,
+      limit: limit,
+      accessLevel: accessLevel,
+      compartmentIdInSubtree: compartmentIdInSubtree,
+      name: name,
+      sortBy: sortBy,
+      sortOrder: sortOrder,
+      lifecycleState: lifecycleState
+    )
+    var req = try buildRequest(api: api, endpoint: endpoint)
+  
+    try signer.sign(&req)
+      print(req.url)
+      print(req.httpMethod)
+      print(req.allHTTPHeaderFields)
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      let bodyText = String(data: data, encoding: .utf8) ?? "No response body"
+      throw IAMError.invalidResponse(
+        "Unexpected status code \(httpResponse.statusCode): \(bodyText)"
+      )
+    }
+
+    let listOfCompartments = try JSONDecoder().decode([Compartment].self, from: data)
+    return listOfCompartments
+  }
+}
+
+// Error types
+public enum IAMError: Error {
+  case missingRequiredParameter(String)
+  case invalidURL(String)
+  case invalidResponse(String)
+  case invalidUTF8
+  case jsonEncodingError(String)
+  case jsonDecodingError(String)
+}
+
+extension IAMError: LocalizedError {
+  public var errorDescription: String? {
+    switch self {
+      case .missingRequiredParameter(let param): return "Missing required parameter \(param)"
+      case .invalidURL(let url): return "Provided URL is invalid: \(url)"
+      case .invalidResponse(let response): return "API returned an invalid reponse: \(response)"
+      case .invalidUTF8: return "Malformed UTF8 representation"
+      case .jsonEncodingError(let errorString): return "JSON encoding error: \(errorString)"
+      case .jsonDecodingError(let errorString): return "JSON decoding error: \(errorString)"
+    }
+  }
 }
