@@ -823,7 +823,8 @@ public struct ObjectStorageClient {
     httpResponseContentType: String? = nil,
     httpResponseContentLanguage: String? = nil,
     httpResponseContentEncoding: String? = nil,
-    httpResponseExpires: String? = nil
+    httpResponseExpires: String? = nil,
+    withObjectIntegrityCheck: Bool = false
   ) async throws -> Data {
 
     let api = ObjectStorageAPI.getObject(
@@ -860,6 +861,10 @@ public struct ObjectStorageClient {
     if httpResponse.statusCode != 200 {
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
+    
+    if withObjectIntegrityCheck {
+      try validateObjectIntegrity(data: data, httpResponse: httpResponse)
+    }
 
     return data
   }
@@ -881,7 +886,8 @@ public struct ObjectStorageClient {
     httpResponseContentType: String? = nil,
     httpResponseContentLanguage: String? = nil,
     httpResponseContentEncoding: String? = nil,
-    httpResponseExpires: String? = nil
+    httpResponseExpires: String? = nil,
+    withObjectIntegrityCheck: Bool = false
   ) async throws -> Data {
 
     // The endpoint here is different from the above implementation because it already contains /p, /n, and /b in it.
@@ -918,7 +924,30 @@ public struct ObjectStorageClient {
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
+    if withObjectIntegrityCheck {
+      try validateObjectIntegrity(data: data, httpResponse: httpResponse)
+    }
+    
     return data
+  }
+  
+  private func validateObjectIntegrity(data: Data, httpResponse: HTTPURLResponse) throws {
+    // byte length check if available
+    if let contentLengthString = httpResponse.value(forHTTPHeaderField: "content-length"), let contentLength = Int(contentLengthString) {
+      guard contentLength == data.count else {
+        throw ObjectStorageError.objectLengthMismatch(data.count, contentLength)
+      }
+    }
+    
+    // MD5 check if available. Object Storage returns base64-encoded MD5 hash (RFC2616)
+    // https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/20160918/Object/GetObject
+    // https://datatracker.ietf.org/doc/html/rfc2616#section-14.15
+    if let md5Original = httpResponse.value(forHTTPHeaderField: "content-md5") {
+      let objectMD5 = data.md5base64
+      guard md5Original == objectMD5 else {
+        throw ObjectStorageError.objectMD5Mismatch(objectMD5, md5Original)
+      }
+    }
   }
 
   // MARK: - Get replication policy
@@ -2432,6 +2461,8 @@ public enum ObjectStorageError: Error {
   case invalidUTF8
   case jsonEncodingError(String)
   case jsonDecodingError(String)
+  case objectLengthMismatch(Int, Int)
+  case objectMD5Mismatch(String, String)
 }
 
 extension ObjectStorageError: LocalizedError {
@@ -2443,6 +2474,8 @@ extension ObjectStorageError: LocalizedError {
       case .invalidUTF8: return "Malformed UTF8 representation"
       case .jsonEncodingError(let errorString): return "JSON encoding error: \(errorString)"
       case .jsonDecodingError(let errorString): return "JSON decoding error: \(errorString)"
+      case .objectLengthMismatch(let actual, let original): return "Downloaded object length \(actual) does not match the original length reported by Object Storage \(original)"
+      case .objectMD5Mismatch(let actual, let original): return "Downloaded object MD5 \(actual) does not match the original MD5 reported by Object Storage \(original)"
     }
   }
 }

@@ -479,6 +479,24 @@ struct ObjectStorageTest {
     print("downloaded object size: \(getObject?.count ?? -1)")
     #expect(getObject != nil, "The operation should succeed")
   }
+  
+  @Test func getsObjectWithAPIKeySignerAndIntegrityCheck() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+    
+    let getObject = try await sut.getObject(namespaceName: "idhwcifwd5xy", bucketName: "test_bucket_by_sdk", objectName: "test_file.txt", withObjectIntegrityCheck: true)
+    
+    #expect(getObject.count == 12, "The operation should succeed")
+  }
+
 
   // MARK: - Gets replication policy
   @Test func getsReplicationPolicyWithAPIKeySigner() async throws {
