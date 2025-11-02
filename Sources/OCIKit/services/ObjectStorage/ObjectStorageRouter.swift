@@ -37,6 +37,8 @@ public protocol API {
 
 // API
 public enum ObjectStorageAPI: API {
+  /// Cancels work request
+  case cancelWorkRequest(workRequestId: String, opcClientRequestId: String? = nil)
   /// Copies object
   case copyObject(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Creates bucket
@@ -98,6 +100,8 @@ public enum ObjectStorageAPI: API {
   )
   /// Gets preauthenticated request
   case getPreauthenticatedRequest(namespaceName: String, bucketName: String, parId: String, opcClientRequestId: String? = nil)
+  /// Get work request
+  case getWorkRequest(workRequestId: String, opcClientRequestId: String? = nil)
   /// HEAD bucket
   case headBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// HEAD object
@@ -166,8 +170,10 @@ public enum ObjectStorageAPI: API {
   case listRetentionRules(namespaceName: String, bucketName: String, page: String? = nil, opcClientRequestId: String? = nil)
   /// Makes bucket writable
   case makeBucketWritable(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
-  /// List preauthenticated requests
+  /// Lists preauthenticated requests
   case listPreauthenticatedRequests(namespaceName: String, bucketName: String, objectNamePrefix: String? = nil, limit: Int? = nil, page: String? = nil, opcClientRequestId: String? = nil)
+  /// Lists work request
+  case listWorkRequests(compartmentId: String, opcCLientRequestId: String? = nil, page: String? = nil, limit: Int? = nil)
   /// Puts object
   case putObject(
     namespaceName: String,
@@ -203,6 +209,9 @@ public enum ObjectStorageAPI: API {
   // Path
   public var path: String {
     switch self {
+    case .cancelWorkRequest(let workRequestId, _),
+      .getWorkRequest(let workRequestId, _):
+      return "/workRequests/\(workRequestId)"
     case .getNamespace:
       return "/n"
     case .getNamespaceMetadata(let namespaceName, _),
@@ -251,6 +260,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/objectversions"
     case .listReplicationSources(let namespaceName, let bucketName, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/replicationSources"
+    case .listWorkRequests(_, _, _, _):
+      return "/workRequests"
     case .makeBucketWritable(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/makeBucketWritable"
     case .deleteObject(let namespaceName, let bucketName, let objectName, _, _),
@@ -283,7 +294,8 @@ public enum ObjectStorageAPI: API {
       .updateBucket,
       .updadateObjectStorageTier:
       return .post
-    case .deleteBucket,
+    case .cancelWorkRequest,
+      .deleteBucket,
       .deleteObject,
       .deleteReplicationPolicy,
       .deleteRetentionRule,
@@ -296,6 +308,8 @@ public enum ObjectStorageAPI: API {
       .getNamespaceMetadata,
       .getReplicationPolicy,
       .getRetentionRule,
+      .getPreauthenticatedRequest,
+      .getWorkRequest,
       .listBuckets,
       .listObjects,
       .listObjectsWithPAR,
@@ -303,7 +317,7 @@ public enum ObjectStorageAPI: API {
       .listReplicationPolicies,
       .listReplicationSources,
       .listRetentionRules,
-      .getPreauthenticatedRequest,
+      .listWorkRequests,
       .listPreauthenticatedRequests:
       return .get
     case .headBucket,
@@ -319,20 +333,22 @@ public enum ObjectStorageAPI: API {
   // QueryItems
   public var queryItems: [URLQueryItem]? {
     switch self {
-    case .copyObject,
+    case .cancelWorkRequest,
+      .copyObject,
       .createBucket,
       .createReplicationPolicy,
       .createRetentionRule,
+      .createPreauthenticatedRequest,
       .deleteBucket,
       .deleteReplicationPolicy,
       .deleteRetentionRule,
+      .deletePreauthenticatedRequest,
       .getBucket,
       .getNamespaceMetadata,
       .getReplicationPolicy,
       .getRetentionRule,
-      .createPreauthenticatedRequest,
-      .deletePreauthenticatedRequest,
       .getPreauthenticatedRequest,
+      .getWorkRequest,
       .headBucket,
       .makeBucketWritable,
       .putObject,
@@ -495,13 +511,28 @@ public enum ObjectStorageAPI: API {
       }
 
       return queryItems.isEmpty ? nil : queryItems
+
+    case .listWorkRequests(let compartmentId, _, let page, let limit):
+      let keyValuePairs: [(String, String?)] = [
+        ("compartmentId", compartmentId),
+        ("page", page),
+        ("limit", limit.map { String($0) }),
+      ]
+
+      // Convert non-nil values into URLQueryItems
+      let queryItems = keyValuePairs.compactMap { key, value in
+        value.map { URLQueryItem(name: key, value: $0) }
+      }
+
+      return queryItems.isEmpty ? nil : queryItems
     }
   }
 
   // Headers
   public var headers: [String: String]? {
     switch self {
-    case .copyObject(_, _, let opcClientRequestId),
+    case .cancelWorkRequest(_, let opcClientRequestId),
+      .copyObject(_, _, let opcClientRequestId),
       .createBucket(_, let opcClientRequestId),
       .createReplicationPolicy(_, _, let opcClientRequestId),
       .createRetentionRule(_, _, let opcClientRequestId),
@@ -519,6 +550,7 @@ public enum ObjectStorageAPI: API {
       .getReplicationPolicy(_, _, _, let opcClientRequestId),
       .getRetentionRule(_, _, _, let opcClientRequestId),
       .getPreauthenticatedRequest(_, _, _, let opcClientRequestId),
+      .getWorkRequest(_, let opcClientRequestId),
       .headBucket(_, _, let opcClientRequestId),
       .headObject(_, _, _, _, let opcClientRequestId, _, _, _),
       .listBuckets(_, _, let opcClientRequestId),
@@ -528,8 +560,9 @@ public enum ObjectStorageAPI: API {
       .listObjectsWithPAR(_, _, _, _, _, _, _, let opcClientRequestId, _),
       .listObjectVersions(_, _, _, _, _, _, _, _, let opcClientRequestId, _, _),
       .listRetentionRules(_, _, _, let opcClientRequestId),
-      .makeBucketWritable(_, _, let opcClientRequestId),
       .listPreauthenticatedRequests(_, _, _, _, _, let opcClientRequestId),
+      .listWorkRequests(_, let opcClientRequestId, _, _),
+      .makeBucketWritable(_, _, let opcClientRequestId),
       .reencryptBucket(_, _, let opcClientRequestId),
       .reencryptObject(_, _, _, _, let opcClientRequestId),
       .renameObject(_, _, let opcClientRequestId),
