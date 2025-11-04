@@ -24,6 +24,7 @@ public struct ObjectStorageClient {
   let region: Region?
   let retryConfig: RetryConfig?
   let signer: Signer
+  let logger: Logger
 
   // MARK: - Initialization
   /// Initialize the object storage client
@@ -37,9 +38,10 @@ public struct ObjectStorageClient {
   ///     - retryConfig: The retry configuration for this service client
   ///
   ///     Either a region or an endpoint must be specified. If an endpoint is specified, it will be used instead of the region.
-  public init(region: Region? = nil, endpoint: String? = nil, signer: Signer, retryConfig: RetryConfig? = nil) throws {
+  public init(region: Region? = nil, endpoint: String? = nil, signer: Signer, retryConfig: RetryConfig? = nil, logger: Logger = Logger(label: "ObjectStorageClient")) throws {
     self.signer = signer
     self.retryConfig = retryConfig
+    self.logger = logger
 
     if let endpoint, let endpointURL = URL(string: endpoint) {
       self.endpoint = endpointURL
@@ -861,7 +863,7 @@ public struct ObjectStorageClient {
     if httpResponse.statusCode != 200 {
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
-    
+
     if withObjectIntegrityCheck {
       try validateObjectIntegrity(data: data, httpResponse: httpResponse)
     }
@@ -927,10 +929,10 @@ public struct ObjectStorageClient {
     if withObjectIntegrityCheck {
       try validateObjectIntegrity(data: data, httpResponse: httpResponse)
     }
-    
+
     return data
   }
-  
+
   private func validateObjectIntegrity(data: Data, httpResponse: HTTPURLResponse) throws {
     // byte length check if available
     if let contentLengthString = httpResponse.value(forHTTPHeaderField: "content-length"), let contentLength = Int(contentLengthString) {
@@ -938,7 +940,7 @@ public struct ObjectStorageClient {
         throw ObjectStorageError.objectLengthMismatch(data.count, contentLength)
       }
     }
-    
+
     // MD5 check if available. Object Storage returns base64-encoded MD5 hash (RFC2616)
     // https://docs.oracle.com/en-us/iaas/api/#/en/objectstorage/20160918/Object/GetObject
     // https://datatracker.ietf.org/doc/html/rfc2616#section-14.15
@@ -1831,45 +1833,21 @@ public struct ObjectStorageClient {
   ///
   /// The maximum object size allowed is 50 GiB.
   ///
-  /// See [Object Names](https://docs.cloud.oracle.com/Content/Object/Tasks/managingobjects.htm#namerequirements)
-  /// and [Special Instructions for Object Storage PUT](https://docs.cloud.oracle.com/Content/API/Concepts/signingrequests.htm#ObjectStoragePut)
-  /// for naming and signature requirements.
-  ///
   /// - Parameters:
   ///   - namespaceName: The Object Storage namespace used for the request.
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - objectName: The name of the object. Avoid entering confidential information. Example: `"test/object1.log"`
   ///   - putObjectBody: The object data to upload.
+  ///   - toFolder: Optional parameter to specify a folder within the bucket where the object will be stored.
   ///   - contentLength: Optional content length of the body.
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - storageTier: Optional storage tier for the object (e.g., Standard, Archive).
-  /// - Returns: A `Response` object with no data payload (`Void`).
-  ///
-  /// TODO:
-  ///   - ifMatch: Optional ETag to match with the existing resource.
-  ///   - ifNoneMatch: ETag to avoid matching. Use `"*"` to fail if the resource exists. Optional.
-  ///   - expect: Use `"100-Continue"` to request preliminary verification before sending the body. Optional.
-  ///   - contentMD5: Base64-encoded MD5 hash of the body for integrity check. Optional.
-  ///   - opcChecksumAlgorithm: Checksum algorithm to use (e.g., CRC32C, SHA256, SHA384). Optional.
-  ///   - opcContentCRC32C: Base64-encoded CRC32C checksum of the body. Optional.
-  ///   - opcContentSHA256: Base64-encoded SHA256 hash of the body. Optional.
-  ///   - opcContentSHA384: Base64-encoded SHA384 hash of the body. Optional.
-  ///   - contentType: MIME type of the object. Defaults to `"application/octet-stream"`. Optional.
-  ///   - contentLanguage: Language of the object content. Optional.
-  ///   - contentEncoding: Encoding applied to the object. Optional.
-  ///   - contentDisposition: Presentation info for download behavior. Optional.
-  ///   - cacheControl: Caching behavior for the object. Optional.
-  ///   - opcSseCustomerAlgorithm: Encryption algorithm (e.g., `"AES256"`). Optional.
-  ///   - opcSseCustomerKey: Base64-encoded 256-bit encryption key. Optional.
-  ///   - opcSseCustomerKeySHA256: Base64-encoded SHA256 hash of the encryption key. Optional.
-  ///   - opcSseKmsKeyId: OCID of a master encryption key for KMS. Optional.
-  ///   - opcMeta: User-defined metadata as key-value pairs. Keys will be prefixed with `"opc-meta-"`. Optional.
-  ///   - retryConfig: Retry configuration for the operation. Optional.
   public func putObject(
     namespaceName: String,
     bucketName: String,
     objectName: String,
     putObjectBody: Data,
+    toFolder: String? = nil,
     contentLength: Int? = nil,
     opcClientRequestId: String? = nil,
     storageTier: String? = nil,
@@ -1878,10 +1856,18 @@ public struct ObjectStorageClient {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
+    let fullObjectName: String
+    if let folder = toFolder, !folder.isEmpty {
+      fullObjectName = folder.hasSuffix("/") ? folder + objectName : folder + "/" + objectName
+    }
+    else {
+      fullObjectName = objectName
+    }
+
     let api = ObjectStorageAPI.putObject(
       namespaceName: namespaceName,
       bucketName: bucketName,
-      objectName: objectName,
+      objectName: fullObjectName,
       contentLenght: contentLength,
       opcClientRequestId: opcClientRequestId,
       StorageTier: storageTier
@@ -1892,37 +1878,44 @@ public struct ObjectStorageClient {
 
     try signer.sign(&req)
 
-    let (_, response) = try await URLSession.shared.data(for: req)
+    self.logger.info("[putObject] Starting upload of \(objectName) to folder: \(toFolder ?? "root")")
+    let (data, response) = try await URLSession.shared.data(for: req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
     if httpResponse.statusCode != 200 {
+      if let body = String(data: data, encoding: .utf8) {
+        self.logger.error("Error: \(body)")
+      }
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
 
-    if let etag = headers["ETag"],
-      let lastModified = headers["last-modified"],
-      let opcClientRequestId = headers["opc-client-request-id"],
+    guard let etag = headers["Etag"],
+      let lastModified = headers["Last-Modified"],
       let opcContentMd5 = headers["opc-content-md5"],
       let opcRequestId = headers["opc-request-id"],
       let versionId = headers["version-id"]
-    {
-
-      logger.debug(
-        """
-        ETag: \(etag)
-        Last-Modified: \(lastModified)
-        opc-client-request-id: \(opcClientRequestId)
-        opc-content-md5: \(opcContentMd5)
-        opc-request-id: \(opcRequestId)
-        Version-Id: \(versionId)
-        """
-      )
+    else {
+      throw ObjectStorageError.invalidResponse("Missing required response headers")
     }
+
+    let opcClientRequestId = headers["opc-client-request-id"] ?? "nil"
+
+    self.logger.debug(
+      """
+      [putObject] Upload of \(objectName) to folder: \(toFolder ?? "root") was successfull.
+      ETag: \(etag)
+      Last-Modified: \(lastModified)
+      opc-client-request-id: \(opcClientRequestId)
+      opc-content-md5: \(opcContentMd5)
+      opc-request-id: \(opcRequestId)
+      Version-Id: \(versionId)
+      """
+    )
   }
 
   // MARK: - Reencrypts bucket
@@ -2468,25 +2461,23 @@ public enum ObjectStorageError: Error {
 extension ObjectStorageError: LocalizedError {
   public var errorDescription: String? {
     switch self {
-      case .missingRequiredParameter(let param): return "Missing required parameter \(param)"
-      case .invalidURL(let url): return "Provided URL is invalid: \(url)"
-      case .invalidResponse(let response): return "API returned an invalid reponse: \(response)"
-      case .invalidUTF8: return "Malformed UTF8 representation"
-      case .jsonEncodingError(let errorString): return "JSON encoding error: \(errorString)"
-      case .jsonDecodingError(let errorString): return "JSON decoding error: \(errorString)"
-      case .objectLengthMismatch(let actual, let original): return "Downloaded object length \(actual) does not match the original length reported by Object Storage \(original)"
-      case .objectMD5Mismatch(let actual, let original): return "Downloaded object MD5 \(actual) does not match the original MD5 reported by Object Storage \(original)"
+    case .missingRequiredParameter(let param): return "Missing required parameter \(param)"
+    case .invalidURL(let url): return "Provided URL is invalid: \(url)"
+    case .invalidResponse(let response): return "API returned an invalid reponse: \(response)"
+    case .invalidUTF8: return "Malformed UTF8 representation"
+    case .jsonEncodingError(let errorString): return "JSON encoding error: \(errorString)"
+    case .jsonDecodingError(let errorString): return "JSON decoding error: \(errorString)"
+    case .objectLengthMismatch(let actual, let original): return "Downloaded object length \(actual) does not match the original length reported by Object Storage \(original)"
+    case .objectMD5Mismatch(let actual, let original): return "Downloaded object MD5 \(actual) does not match the original MD5 reported by Object Storage \(original)"
     }
   }
 }
 
 // Convert HTTPURLResponse to dictionary
 func convertHeadersToDictionary(_ httpResponse: HTTPURLResponse) -> [String: String] {
-  return httpResponse.allHeaderFields
-    .compactMapValues { "\($0)" }
-    .reduce(into: [String: String]()) { dict, pair in
-      if let key = pair.key as? String {
-        dict[key] = pair.value
-      }
+  return httpResponse.allHeaderFields.reduce(into: [String: String]()) { dict, pair in
+    if let key = pair.key as? String, let value = pair.value as? String {
+      dict[key] = value
     }
+  }
 }
