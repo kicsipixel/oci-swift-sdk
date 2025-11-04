@@ -42,6 +42,6 @@ let package = Package(
       name: "OCIKitServiceTests",
       dependencies: ["OCIKit"],
       path: "Tests/Services"
-    ),
+    )
   ]
 )

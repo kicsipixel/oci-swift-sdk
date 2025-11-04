@@ -48,15 +48,10 @@ enum RequestSigner {
     includeBodyForVerbs: Set<String> = ["post", "put", "patch"]
   ) throws {
     let verb = req.httpMethod?.lowercased() ?? ""
-    //        let encodedPath = req.url?.relativePath.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-
     let path = req.url?.path ?? "/"
     let query = req.url?.query
     let fullPath = query != nil ? "\(path)?\(query!)" : path
     let encodedPath = fullPath
-    //        let encodedPath = fullPath.addingPercentEncoding(
-    //            withAllowedCharacters: .urlPathAllowed.union(.urlQueryAllowed)
-    //        ) ?? ""
 
     req.addValue(req.url?.host ?? "", forHTTPHeaderField: "host")
     let currentDate = Date()
