@@ -1499,7 +1499,8 @@ public struct ObjectStorageClient {
   ///   - limit: Optional maximum number of results per page. See [List Pagination](https://docs.cloud.oracle.com/iaas/Content/API/Concepts/usingapi.htm#nine).
   ///   - delimiter: Optional. When set, only objects without the delimiter character (after an optional prefix) are returned.
   ///     Objects with the delimiter are grouped as prefixes. Only `'/'` is supported.
-  ///   - fields: Optional Comma-separated list of additional fields to include in the response.
+  ///   - fields: Comma-separated list of additional fields to include in the response. By default
+  ///   the response contains: `name`, `size`, `timeCreated` abd `timeModified`
   ///     Valid values: `name`, `size`, `etag`, `md5`, `timeCreated`, `timeModified`, `storageTier`, `archivalState`.
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - startAfter: Optional returns object names lexicographically strictly greater than this value.
@@ -1513,7 +1514,7 @@ public struct ObjectStorageClient {
     end: String? = nil,
     limit: Int? = nil,
     delimiter: String? = nil,
-    fields: [Field] = [.name, .size, .timeCreated, .timeModified],
+    fields: [Field] = [],
     opcClientRequestId: String? = nil,
     startAfter: String? = nil
   ) async throws -> ListObjects {
@@ -1521,6 +1522,7 @@ public struct ObjectStorageClient {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
+    let customFields = Array(Set(fields + [.name, .size, .timeCreated, .timeModified]))
     let api = ObjectStorageAPI.listObjects(
       namespaceName: namespaceName,
       bucketName: bucketName,
@@ -1529,7 +1531,7 @@ public struct ObjectStorageClient {
       end: end,
       limit: limit,
       delimiter: delimiter,
-      fields: fields,
+      fields: customFields,
       opcClientRequiredId: opcClientRequestId,
       startAfter: startAfter
     )
@@ -1544,6 +1546,8 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
+      let error = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listObjects] \(error.code): \(error.message)")
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
@@ -2471,6 +2475,12 @@ extension ObjectStorageError: LocalizedError {
     case .objectMD5Mismatch(let actual, let original): return "Downloaded object MD5 \(actual) does not match the original MD5 reported by Object Storage \(original)"
     }
   }
+}
+
+// Error mesage
+public struct DataBody: Codable {
+  let code: String
+  let message: String
 }
 
 // Convert HTTPURLResponse to dictionary
