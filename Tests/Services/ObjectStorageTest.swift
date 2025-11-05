@@ -911,7 +911,7 @@ struct ObjectStorageTest {
       configName: ociProfileName
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
-    let fileToUploadPath = NSHomeDirectory() + "/Desktop/Frame.png"
+    let fileToUploadPath = NSHomeDirectory() + "/Desktop/CleanShot 2025-11-03 at 16.23.55.png"
     let fileToUploadURL = URL(fileURLWithPath: fileToUploadPath)
     let data: Data = try Data(contentsOf: fileToUploadURL)
 
