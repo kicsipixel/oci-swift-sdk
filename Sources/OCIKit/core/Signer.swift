@@ -48,15 +48,16 @@ enum RequestSigner {
     includeBodyForVerbs: Set<String> = ["post", "put", "patch"]
   ) throws {
     let verb = req.httpMethod?.lowercased() ?? ""
-    //        let encodedPath = req.url?.relativePath.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-
     let path = req.url?.path ?? "/"
     let query = req.url?.query
     let fullPath = query != nil ? "\(path)?\(query!)" : path
-    let encodedPath = fullPath
+    let encodedPath = fullPath.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? fullPath
+    // Keeping the different tries herem if a new issue appears we know what we tried.
+    //let encodedPath = fullPath
     //        let encodedPath = fullPath.addingPercentEncoding(
     //            withAllowedCharacters: .urlPathAllowed.union(.urlQueryAllowed)
     //        ) ?? ""
+    //        let encodedPath = req.url?.relativePath.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
 
     req.addValue(req.url?.host ?? "", forHTTPHeaderField: "host")
     let currentDate = Date()

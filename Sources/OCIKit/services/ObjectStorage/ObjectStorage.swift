@@ -1547,7 +1547,7 @@ public struct ObjectStorageClient {
 
     if httpResponse.statusCode != 200 {
       let error = try JSONDecoder().decode(DataBody.self, from: data)
-      self.logger.error("[listObjects] \(error.code): \(error.message)")
+      self.logger.error("[listObjects] \(error.code) (\(httpResponse.statusCode)): \(error.message)")
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
@@ -1557,9 +1557,33 @@ public struct ObjectStorageClient {
   }
 
   // MARK: - List objects with PAR
-  // TODO: Add comments
-  /// Lists objects in a bucket given a Pre-Authenticated Request (PAR)
-  ///  With PAR, we don't need to sign the request, nor do we need the namespace and the bucket name
+  /// Lists the objects in a bucket using a Pre-Authenticated Request (PAR) URL.
+  /// This method allows access to bucket contents without requiring authentication headers,
+  /// namespace name, or bucket name — all of which are embedded in the PAR URL.
+  ///
+  /// The operation returns at most 1000 objects. To paginate through more objects,
+  /// use the `nextStartWith` value from the response with the `start` parameter.
+  /// To filter results, use the `start` and `end` parameters.
+  ///
+  /// Use the `fields` parameter to include additional metadata in the response.
+  /// By default, the response includes: `name`, `size`, `timeCreated`, and `timeModified`.
+  ///
+  /// - Parameters:
+  ///   - parURL: The Pre-Authenticated Request URL pointing to the target bucket.
+  ///   - prefix: Optional string to match against the start of object names in the list query.
+  ///   - start: Optional returns object names lexicographically greater than or equal to this value.
+  ///   - end: Optional returns object names lexicographically strictly less than this value.
+  ///   - limit: Optional maximum number of results per page. See [List Pagination](https://docs.cloud.oracle.com/iaas/Content/API/Concepts/usingapi.htm#nine).
+  ///   - delimiter: Optional. When set, only objects without the delimiter character (after an optional prefix) are returned.
+  ///     Objects with the delimiter are grouped as prefixes. Only `'/'` is supported.
+  ///   - fields: Comma-separated list of additional fields to include in the response. By default
+  ///   the response contains: `name`, `size`, `timeCreated` and `timeModified`
+  ///     Valid values: `name`, `size`, `etag`, `md5`, `timeCreated`, `timeModified`, `storageTier`, `archivalState`.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - startAfter: Optional returns object names lexicographically strictly greater than this value.
+  ///
+  /// - Returns: A `Response` object containing `ListObjects`.
+
   public func listObjects(
     parURL: URL,
     prefix: String? = nil,
@@ -1567,11 +1591,12 @@ public struct ObjectStorageClient {
     end: String? = nil,
     limit: Int? = nil,
     delimiter: String? = nil,
-    fields: [Field] = [.name, .size, .timeCreated, .timeModified],
+    fields: [Field] = [],
     opcClientRequestId: String? = nil,
     startAfter: String? = nil
   ) async throws -> ListObjects {
 
+    let customFields = Array(Set(fields + [.name, .size, .timeCreated, .timeModified]))
     let api = ObjectStorageAPI.listObjectsWithPAR(
       parURL: parURL,
       prefix: prefix,
@@ -1579,7 +1604,7 @@ public struct ObjectStorageClient {
       end: end,
       limit: limit,
       delimiter: delimiter,
-      fields: fields,
+      fields: customFields,
       opcClientRequiredId: opcClientRequestId,
       startAfter: startAfter
     )
@@ -1597,6 +1622,8 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
+      let error = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listObjectsPAR] \(error.code) (\(httpResponse.statusCode)): \(error.message)")
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
@@ -1882,7 +1909,7 @@ public struct ObjectStorageClient {
 
     try signer.sign(&req)
 
-    self.logger.info("[putObject] Starting upload of \(objectName) to folder: \(toFolder ?? "root")")
+    self.logger.info("[putObject] Starting upload of \(objectName) to folder: \(toFolder ?? "/")")
     let (data, response) = try await URLSession.shared.data(for: req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
@@ -1890,9 +1917,8 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        self.logger.error("Error: \(body)")
-      }
+      let error = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[putObject] \(error.code) (\(httpResponse.statusCode)): \(error.message)")
       throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
     }
 
