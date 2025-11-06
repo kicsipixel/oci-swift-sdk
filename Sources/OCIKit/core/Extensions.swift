@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
 import Crypto
+import Foundation
 
 extension Date {
   /// Creates a `Date` instance from a string in RFC3339 / ISO8601 format.
@@ -57,12 +57,30 @@ extension Date {
 }
 
 extension Data {
+  /// Computes the MD5 hash of the data and returns it as a lowercase hexadecimal string.
+  ///
+  /// This is useful for verifying data integrity or generating consistent identifiers.
+  ///
+  /// Example:
+  /// ```swift
+  /// let data = "hello".data(using: .utf8)!
+  /// print(data.md5hex) // → "5d41402abc4b2a76b9719d911017c592"
+  /// ```
   public var md5hex: String {
     Insecure.MD5.hash(data: self)
       .map { String(format: "%02hhx", $0) }
       .joined()
   }
-  
+
+  /// Computes the MD5 hash of the data and returns it as a Base64-encoded string.
+  ///
+  /// This format is often used in HTTP headers (e.g., `Content-MD5`) or compact representations.
+  ///
+  /// Example:
+  /// ```swift
+  /// let data = "hello".data(using: .utf8)!
+  /// print(data.md5base64) // → "XUFAKrxLKna5cZ2REBfFkg=="
+  /// ```
   public var md5base64: String {
     let digest = Insecure.MD5.hash(data: self)
     return Data(digest).base64EncodedString()

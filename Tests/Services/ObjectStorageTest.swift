@@ -12,7 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import CryptoKit
 import Foundation
 import Logging
 import OCIKit
@@ -962,40 +961,40 @@ struct ObjectStorageTest {
       Issue.record("putObject threw an error: \(error)")
     }
   }
-    
-    // MARK: - Puts object into user specified folder using MD5 hash to file integrity
-    @Test func putsObjectIntoFolderWithMD5WithAPIKeySigner() async throws {
-      let regionId = try extractUserRegion(
-        from: ociConfigFilePath,
-        profile: ociProfileName
-      )
-      let region = Region.from(regionId: regionId ?? "") ?? .iad
-      let signer = try APIKeySigner(
-        configFilePath: ociConfigFilePath,
-        configName: ociProfileName
-      )
-      let sut = try ObjectStorageClient(region: region, signer: signer, logger: logger)
-      let fileToUploadPath = NSHomeDirectory() + "/Desktop/Frame.png"
-      let fileToUploadURL = URL(fileURLWithPath: fileToUploadPath)
-      let data: Data = try Data(contentsOf: fileToUploadURL)
-      let initialMD5 = data.md5base64
-        
-      do {
-        try await sut.putObject(
-          namespaceName: "frjfldcyl3la",
-          bucketName: "test_bucket_by_sdk",
-          objectName: fileToUploadURL.lastPathComponent,
-          putObjectBody: data,
-          toFolder: "MyFolder/SubFolder",
-          contentMD5: initialMD5
-        )
 
-        #expect(true, "The operation should succeed")
-      }
-      catch {
-        Issue.record("putObject threw an error: \(error)")
-      }
+  // MARK: - Puts object into user specified folder using MD5 hash to file integrity
+  @Test func putsObjectIntoFolderWithMD5WithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer, logger: logger)
+    let fileToUploadPath = NSHomeDirectory() + "/Desktop/Frame.png"
+    let fileToUploadURL = URL(fileURLWithPath: fileToUploadPath)
+    let data: Data = try Data(contentsOf: fileToUploadURL)
+    let initialMD5 = data.md5base64
+
+    do {
+      try await sut.putObject(
+        namespaceName: "frjfldcyl3la",
+        bucketName: "test_bucket_by_sdk",
+        objectName: fileToUploadURL.lastPathComponent,
+        putObjectBody: data,
+        toFolder: "MyFolder/SubFolder",
+        contentMD5: initialMD5
+      )
+
+      #expect(true, "The operation should succeed")
     }
+    catch {
+      Issue.record("putObject threw an error: \(error)")
+    }
+  }
 
   // MARK: - Reencrypts bucket
   ///  If you call this API and there is no kmsKeyId associated with the bucket, the call will fail.
