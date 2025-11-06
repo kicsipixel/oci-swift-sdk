@@ -180,6 +180,7 @@ public enum ObjectStorageAPI: API {
     bucketName: String,
     objectName: String,
     contentLenght: Int? = nil,
+    contentMD5: String? = nil,
     opcClientRequestId: String? = nil,
     StorageTier: String? = nil
   )
@@ -267,7 +268,7 @@ public enum ObjectStorageAPI: API {
     case .deleteObject(let namespaceName, let bucketName, let objectName, _, _),
       .getObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _, _, _, _, _, _, _, _),
       .headObject(let namespaceName, let bucketName, let objectName, _, _, _, _, _),
-      .putObject(let namespaceName, let bucketName, let objectName, _, _, _):
+      .putObject(let namespaceName, let bucketName, let objectName, _, _, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/o/\(objectName)"
     case .getObjectWithPAR(let parURL, let objectName, _, _, _, _, _, _, _, _, _, _, _, _):
       return "\(parURL.path())\(objectName)"
@@ -575,9 +576,10 @@ public enum ObjectStorageAPI: API {
         return ["opc-client-request-id": opcClientRequestId]
       }
       return nil
-    case .putObject(_, _, _, let contentLength, let opcClientRequestId, let storageTier):
+    case .putObject(_, _, _, let contentLength, let contentMD5, let opcClientRequestId, let storageTier):
       let keyValuePairs: [(String, String)] = [
         ("content-length", contentLength.map { String($0) }),
+        ("content-md5", contentMD5),
         ("opc-client-request-id", opcClientRequestId),
         ("storage-tier", storageTier),
       ].compactMap { key, value in

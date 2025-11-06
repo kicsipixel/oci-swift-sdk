@@ -22,7 +22,7 @@ struct ObjectStorageTest {
   let ociProfileName: String
 
   init() throws {
-      LoggingSystem.bootstrap(StreamLogHandler.standardOutput)
+    LoggingSystem.bootstrap(StreamLogHandler.standardOutput)
     let env = ProcessInfo.processInfo.environment
     ociConfigFilePath = env["OCI_CONFIG_FILE"] ?? "\(NSHomeDirectory())/.oci/config"
     ociProfileName = env["OCI_PROFILE"] ?? "DEFAULT"
@@ -742,7 +742,7 @@ struct ObjectStorageTest {
     #expect(listOfObjects != nil, "The operation should succeed")
   }
 
-  // Returning with `size`, `etag`, `timeCreated`, `md5`,`timeModified`, `storageTier` and  `archivalState`
+  // Returning with `name`, `size`, `etag`, `timeCreated`, `md5`,`timeModified`, `storageTier` and  `archivalState`
   @Test func listObjectsFullFieldsWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -766,6 +766,37 @@ struct ObjectStorageTest {
       for object in objectsInBucket.objects {
         if let size = object.size, let timeCreated = object.timeCreated, let md5 = object.md5, let storageTier = object.storageTier {
           print("Name: \(object.name), size: \(size), created on: \(timeCreated), md5: \(md5), storageTier: \(storageTier)")
+        }
+      }
+    }
+    #expect(listOfObjects != nil, "The operation should succeed")
+  }
+
+  // Returning with the default values: `name`, `size`, `timeCreated`,`timeModified`
+  // additionally with `md5`
+  @Test func listObjectsCustomFieldsWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let listOfObjects = try? await sut.listObjects(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      fields: [.md5]
+    )
+
+    // Print objects
+    if let objectsInBucket = listOfObjects {
+      for object in objectsInBucket.objects {
+        if let size = object.size, let timeCreated = object.timeCreated, let timeModified = object.timeModified, let md5 = object.md5 {
+          print("Name: \(object.name), size: \(size), created on: \(timeCreated), modified: \(timeModified) and md5: \(md5)")
         }
       }
     }
@@ -880,7 +911,7 @@ struct ObjectStorageTest {
       configName: ociProfileName
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
-    let fileToUploadPath = NSHomeDirectory() + "/Desktop/Frame.png"
+    let fileToUploadPath = NSHomeDirectory() + "/Desktop/CleanShot 2025-11-03 at 16.23.55.png"
     let fileToUploadURL = URL(fileURLWithPath: fileToUploadPath)
     let data: Data = try Data(contentsOf: fileToUploadURL)
 
@@ -901,9 +932,6 @@ struct ObjectStorageTest {
 
   // MARK: - Puts object into user specified folder
   @Test func putsObjectIntoFolderWithAPIKeySigner() async throws {
-      var logger = Logger(label: "TestLogger")
-      logger.logLevel = .debug
-      
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
       profile: ociProfileName
@@ -913,7 +941,7 @@ struct ObjectStorageTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-      let sut = try ObjectStorageClient(region: region, signer: signer,logger: logger)
+    let sut = try ObjectStorageClient(region: region, signer: signer, logger: logger)
     let fileToUploadPath = NSHomeDirectory() + "/Desktop/Frame.png"
     let fileToUploadURL = URL(fileURLWithPath: fileToUploadPath)
     let data: Data = try Data(contentsOf: fileToUploadURL)
@@ -925,6 +953,40 @@ struct ObjectStorageTest {
         objectName: fileToUploadURL.lastPathComponent,
         putObjectBody: data,
         toFolder: "MyFolder/SubFolder"
+      )
+
+      #expect(true, "The operation should succeed")
+    }
+    catch {
+      Issue.record("putObject threw an error: \(error)")
+    }
+  }
+
+  // MARK: - Puts object into user specified folder using MD5 hash to file integrity
+  @Test func putsObjectIntoFolderWithMD5WithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer, logger: logger)
+    let fileToUploadPath = NSHomeDirectory() + "/Desktop/Frame.png"
+    let fileToUploadURL = URL(fileURLWithPath: fileToUploadPath)
+    let data: Data = try Data(contentsOf: fileToUploadURL)
+    let initialMD5 = data.md5base64
+
+    do {
+      try await sut.putObject(
+        namespaceName: "frjfldcyl3la",
+        bucketName: "test_bucket_by_sdk",
+        objectName: fileToUploadURL.lastPathComponent,
+        putObjectBody: data,
+        toFolder: "MyFolder/SubFolder",
+        contentMD5: initialMD5
       )
 
       #expect(true, "The operation should succeed")
