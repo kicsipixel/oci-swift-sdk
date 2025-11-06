@@ -51,6 +51,36 @@ struct ObjectStorageTestOnLinux {
     #expect(!namespace.isEmpty, "Namespace should not be empty")
   }
 
+@Test func putsObjectWithAPIKeySigner() async throws {
+  let regionId = try extractUserRegion(
+    from: ociConfigFilePath,
+    profile: ociProfileName
+  )
+  let region = Region.from(regionId: regionId ?? "") ?? .iad
+  let signer = try APIKeySigner(
+    configFilePath: ociConfigFilePath,
+    configName: ociProfileName
+  )
+  let sut = try ObjectStorageClient(region: region, signer: signer)
+  let fileToUploadPath = NSHomeDirectory() + "/Desktop/CleanShot 2025-11-03 at 16.23.55.png"
+  let fileToUploadURL = URL(fileURLWithPath: fileToUploadPath)
+  let data: Data = try Data(contentsOf: fileToUploadURL)
+
+  do {
+    try await sut.putObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      objectName: "\(fileToUploadURL.lastPathComponent)",
+      putObjectBody: data
+    )
+
+    #expect(true, "The operation should succeed")
+  }
+  catch {
+    Issue.record("putObject threw an error: \(error)")
+  }
+}
+
   // MARK: - Lists objects with Observable
   // Returning with `name`, `size`, `timeCreated` and `timeModified`
   @Test func listObjectsObservableWithAPIKeySigner() async throws {
@@ -99,5 +129,56 @@ struct ObjectStorageTestOnLinux {
         let listsWorkRequests = try? await sut.listWorkRequests(compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q")
         
         #expect(listsWorkRequests != nil, "The operation should succeed") 
+    }
+    
+    // MARK: - Lists buckets
+    /// Creates bucket must be proceed.
+    @Test func listsBucketsWithAPIKeySignerReturnsMoreThanZero() async throws {
+      let regionId = try extractUserRegion(
+        from: ociConfigFilePath,
+        profile: ociProfileName
+      )
+      let region = Region.from(regionId: regionId ?? "") ?? .iad
+      let signer = try APIKeySigner(
+        configFilePath: ociConfigFilePath,
+        configName: ociProfileName
+      )
+      let sut = try ObjectStorageClient(region: region, signer: signer)
+
+      let listOfBuckets = try await sut.listBuckets(
+        namespaceName: "frjfldcyl3la",
+        compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q"
+      )
+
+      // Lists all buckets in the compartment
+      for bucket in listOfBuckets {
+        print(bucket.name)
+      }
+      #expect(
+        listOfBuckets.count > 0,
+        "Number of buckets should be greater than zero"
+      )
+    }
+    
+    // MARK: -  Deletes object
+    @Test func deletesObjectWithAPIKeySigner() async throws {
+      let regionId = try extractUserRegion(
+        from: ociConfigFilePath,
+        profile: ociProfileName
+      )
+      let region = Region.from(regionId: regionId ?? "") ?? .iad
+      let signer = try APIKeySigner(
+        configFilePath: ociConfigFilePath,
+        configName: ociProfileName
+      )
+      let sut = try ObjectStorageClient(region: region, signer: signer)
+
+      let deleteObject: Void? = try? await sut.deleteObject(
+        namespaceName: "frjfldcyl3la",
+        bucketName: "test_bucket_by_sdk",
+        objectName: "!@#$%^&*()_.png"
+      )
+
+      #expect(deleteObject != nil, "The operation should succeed")
     }
 }

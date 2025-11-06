@@ -1328,9 +1328,12 @@ public struct ObjectStorageClient {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
-    if httpResponse.statusCode != 200 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
-    }
+  if httpResponse.statusCode != 200 {
+  let error = try JSONDecoder().decode(DataBody.self, from: data)
+  self.logger.error("[listBuckets] \(error.code) (\(httpResponse.statusCode)): \(error.message)")
+  throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+}
+
 
     let bucketSummary = try JSONDecoder().decode([BucketSummary].self, from: data)
 
