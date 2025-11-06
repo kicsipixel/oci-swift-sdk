@@ -1305,19 +1305,19 @@ public struct ObjectStorageClient {
   /// - Parameters:
   ///     - namespaceName: The Object Storage namespace used for the request.
   ///     - compartmentId: The ID of the compartment in which to list buckets.
+  ///     - limit: Optional maximum number of results per page, or items to return in a paginated "List" call.
+  ///     - page: Optional value of the opc-next-page response header from the previous "List" call.
+  ///     - fields:  The only supported value of this parameter is 'tags' for now.
   ///     - opcClientRequestId: Optional client request ID for tracing.
   ///  - Returns: The response body will contain an array of BucketSummary resources.
-  ///
-  ///  TODO:
-  ///  - limit: Int / query (1-1000)
-  ///  - page: String / query (1-1024)
-  ///  - fields: Array / query (tags only allowed)
-  public func listBuckets(namespaceName: String, compartmentId: String, opcClientRequestId: String? = nil) async throws -> [BucketSummary] {
+  public func listBuckets(namespaceName: String, compartmentId: String, limit: Int? = nil, page: String? = nil, fields: [String] = ["tags"], opcClientRequestId: String? = nil) async throws
+    -> [BucketSummary]
+  {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
-    let api = ObjectStorageAPI.listBuckets(namespaceName: namespaceName, compartmentId: compartmentId, opcClientRequestId: opcClientRequestId)
+    let api = ObjectStorageAPI.listBuckets(namespaceName: namespaceName, compartmentId: compartmentId, limit: limit, page: page, fields: fields, opcClientRequestId: opcClientRequestId)
     var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
 
     try signer.sign(&req)
@@ -1328,12 +1328,11 @@ public struct ObjectStorageClient {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
-  if httpResponse.statusCode != 200 {
-  let error = try JSONDecoder().decode(DataBody.self, from: data)
-  self.logger.error("[listBuckets] \(error.code) (\(httpResponse.statusCode)): \(error.message)")
-  throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
-}
-
+    if httpResponse.statusCode != 200 {
+      let error = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listBuckets] \(error.code) (\(httpResponse.statusCode)): \(error.message)")
+      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+    }
 
     let bucketSummary = try JSONDecoder().decode([BucketSummary].self, from: data)
 

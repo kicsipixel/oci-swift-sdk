@@ -357,19 +357,19 @@ struct ObjectStorageTest {
     )
     let sut = try ObjectStorageClient(region: region, signer: signer)
 
-    let createBucket = try? await sut.getBucket(
+    let getBucket = try? await sut.getBucket(
       namespaceName: "frjfldcyl3la",
       bucketName: "test_bucket_by_sdk"
     )
 
-    // Prints the name of the new bucket
-    if let createBucket {
+    // Prints the name of the bucket
+    if let getBucket {
       print(
-        "The bucket: \(createBucket.name) is in the compartment: \(createBucket.compartmentId), created by: \(createBucket.createdBy)"
+        "The bucket: \(getBucket.name) is in the compartment: \(getBucket.compartmentId), created by: \(getBucket.createdBy)"
       )
     }
 
-    #expect(createBucket != nil, "The return value should not be nil")
+    #expect(getBucket != nil, "The return value should not be nil")
   }
 
   // MARK: - Gets namespace
@@ -462,6 +462,7 @@ struct ObjectStorageTest {
     #expect(getObject != nil, "The operation should succeed")
   }
 
+    // MARK: - Gets object from PAR bucket
   @Test func getsObjectWithPAR() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -482,6 +483,7 @@ struct ObjectStorageTest {
     #expect(getObject != nil, "The operation should succeed")
   }
 
+    // MARK: - Gets object integrity check
   @Test func getsObjectWithAPIKeySignerAndIntegrityCheck() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -597,7 +599,7 @@ struct ObjectStorageTest {
   }
 
   // MARK: - Lists buckets
-  /// Creates bucket must be proceed.
+  /// Lists buckets in the compartment
   @Test func listsBucketsWithAPIKeySignerReturnsMoreThanZero() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -624,6 +626,36 @@ struct ObjectStorageTest {
       "Number of buckets should be greater than zero"
     )
   }
+    
+    // MARK: - Lists buckets
+    /// List buckets in the compartment using `limit`
+    @Test func listsBucketsWithLimitWithAPIKeySignerReturnsMoreThanZero() async throws {
+      let regionId = try extractUserRegion(
+        from: ociConfigFilePath,
+        profile: ociProfileName
+      )
+      let region = Region.from(regionId: regionId ?? "") ?? .iad
+      let signer = try APIKeySigner(
+        configFilePath: ociConfigFilePath,
+        configName: ociProfileName
+      )
+      let sut = try ObjectStorageClient(region: region, signer: signer)
+
+      let listOfBuckets = try await sut.listBuckets(
+        namespaceName: "frjfldcyl3la",
+        compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q",
+        limit: 2
+      )
+
+      // Lists all buckets in the compartment
+      for bucket in listOfBuckets {
+        print(bucket.name)
+      }
+      #expect(
+        listOfBuckets.count < 3,
+        "Number of buckets should be between 0 and 2"
+      )
+    }
 
   // MARK: - List replication policies
   @Test func listReplicationPoliciesWithAPIKeySigner() async throws {
