@@ -1871,6 +1871,7 @@ public struct ObjectStorageClient {
   ///   - putObjectBody: The object data to upload.
   ///   - toFolder: Optional parameter to specify a folder within the bucket where the object will be stored.
   ///   - contentLength: Optional content length of the body.
+  ///  - contentMD5: Optional header that defines the base64-encoded MD5 hash of the body.
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - storageTier: Optional storage tier for the object (e.g., Standard, Archive).
   public func putObject(
@@ -1880,6 +1881,7 @@ public struct ObjectStorageClient {
     putObjectBody: Data,
     toFolder: String? = nil,
     contentLength: Int? = nil,
+    contentMD5: String? = nil,
     opcClientRequestId: String? = nil,
     storageTier: String? = nil,
   ) async throws {
@@ -1900,6 +1902,7 @@ public struct ObjectStorageClient {
       bucketName: bucketName,
       objectName: fullObjectName,
       contentLenght: contentLength,
+      contentMD5: contentMD5,
       opcClientRequestId: opcClientRequestId,
       StorageTier: storageTier
     )
@@ -1935,7 +1938,7 @@ public struct ObjectStorageClient {
 
     let opcClientRequestId = headers["opc-client-request-id"] ?? "nil"
 
-    self.logger.debug(
+    self.logger.info(
       """
       [putObject] Upload of \(objectName) to folder: \(toFolder ?? "root") was successfull.
       ETag: \(etag)
