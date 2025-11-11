@@ -31,4 +31,24 @@ public struct BucketSummary: Decodable {
   public let namespace: String
   /// The date and time the bucket was created, as described in RFC 2616.
   public let timeCreated: String
+
+  public init(
+    compartmentId: String,
+    createdBy: String,
+    definedTags: [String: [String: String]]?,
+    etag: String,
+    freeformTags: [String: String]?,
+    name: String,
+    namespace: String,
+    timeCreated: String
+  ) {
+    self.compartmentId = compartmentId
+    self.createdBy = createdBy
+    self.definedTags = definedTags
+    self.etag = etag
+    self.freeformTags = freeformTags
+    self.name = name
+    self.namespace = namespace
+    self.timeCreated = timeCreated
+  }
 }
