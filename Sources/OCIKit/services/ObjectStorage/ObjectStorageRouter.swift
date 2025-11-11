@@ -122,7 +122,7 @@ public enum ObjectStorageAPI: API {
   /// Gets retention rule
   case getRetentionRule(namespaceName: String, bucketName: String, retentionId: String, opcClientRequestId: String? = nil)
   /// Lists buckets
-  case listBuckets(namespaceName: String, compartmentId: String, opcClientRequestId: String? = nil)
+  case listBuckets(namespaceName: String, compartmentId: String, limit: Int? = nil, page: String? = nil, fields: [String], opcClientRequestId: String? = nil)
   /// Lists objects
   case listObjects(
     namespaceName: String,
@@ -219,7 +219,7 @@ public enum ObjectStorageAPI: API {
       .updateNamespaceMetadata(let namespaceName, _):
       return "/n/\(namespaceName)"
     case .createBucket(let namespaceName, _),
-      .listBuckets(let namespaceName, _, _):
+      .listBuckets(let namespaceName, _, _, _, _, _):
       return "/n/\(namespaceName)/b"
     case .createReplicationPolicy(let namespaceName, let bucketName, _),
       .listReplicationPolicies(let namespaceName, let bucketName, _, _, _):
@@ -369,8 +369,20 @@ public enum ObjectStorageAPI: API {
       }
       return nil
 
-    case .listBuckets(_, let compartmentId, _):
-      return [URLQueryItem(name: "compartmentId", value: compartmentId)]
+    case .listBuckets(_, let compartmentId, let limit, let page, let fields, _):
+      let keyValuePairs: [(String, String?)] = [
+        ("compartmentId", compartmentId),
+        ("limit", limit.map { String($0) }),
+        ("page", page),
+        ("fields", fields.isEmpty ? nil : fields.joined(separator: ",")),
+      ]
+
+      // Convert non-nil values into URLQueryItems
+      let queryItems = keyValuePairs.compactMap { key, value in
+        value.map { URLQueryItem(name: key, value: $0) }
+      }
+
+      return queryItems.isEmpty ? nil : queryItems
 
     case .deleteObject(_, _, _, _, let versionId),
       .reencryptObject(_, _, _, let versionId, _):
@@ -554,7 +566,7 @@ public enum ObjectStorageAPI: API {
       .getWorkRequest(_, let opcClientRequestId),
       .headBucket(_, _, let opcClientRequestId),
       .headObject(_, _, _, _, let opcClientRequestId, _, _, _),
-      .listBuckets(_, _, let opcClientRequestId),
+      .listBuckets(_, _, _, _, _, let opcClientRequestId),
       .listReplicationPolicies(_, _, _, _, let opcClientRequestId),
       .listReplicationSources(_, _, _, _, let opcClientRequestId),
       .listObjects(_, _, _, _, _, _, _, _, let opcClientRequestId, _),

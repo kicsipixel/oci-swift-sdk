@@ -12,23 +12,71 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Foundation
+
 public struct BucketSummary: Decodable {
   /// The compartment ID in which the bucket is authorized.
   public let compartmentId: String
+
   /// The OCID of the user who created the bucket.
   public let createdBy: String
+
   /// Defined tags for this resource.
   /// Example: {"Operations": {"CostCenter": "42"}}
   public let definedTags: [String: [String: String]]?
+
   /// The entity tag (ETag) for the bucket.
   public let etag: String
-  ///Free-form tags for this resource.
-  ///  Example: {"Department": "Finance"}
+
+  /// Free-form tags for this resource.
+  /// Example: {"Department": "Finance"}
   public let freeformTags: [String: String]?
-  /// The name of the bucket. Avoid entering confidential information
+
+  /// The name of the bucket. Avoid entering confidential information.
   public let name: String
+
   /// The Object Storage namespace in which the bucket lives.
   public let namespace: String
-  /// The date and time the bucket was created, as described in RFC 2616.
-  public let timeCreated: String
+
+  /// The raw string value of the creation time from the server.
+  /// Format: RFC 3339 (e.g., "2025-11-09T20:26:04.123Z")
+  private let timeCreatedRaw: String
+
+  /// The date and time the bucket was created as a `Date`.
+  public var timeCreated: Date? {
+    Date.fromRFC3339(timeCreatedRaw)
+  }
+
+  // MARK: - CodingKeys
+  private enum CodingKeys: String, CodingKey {
+    case compartmentId
+    case createdBy
+    case definedTags
+    case etag
+    case freeformTags
+    case name
+    case namespace
+    case timeCreatedRaw = "timeCreated"
+  }
+
+  /// Initializes a new `BucketSummary` instance.
+  public init(
+    compartmentId: String,
+    createdBy: String,
+    definedTags: [String: [String: String]]? = nil,
+    etag: String,
+    freeformTags: [String: String]? = nil,
+    name: String,
+    namespace: String,
+    timeCreatedRaw: String
+  ) {
+    self.compartmentId = compartmentId
+    self.createdBy = createdBy
+    self.definedTags = definedTags
+    self.etag = etag
+    self.freeformTags = freeformTags
+    self.name = name
+    self.namespace = namespace
+    self.timeCreatedRaw = timeCreatedRaw
+  }
 }

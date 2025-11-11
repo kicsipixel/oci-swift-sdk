@@ -50,14 +50,29 @@ enum RequestSigner {
     let verb = req.httpMethod?.lowercased() ?? ""
     let path = req.url?.path ?? "/"
     let query = req.url?.query
-    let fullPath = query != nil ? "\(path)?\(query!)" : path
-    let encodedPath = fullPath.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? fullPath
+    let encodedPath: String
     // Keeping the different tries herem if a new issue appears we know what we tried.
-    //let encodedPath = fullPath
-    //        let encodedPath = fullPath.addingPercentEncoding(
-    //            withAllowedCharacters: .urlPathAllowed.union(.urlQueryAllowed)
-    //        ) ?? ""
+    // let fullPath = query != nil ? "\(path)?\(query!)" : path
+    // let encodedPath = fullPath.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? fullPath
+    // let encodedPath = fullPath
+    //      let encodedPath = fullPath.addingPercentEncoding(
+    //          withAllowedCharacters: .urlPathAllowed.union(.urlQueryAllowed)
+    //       ) ?? ""
     //        let encodedPath = req.url?.relativePath.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+
+    // ************************************
+    // * One more try for proper encoding *
+    // ************************************
+    // The full path (potentially with a query string) and need it percent-encoded in a consistent, standards-compliant way
+    if let query = query, !query.isEmpty {
+      // Encode path and query separately
+      let safePath = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
+      let safeQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+      encodedPath = "\(safePath)?\(safeQuery)"
+    }
+    else {
+      encodedPath = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
+    }
 
     req.addValue(req.url?.host ?? "", forHTTPHeaderField: "host")
     let currentDate = Date()
