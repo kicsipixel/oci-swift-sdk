@@ -63,9 +63,9 @@ public struct BucketSummary: Decodable {
   public init(
     compartmentId: String,
     createdBy: String,
-    definedTags: [String: [String: String]]?,
+    definedTags: [String: [String: String]]? = nil,
     etag: String,
-    freeformTags: [String: String]?,
+    freeformTags: [String: String]? = nil,
     name: String,
     namespace: String,
     timeCreatedRaw: String
