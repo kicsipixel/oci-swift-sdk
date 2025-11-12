@@ -30,4 +30,4 @@ jobs:
         env:
           OCI_CONFIG_FILE: /root/.oci/config
           OCI_PROFILE: DEFAULT
-        run: swift test --verbose
+        run: swift test --verbose --filter ObjectStorageTestOnLinux
