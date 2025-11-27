@@ -15,7 +15,7 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/apple/swift-crypto.git", from: "3.2.0"),
-    .package(url: "https://github.com/PerfectlySoft/Perfect-INIParser.git", from: "3.0.0"),
+    .package(url: "https://github.com/iliasaz/Perfect-INIParser.git", branch: "master"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
   ],
   targets: [
