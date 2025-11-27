@@ -79,23 +79,6 @@ public enum Service: String {
 }
 
 public func extractUserRegion(from configPath: String, profile: String = "DEFAULT") throws -> String? {
-    let expandedPath = NSString(string: configPath).expandingTildeInPath
-    let contents = try String(contentsOfFile: expandedPath, encoding: .utf8)
-
-    var inProfileSection = false
-
-    for line in contents.split(separator: "\n") {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-
-        if trimmed.hasPrefix("[") && trimmed.hasSuffix("]") {
-            inProfileSection = trimmed == "[\(profile)]"
-            continue
-        }
-
-        if inProfileSection, trimmed.hasPrefix("region=") {
-            return trimmed.replacingOccurrences(of: "region=", with: "")
-        }
-    }
-
-    return nil
+    let signerConfig = try SignerConfiguration.fromFileForAPIKey(configFilePath: configPath, configName: profile)
+    return signerConfig.region
 }
