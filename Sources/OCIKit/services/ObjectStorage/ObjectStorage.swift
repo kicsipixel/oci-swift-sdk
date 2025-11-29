@@ -1980,6 +1980,96 @@ public struct ObjectStorageClient {
     )
   }
 
+  // MARK: - Puts object (PAR)
+  /// Creates a new object or overwrites an existing object with the same name in Object Storage using a Pre-Authenticated Request(PAR) URL.
+  ///
+  /// The maximum object size allowed is 50 GiB.
+  ///
+  /// - Parameters:
+  ///    - parURL: The full Pre‑Authenticated Request (PAR) URL that grants access to the object.
+  ///   - objectName: The name of the object. Avoid entering confidential information. Example: `"test/object1.log"`
+  ///   - putObjectBody: The object data to upload.
+  ///   - toFolder: Optional parameter to specify a folder within the bucket where the object will be stored.
+  ///   - contentLength: Optional content length of the body.
+  ///  - contentMD5: Optional header that defines the base64-encoded MD5 hash of the body.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - storageTier: Optional storage tier for the object (e.g., Standard, Archive).
+  public func putObject(
+    parURL: URL,
+    objectName: String,
+    putObjectBody: Data,
+    toFolder: String? = nil,
+    contentLength: Int? = nil,
+    contentMD5: String? = nil,
+    opcClientRequestId: String? = nil,
+    storageTier: String? = nil,
+  ) async throws {
+    // The endpoint here is different from the above implementation because it already contains /p, /n, and /b in it.
+    guard let host = parURL.host(), let baseURL = URL(string: "https://\(host)") else {
+      throw ObjectStorageError.invalidURL("Malformed PAR URL")
+    }
+
+    let fullObjectName: String
+    if let folder = toFolder, !folder.isEmpty {
+      fullObjectName = folder.hasSuffix("/") ? folder + objectName : folder + "/" + objectName
+    }
+    else {
+      fullObjectName = objectName
+    }
+
+    let api = ObjectStorageAPI.putObjectWithPar(
+      parURL: parURL,
+      objectName: fullObjectName,
+      contentLenght: contentLength,
+      contentMD5: contentMD5,
+      opcClientRequestId: opcClientRequestId,
+      StorageTier: storageTier
+    )
+
+    var req = try buildRequest(objectStorageAPI: api, endpoint: baseURL)
+
+    req.httpBody = putObjectBody
+
+    self.logger.info("[putObjectPAR] Starting upload of \(objectName) to folder: \(toFolder ?? "/")")
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[putObjectPAR] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+
+    guard let etag = headers["Etag"],
+      let lastModified = headers["Last-Modified"],
+      let opcContentMd5 = headers["opc-content-md5"],
+      let opcRequestId = headers["opc-request-id"],
+      let versionId = headers["version-id"]
+    else {
+      throw ObjectStorageError.invalidResponse("Missing required response headers")
+    }
+
+    let opcClientRequestId = headers["opc-client-request-id"] ?? "nil"
+
+    self.logger.info(
+      """
+      [putObjectPAR] Upload of \(objectName) to folder: \(toFolder ?? "root") was successfull.
+      ETag: \(etag)
+      Last-Modified: \(lastModified)
+      opc-client-request-id: \(opcClientRequestId)
+      opc-content-md5: \(opcContentMd5)
+      opc-request-id: \(opcRequestId)
+      Version-Id: \(versionId)
+      """
+    )
+  }
+
   // MARK: - Reencrypts bucket
   /// Re-encrypts the unique data encryption key used for each object in the bucket using the most recent
   /// version of the master encryption key assigned to the bucket.

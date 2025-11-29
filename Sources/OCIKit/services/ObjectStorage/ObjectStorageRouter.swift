@@ -184,6 +184,15 @@ public enum ObjectStorageAPI: API {
     opcClientRequestId: String? = nil,
     StorageTier: String? = nil
   )
+  /// Puts object using PAR
+  case putObjectWithPar(
+    parURL: URL,
+    objectName: String,
+    contentLenght: Int? = nil,
+    contentMD5: String? = nil,
+    opcClientRequestId: String? = nil,
+    StorageTier: String? = nil
+  )
   /// Reencrypts bucket
   case reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Reencrypts object
@@ -272,6 +281,8 @@ public enum ObjectStorageAPI: API {
       return "/n/\(namespaceName)/b/\(bucketName)/o/\(objectName)"
     case .getObjectWithPAR(let parURL, let objectName, _, _, _, _, _, _, _, _, _, _, _, _):
       return "\(parURL.path())\(objectName)"
+    case .putObjectWithPar(let parURL, let objectName, _, _, _, _):
+      return "\(parURL.path())\(objectName)"
     case .restoreObject(let namespaceName, let bucketName, _):
       return "/n/\(namespaceName)/b/\(bucketName)/actions/restoreObjects"
     case .updadateObjectStorageTier(let namespaceName, let bucketName, _):
@@ -325,6 +336,7 @@ public enum ObjectStorageAPI: API {
       .headObject:
       return .head
     case .putObject,
+      .putObjectWithPar,
       .updateNamespaceMetadata,
       .updateRetentionRule:
       return .put
@@ -353,6 +365,7 @@ public enum ObjectStorageAPI: API {
       .headBucket,
       .makeBucketWritable,
       .putObject,
+      .putObjectWithPar,
       .reencryptBucket,
       .renameObject,
       .restoreObject,
@@ -588,7 +601,21 @@ public enum ObjectStorageAPI: API {
         return ["opc-client-request-id": opcClientRequestId]
       }
       return nil
+
     case .putObject(_, _, _, let contentLength, let contentMD5, let opcClientRequestId, let storageTier):
+      let keyValuePairs: [(String, String)] = [
+        ("content-length", contentLength.map { String($0) }),
+        ("content-md5", contentMD5),
+        ("opc-client-request-id", opcClientRequestId),
+        ("storage-tier", storageTier),
+      ].compactMap { key, value in
+        value.map { (key, $0) }
+      }
+
+      let headers = Dictionary(uniqueKeysWithValues: keyValuePairs)
+      return headers.isEmpty ? nil : headers
+
+    case .putObjectWithPar(_, _, let contentLength, let contentMD5, let opcClientRequestId, let storageTier):
       let keyValuePairs: [(String, String)] = [
         ("content-length", contentLength.map { String($0) }),
         ("content-md5", contentMD5),
