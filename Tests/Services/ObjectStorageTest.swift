@@ -14,8 +14,9 @@
 
 import Foundation
 import Logging
-import OCIKit
 import Testing
+
+@testable import OCIKit
 
 struct ObjectStorageTest {
   let ociConfigFilePath: String
@@ -184,8 +185,42 @@ struct ObjectStorageTest {
     #expect(createRetentionRule != nil, "The operation should succeed")
   }
 
-  // MARK: - Creates preauthenticated request
-  @Test func createsPreauthenticatedRequestWithAPIKeySigner() async throws {
+  // MARK: - Creates preauthenticated request for read/write and list entire bucket
+  @Test("Creating preauthenticated request for entire bucket and return with the link")
+  func createsPreauthenticatedRequestWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+
+    let requestDetails = CreatePreauthenticatedRequestDetails(
+      accessType: AccessType.anyObjectReadWrite,
+      bucketListingAction: .listObjects,
+      name: "PAR request for entire bucket",
+      timeExpires: "2025-12-31T23:59:59Z"
+    )
+
+    let createPreauthenticatedRequest = try? await sut.createPreauthenticatedRequest(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "parbucket",
+      requestDetails: requestDetails
+    )
+
+    if let createPreauthenticatedRequest {
+      let host = Service.objectstorage.getHost(in: region)
+      print(host + createPreauthenticatedRequest.accessUri)
+    }
+    #expect(createPreauthenticatedRequest != nil, "The operation should succeed")
+  }
+
+  @Test("Creating preauthenticated read only request for one file in bucket only and return with the link")
+  func createsPreauthenticatedRequestReadOnlyWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
       profile: ociProfileName
@@ -199,17 +234,21 @@ struct ObjectStorageTest {
 
     let requestDetails = CreatePreauthenticatedRequestDetails(
       accessType: AccessType.objectRead,
-      name: "Object_read",
+      name: "PAR read only request for Frame.png",
       objectName: "Frame.png",
       timeExpires: "2025-12-31T23:59:59Z"
     )
 
     let createPreauthenticatedRequest = try? await sut.createPreauthenticatedRequest(
       namespaceName: "frjfldcyl3la",
-      bucketName: "test_bucket_by_sdk",
+      bucketName: "parbucket",
       requestDetails: requestDetails
     )
 
+    if let createPreauthenticatedRequest {
+      let host = Service.objectstorage.getHost(in: region)
+      print(host + createPreauthenticatedRequest.accessUri)
+    }
     #expect(createPreauthenticatedRequest != nil, "The operation should succeed")
   }
 
@@ -462,7 +501,7 @@ struct ObjectStorageTest {
     #expect(getObject != nil, "The operation should succeed")
   }
 
-    // MARK: - Gets object from PAR bucket
+  // MARK: - Gets object from PAR bucket
   @Test func getsObjectWithPAR() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -483,7 +522,7 @@ struct ObjectStorageTest {
     #expect(getObject != nil, "The operation should succeed")
   }
 
-    // MARK: - Gets object integrity check
+  // MARK: - Gets object integrity check
   @Test func getsObjectWithAPIKeySignerAndIntegrityCheck() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,
@@ -626,36 +665,36 @@ struct ObjectStorageTest {
       "Number of buckets should be greater than zero"
     )
   }
-    
-    // MARK: - Lists buckets
-    /// List buckets in the compartment using `limit`
-    @Test func listsBucketsWithLimitWithAPIKeySignerReturnsMoreThanZero() async throws {
-      let regionId = try extractUserRegion(
-        from: ociConfigFilePath,
-        profile: ociProfileName
-      )
-      let region = Region.from(regionId: regionId ?? "") ?? .iad
-      let signer = try APIKeySigner(
-        configFilePath: ociConfigFilePath,
-        configName: ociProfileName
-      )
-      let sut = try ObjectStorageClient(region: region, signer: signer)
 
-      let listOfBuckets = try await sut.listBuckets(
-        namespaceName: "frjfldcyl3la",
-        compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q",
-        limit: 2
-      )
+  // MARK: - Lists buckets
+  /// List buckets in the compartment using `limit`
+  @Test func listsBucketsWithLimitWithAPIKeySignerReturnsMoreThanZero() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
 
-      // Lists all buckets in the compartment
-      for bucket in listOfBuckets {
-        print(bucket.name)
-      }
-      #expect(
-        listOfBuckets.count < 3,
-        "Number of buckets should be between 0 and 2"
-      )
+    let listOfBuckets = try await sut.listBuckets(
+      namespaceName: "frjfldcyl3la",
+      compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q",
+      limit: 2
+    )
+
+    // Lists all buckets in the compartment
+    for bucket in listOfBuckets {
+      print(bucket.name)
     }
+    #expect(
+      listOfBuckets.count < 3,
+      "Number of buckets should be between 0 and 2"
+    )
+  }
 
   // MARK: - List replication policies
   @Test func listReplicationPoliciesWithAPIKeySigner() async throws {
@@ -951,6 +990,36 @@ struct ObjectStorageTest {
       try await sut.putObject(
         namespaceName: "frjfldcyl3la",
         bucketName: "test_bucket_by_sdk",
+        objectName: "\(fileToUploadURL.lastPathComponent)",
+        putObjectBody: data
+      )
+
+      #expect(true, "The operation should succeed")
+    }
+    catch {
+      Issue.record("putObject threw an error: \(error)")
+    }
+  }
+
+  @Test("Puts an object into a bucket using PAR link")
+  func putsObjectPARWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try ObjectStorageClient(region: region, signer: signer)
+    let fileToUploadPath = NSHomeDirectory() + "/Desktop/Frame.png"
+    let fileToUploadURL = URL(fileURLWithPath: fileToUploadPath)
+    let data: Data = try Data(contentsOf: fileToUploadURL)
+
+    do {
+      try await sut.putObject(
+        parURL: URL(string: "https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/A1q-9UNjGJtaXb8R6M3eWvzA_6wyWYN5B2LIM-3R3kol_FTVcpUyWhoPHv0gI9bp/n/frjfldcyl3la/b/parbucket/o/")!,
         objectName: "\(fileToUploadURL.lastPathComponent)",
         putObjectBody: data
       )
