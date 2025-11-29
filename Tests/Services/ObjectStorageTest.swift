@@ -14,8 +14,10 @@
 
 import Foundation
 import Logging
-import OCIKit
 import Testing
+
+@testable import OCIKit
+
 
 struct ObjectStorageTest {
   let ociConfigFilePath: String
@@ -184,34 +186,72 @@ struct ObjectStorageTest {
     #expect(createRetentionRule != nil, "The operation should succeed")
   }
 
-  // MARK: - Creates preauthenticated request
-  @Test func createsPreauthenticatedRequestWithAPIKeySigner() async throws {
-    let regionId = try extractUserRegion(
-      from: ociConfigFilePath,
-      profile: ociProfileName
-    )
-    let region = Region.from(regionId: regionId ?? "") ?? .iad
-    let signer = try APIKeySigner(
-      configFilePath: ociConfigFilePath,
-      configName: ociProfileName
-    )
-    let sut = try ObjectStorageClient(region: region, signer: signer)
-
-    let requestDetails = CreatePreauthenticatedRequestDetails(
-      accessType: AccessType.objectRead,
-      name: "Object_read",
-      objectName: "Frame.png",
-      timeExpires: "2025-12-31T23:59:59Z"
-    )
-
-    let createPreauthenticatedRequest = try? await sut.createPreauthenticatedRequest(
-      namespaceName: "frjfldcyl3la",
-      bucketName: "test_bucket_by_sdk",
-      requestDetails: requestDetails
-    )
-
+  // MARK: - Creates preauthenticated request for read/write and list entire bucket
+  @Test("Creating preauthenticated request for entire bucket and return with the link")
+    func createsPreauthenticatedRequestWithAPIKeySigner() async throws {
+        let regionId = try extractUserRegion(
+            from: ociConfigFilePath,
+            profile: ociProfileName
+        )
+        let region = Region.from(regionId: regionId ?? "") ?? .iad
+        let signer = try APIKeySigner(
+            configFilePath: ociConfigFilePath,
+            configName: ociProfileName
+        )
+        let sut = try ObjectStorageClient(region: region, signer: signer)
+        
+        let requestDetails = CreatePreauthenticatedRequestDetails(
+            accessType: AccessType.anyObjectReadWrite,
+            bucketListingAction: .listObjects,
+            name: "PAR request for entire bucket",
+            timeExpires: "2025-12-31T23:59:59Z"
+        )
+        
+        let createPreauthenticatedRequest = try? await sut.createPreauthenticatedRequest(
+            namespaceName: "frjfldcyl3la",
+            bucketName: "parbucket",
+            requestDetails: requestDetails
+        )
+        
+        if let createPreauthenticatedRequest {
+            let host = Service.objectstorage.getHost(in: region)
+            print(host + createPreauthenticatedRequest.accessUri)
+    }
     #expect(createPreauthenticatedRequest != nil, "The operation should succeed")
   }
+    
+    @Test("Creating preauthenticated read only request for one file in bucket only and return with the link")
+      func createsPreauthenticatedRequestReadOnlyWithAPIKeySigner() async throws {
+          let regionId = try extractUserRegion(
+              from: ociConfigFilePath,
+              profile: ociProfileName
+          )
+          let region = Region.from(regionId: regionId ?? "") ?? .iad
+          let signer = try APIKeySigner(
+              configFilePath: ociConfigFilePath,
+              configName: ociProfileName
+          )
+          let sut = try ObjectStorageClient(region: region, signer: signer)
+          
+          let requestDetails = CreatePreauthenticatedRequestDetails(
+            accessType: AccessType.objectRead,
+              name: "PAR read only request for Frame.png",
+            objectName: "Frame.png",
+              timeExpires: "2025-12-31T23:59:59Z"
+          )
+          
+          let createPreauthenticatedRequest = try? await sut.createPreauthenticatedRequest(
+              namespaceName: "frjfldcyl3la",
+              bucketName: "parbucket",
+              requestDetails: requestDetails
+          )
+          
+          if let createPreauthenticatedRequest {
+              let host = Service.objectstorage.getHost(in: region)
+              print(host + createPreauthenticatedRequest.accessUri)
+      }
+      #expect(createPreauthenticatedRequest != nil, "The operation should succeed")
+    }
 
   // MARK: - Deletes bucket
   @Test func deletesBucketWithAPIKeySigner() async throws {

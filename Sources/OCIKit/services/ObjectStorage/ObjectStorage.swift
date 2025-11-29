@@ -342,9 +342,6 @@ public struct ObjectStorageClient {
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///
   /// - Returns: A response object containing `PreauthenticatedRequest`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func createPreauthenticatedRequest(
     namespaceName: String,
     bucketName: String,
