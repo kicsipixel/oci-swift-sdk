@@ -83,10 +83,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 202 {
-      let bodyText = String(data: data, encoding: .utf8) ?? "No response body."
-      throw ObjectStorageError.invalidResponse(
-        "Unexpected status code \(httpResponse.statusCode): \(bodyText)"
-      )
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[cancelWorkRequest] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -139,14 +138,16 @@ public struct ObjectStorageClient {
 
       try signer.sign(&req)
 
-      let (_, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await URLSession.shared.data(for: req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
       }
 
       if httpResponse.statusCode != 202 {
-        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+        self.logger.error("[copyObject] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+        throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
       let headers = convertHeadersToDictionary(httpResponse)
@@ -195,7 +196,9 @@ public struct ObjectStorageClient {
       }
 
       if httpResponse.statusCode != 200 {
-        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+        self.logger.error("[createBucket] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+        throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
       do {
@@ -260,10 +263,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[createReplicationPolicy] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let replicationPolicy = try JSONDecoder().decode(ReplicationPolicy.self, from: data)
@@ -321,10 +323,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[createRetentionRule] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let retentionRule = try JSONDecoder().decode(RetentionRule.self, from: data)
@@ -380,10 +381,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[createPreauthenticatedRequest] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let preauthRequest = try JSONDecoder().decode(PreauthenticatedRequest.self, from: data)
@@ -419,14 +419,16 @@ public struct ObjectStorageClient {
 
     try signer.sign(&req)
 
-    let (_, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await URLSession.shared.data(for: req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
     if httpResponse.statusCode != 204 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[deleteBucket] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -466,14 +468,16 @@ public struct ObjectStorageClient {
 
     try signer.sign(&req)
 
-    let (_, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await URLSession.shared.data(for: req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
     if httpResponse.statusCode != 204 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[deleteObject] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -524,10 +528,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 204 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[deleteReplicationPolicy] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -580,10 +583,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 204 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[deleteRetentionRule] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -634,10 +636,10 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 204 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[deletePreauthenticatedRequest] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -689,7 +691,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[getBucket] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     do {
@@ -733,7 +737,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[getNamespace] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     guard let responseBody = String(data: data, encoding: .utf8) else {
@@ -776,7 +782,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[getNamespaceMetadata] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let namespaceMetadata = try JSONDecoder().decode(NamespaceMetadata.self, from: data)
@@ -861,7 +869,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[getObject] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     if withObjectIntegrityCheck {
@@ -923,7 +933,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[getObjectPAR] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     if withObjectIntegrityCheck {
@@ -992,10 +1004,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[getReplicationPolicy] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let replicationPolicy = try JSONDecoder().decode(ReplicationPolicy.self, from: data)
@@ -1043,10 +1054,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[getRetentionRule] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let retentionRule = try JSONDecoder().decode(RetentionRule.self, from: data)
@@ -1094,10 +1104,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[getPreauthenticatedReques] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let preauthenticatedRequestSummary = try JSONDecoder().decode(PreauthenticatedRequestSummary.self, from: data)
@@ -1132,10 +1141,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      let bodyText = String(data: data, encoding: .utf8) ?? "No response body"
-      throw ObjectStorageError.invalidResponse(
-        "Unexpected status code \(httpResponse.statusCode): \(bodyText)"
-      )
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[getWorkRequestStatus] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let workRequest = try JSONDecoder().decode(WorkRequest.self, from: data)
@@ -1171,14 +1179,16 @@ public struct ObjectStorageClient {
 
     try signer.sign(&req)
 
-    let (_, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await URLSession.shared.data(for: req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
     if httpResponse.statusCode != 200 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[headBucket] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -1234,14 +1244,16 @@ public struct ObjectStorageClient {
 
     try signer.sign(&req)
 
-    let (_, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await URLSession.shared.data(for: req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
     if httpResponse.statusCode != 200 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[headObject] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -1329,9 +1341,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      let error = try JSONDecoder().decode(DataBody.self, from: data)
-      self.logger.error("[listBuckets] \(error.code) (\(httpResponse.statusCode)): \(error.message)")
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listBuckets] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let bucketSummary = try JSONDecoder().decode([BucketSummary].self, from: data)
@@ -1376,10 +1388,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listReplicationPolicies] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let replicationPolicySummaries = try JSONDecoder().decode([ReplicationPolicySummary].self, from: data)
@@ -1423,10 +1434,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listReplicationSources] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let replicationSources = try JSONDecoder().decode([ReplicationSource].self, from: data)
@@ -1470,10 +1480,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listRetentionRules] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let retentionRuleCollection = try JSONDecoder().decode(RetentionRuleCollection.self, from: data)
@@ -1548,9 +1557,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      let error = try JSONDecoder().decode(DataBody.self, from: data)
-      self.logger.error("[listObjects] \(error.code) (\(httpResponse.statusCode)): \(error.message)")
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listObjects] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let listObjects = try JSONDecoder().decode(ListObjects.self, from: data)
@@ -1624,9 +1633,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      let error = try JSONDecoder().decode(DataBody.self, from: data)
-      self.logger.error("[listObjectsPAR] \(error.code) (\(httpResponse.statusCode)): \(error.message)")
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listObjectsPAR] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let listObjects = try JSONDecoder().decode(ListObjects.self, from: data)
@@ -1701,7 +1710,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listObjectVersions] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let listObjectVersions = try JSONDecoder().decode(ObjectVersionCollection.self, from: data)
@@ -1754,10 +1765,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listPreauthenticatedRequests] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let preauthenticatedRequestSummaryList = try JSONDecoder().decode([PreauthenticatedRequestSummary].self, from: data)
@@ -1797,10 +1807,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      let bodyText = String(data: data, encoding: .utf8) ?? "No response body"
-      throw ObjectStorageError.invalidResponse(
-        "Unexpected status code \(httpResponse.statusCode): \(bodyText)"
-      )
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listWorkRequests] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let workRequestSummaries = try JSONDecoder().decode([WorkRequestSummary].self, from: data)
@@ -1846,10 +1855,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 204 {
-      if let body = String(data: data, encoding: .utf8) {
-        print("Error: \(body)")
-      }
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[makeBucketWritable] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -1922,9 +1930,9 @@ public struct ObjectStorageClient {
     }
 
     if httpResponse.statusCode != 200 {
-      let error = try JSONDecoder().decode(DataBody.self, from: data)
-      self.logger.error("[putObject] \(error.code) (\(httpResponse.statusCode)): \(error.message)")
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[putObject] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -1987,14 +1995,16 @@ public struct ObjectStorageClient {
 
     try signer.sign(&req)
 
-    let (_, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await URLSession.shared.data(for: req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
     if httpResponse.statusCode != 202 {
-      throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("reencryptBucket] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
@@ -2051,14 +2061,16 @@ public struct ObjectStorageClient {
 
       try signer.sign(&req)
 
-      let (_, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await URLSession.shared.data(for: req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
       }
 
       if httpResponse.statusCode != 200 {
-        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+        self.logger.error("[reencryptObject] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+        throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
       let headers = convertHeadersToDictionary(httpResponse)
@@ -2110,14 +2122,16 @@ public struct ObjectStorageClient {
 
       try signer.sign(&req)
 
-      let (_, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await URLSession.shared.data(for: req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
       }
 
       if httpResponse.statusCode != 200 {
-        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+        self.logger.error("[renameObject] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+        throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
       let headers = convertHeadersToDictionary(httpResponse)
@@ -2177,14 +2191,16 @@ public struct ObjectStorageClient {
 
       try signer.sign(&req)
 
-      let (_, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await URLSession.shared.data(for: req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
       }
 
       if httpResponse.statusCode != 202 {
-        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+        self.logger.error("[restoreObject] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+        throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
       let headers = convertHeadersToDictionary(httpResponse)
@@ -2251,7 +2267,9 @@ public struct ObjectStorageClient {
       }
 
       if httpResponse.statusCode != 200 {
-        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+        self.logger.error("[updateBucket] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+        throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
       do {
@@ -2318,7 +2336,9 @@ public struct ObjectStorageClient {
       }
 
       if httpResponse.statusCode != 200 {
-        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+        self.logger.error("[updateNamespaceMetadata] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+        throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
       // TODO: this decoding fails, beacuse the response from the server doesn't contain `namespace`.🤷‍♂️
@@ -2394,10 +2414,9 @@ public struct ObjectStorageClient {
       }
 
       if httpResponse.statusCode != 200 {
-        if let body = String(data: data, encoding: .utf8) {
-          print("Error: \(body)")
-        }
-        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+        self.logger.error("[updateStorageTier] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+        throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
       let headers = convertHeadersToDictionary(httpResponse)
@@ -2462,10 +2481,9 @@ public struct ObjectStorageClient {
       }
 
       if httpResponse.statusCode != 200 {
-        if let body = String(data: data, encoding: .utf8) {
-          print("Error: \(body)")
-        }
-        throw ObjectStorageError.invalidResponse("Unexpected status code: \(httpResponse.statusCode)")
+        let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+        self.logger.error("[updateRetentionRule] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+        throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
       let retenetiobRule = try JSONDecoder().decode(RetentionRule.self, from: data)
@@ -2481,40 +2499,8 @@ public struct RetryConfig {
   let baseDelay: TimeInterval
 }
 
-// Error types
-public enum ObjectStorageError: Error {
-  case missingRequiredParameter(String)
-  case invalidURL(String)
-  case invalidResponse(String)
-  case invalidUTF8
-  case jsonEncodingError(String)
-  case jsonDecodingError(String)
-  case objectLengthMismatch(Int, Int)
-  case objectMD5Mismatch(String, String)
-}
-
-extension ObjectStorageError: LocalizedError {
-  public var errorDescription: String? {
-    switch self {
-    case .missingRequiredParameter(let param): return "Missing required parameter \(param)"
-    case .invalidURL(let url): return "Provided URL is invalid: \(url)"
-    case .invalidResponse(let response): return "API returned an invalid reponse: \(response)"
-    case .invalidUTF8: return "Malformed UTF8 representation"
-    case .jsonEncodingError(let errorString): return "JSON encoding error: \(errorString)"
-    case .jsonDecodingError(let errorString): return "JSON decoding error: \(errorString)"
-    case .objectLengthMismatch(let actual, let original): return "Downloaded object length \(actual) does not match the original length reported by Object Storage \(original)"
-    case .objectMD5Mismatch(let actual, let original): return "Downloaded object MD5 \(actual) does not match the original MD5 reported by Object Storage \(original)"
-    }
-  }
-}
-
-// Error mesage
-public struct DataBody: Codable {
-  let code: String
-  let message: String
-}
-
 // Convert HTTPURLResponse to dictionary
+// TODO: Move to utility file
 func convertHeadersToDictionary(_ httpResponse: HTTPURLResponse) -> [String: String] {
   return httpResponse.allHeaderFields.reduce(into: [String: String]()) { dict, pair in
     if let key = pair.key as? String, let value = pair.value as? String {
