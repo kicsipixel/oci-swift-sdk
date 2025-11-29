@@ -809,12 +809,7 @@ public struct ObjectStorageClient {
   ///   - httpResponseContentEncoding: Query parameter to override the `Content-Encoding` response header.
   ///   - httpResponseExpires: Query parameter to override the `Expires` response header.
   ///
-  /// - Returns: A `Response` object with data of type `String` if `responseTarget` and `block` are not provided, otherwise with `nil` data.
-  ///
-  /// TODO:
-  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
-  ///   - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource. If the specified ETag matches, GET and HEAD requests will return the resource, and PUT and POST requests will upload the resource.
-  ///   - ifNoneMatch: The entity tag (ETag) to avoid matching. Wildcards (`*`) are not allowed. If the specified ETag does not match, the request returns the expected response. If it matches, the request returns HTTP 304 without a response body.
+  /// - Returns: A `Data` object containing the raw contents of the object.
   public func getObject(
     namespaceName: String,
     bucketName: String,
@@ -878,9 +873,36 @@ public struct ObjectStorageClient {
     return data
   }
 
-  // MARK: - Gets object PAR
-  // TODO: Add comments
-  /// Same as above but uring Pre-Authenticated Request (PAR) URL
+  // MARK: - Get object (PAR)
+  /// Retrieves the metadata and body of an object from Object Storage using a
+  /// Pre‑Authenticated Request (PAR) URL.
+  ///
+  /// This variant of `getObject` allows access without requiring namespace or bucket
+  /// parameters, since those are already encoded in the PAR URL.
+  ///
+  /// - Parameters:
+  ///   - parURL: The full Pre‑Authenticated Request (PAR) URL that grants access to the object.
+  ///   - objectName: The name of the object. Avoid entering confidential information. Example: `"test/object1.log"`.
+  ///   - versionId: The version ID used to identify a particular version of the object.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - range: Optional byte range to fetch, as described in
+  ///     [RFC 7233](https://tools.ietf.org/html/rfc7233#section-2.1). Only a single range is supported.
+  ///   - opcSseCustomerAlgorithm: Optional header specifying `"AES256"` as the encryption algorithm.
+  ///     [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSseCustomerKey: Optional header specifying the base64‑encoded 256‑bit encryption key
+  ///     to encrypt or decrypt the data. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - opcSseCustomerKeySha256: Optional header specifying the base64‑encoded SHA256 hash of the
+  ///     encryption key to verify its integrity. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - httpResponseContentDisposition: Query parameter to override the `Content‑Disposition` response header.
+  ///   - httpResponseCacheControl: Query parameter to override the `Cache‑Control` response header.
+  ///   - httpResponseContentType: Query parameter to override the `Content‑Type` response header.
+  ///   - httpResponseContentLanguage: Query parameter to override the `Content‑Language` response header.
+  ///   - httpResponseContentEncoding: Query parameter to override the `Content‑Encoding` response header.
+  ///   - httpResponseExpires: Query parameter to override the `Expires` response header.
+  ///   - withObjectIntegrityCheck: If `true`, validates the object length and MD5 checksum against
+  ///     values reported by Object Storage.
+  ///
+  /// - Returns: A `Data` object containing the raw contents of the object.
   public func getObject(
     parURL: URL,
     objectName: String,
@@ -901,7 +923,7 @@ public struct ObjectStorageClient {
 
     // The endpoint here is different from the above implementation because it already contains /p, /n, and /b in it.
     guard let host = parURL.host(), let baseURL = URL(string: "https://\(host)") else {
-      throw ObjectStorageError.missingRequiredParameter("Malformed PAR URL")
+      throw ObjectStorageError.invalidURL("Malformed PAR URL")
     }
 
     let api = ObjectStorageAPI.getObjectWithPAR(
