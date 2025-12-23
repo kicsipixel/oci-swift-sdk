@@ -24,6 +24,8 @@ public enum IAMAPI: API {
   case createCompartment(compartmentDetails: CreateCompartmentDetails)
   /// Deletes a compartment
   case deleteCompartment(compartmentId: String)
+  /// Gets a compartment
+  case getCompartment(compartmentId: String)
   /// Lists compartments
   case listCompartments(
     compartmentId: String,
@@ -43,7 +45,8 @@ public enum IAMAPI: API {
     case .createCompartment(_),
       .listCompartments(_, _, _, _, _, _, _, _, _):
       return "/20160918/compartments"
-    case .deleteCompartment(let compartmentId):
+    case .deleteCompartment(let compartmentId),
+      .getCompartment(let compartmentId):
       return "/20160918/compartments/\(compartmentId)"
     }
   }
@@ -51,7 +54,8 @@ public enum IAMAPI: API {
   // HTTPMethod
   public var method: HTTPMethod {
     switch self {
-    case .listCompartments:
+    case .getCompartment,
+      .listCompartments:
       return .get
     case .createCompartment:
       return .post
@@ -64,6 +68,7 @@ public enum IAMAPI: API {
   public var queryItems: [URLQueryItem]? {
     switch self {
     case .createCompartment,
+      .getCompartment,
       .deleteCompartment:
       return nil
     case .listCompartments(let compartmentId, let page, let limit, let accesLevel, let compartmentIdInSubtree, let name, let sortBy, let sortOrder, let lifecycleState):
@@ -93,6 +98,7 @@ public enum IAMAPI: API {
     switch self {
     case .createCompartment,
       .deleteCompartment,
+      .getCompartment,
       .listCompartments:
       return nil
     }

@@ -153,6 +153,58 @@ public struct IAMClient {
     }
   }
 
+  //MARK: - Gets a compartment
+  /// Retrieves information about the specified compartment. It doesn't work with tenancy!
+  ///
+  /// This operation **does not** return a list of resources inside the compartment.
+  /// OCI compartments can contain many different resource types (instances, block
+  /// volumes, VCNs, etc.), and there is no single API that lists everything.
+  /// To discover the resources within a compartment, call the corresponding
+  /// “List” operation for each service and pass the compartment’s OCID as a
+  /// query parameter.
+  ///
+  /// For example:
+  /// - Use `listInstances` in the Compute service to list instances.
+  /// - Use `listVolumes` in the Block Storage service to list block volumes.
+  ///
+  /// - Parameters:
+  ///   - compartmentId:
+  ///     The OCID of the compartment whose metadata should be retrieved.
+  ///
+  /// - Returns:
+  ///   A response containing the `Compartment` object.
+  public func getCompartment(
+    compartmentId: String
+  ) async throws -> Compartment {
+    guard let endpoint else {
+      throw IAMError.missingRequiredParameter("No endpoint has been set")
+    }
+    let api = IAMAPI.getCompartment(compartmentId: compartmentId)
+    var req = try buildRequest(api: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw IAMError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("getCompartment] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    do {
+      let compartment = try JSONDecoder().decode(Compartment.self, from: data)
+      return compartment
+    }
+    catch {
+      throw IAMError.jsonDecodingError("Failed to decode response data to Compartment")
+    }
+  }
+
   // MARK: - Lists compartments
   /// Lists the compartments within a specified compartment.
   /// The returned list depends on the values of several parameters.
@@ -173,7 +225,6 @@ public struct IAMClient {
   ///   - sortBy: The field to sort by. Valid values are `TIMECREATED` (default descending) and `NAME` (default ascending, case-sensitive).
   ///   - sortOrder: The sort order to use: `ASC` or `DESC`. The `NAME` sort order is case-sensitive.
   ///   - lifecycleState: A filter to return only compartments matching the given lifecycle state. Case-insensitive.
-
   ///
   /// - Returns: An array of `Compartment` objects representing the compartments in the specified compartment.
   public func listCompartments(

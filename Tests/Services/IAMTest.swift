@@ -73,6 +73,30 @@ struct IAMTest {
 
     #expect(deleteCompartment != nil, "deleteCompartment should not be nil")
   }
+
+  //MARK: - Gets a compartment
+  @Test("Returns the specified compartment")
+  func getCompartmentWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try IAMClient(region: region, signer: signer)
+
+    let compartment = try? await sut.getCompartment(compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q")
+
+    // Print compartment name
+    if let compartment = compartment {
+      print(compartment.name)
+    }
+    #expect(compartment != nil, "The compartment should not be nil")
+  }
+
   // MARK: - Lists compartments
   @Test("Returns with list of compartments in the same tenancy/compartment")
   func listCompartmentsWithAPIKeySigner() async throws {
