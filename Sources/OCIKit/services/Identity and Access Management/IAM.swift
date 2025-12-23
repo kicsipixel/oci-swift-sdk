@@ -148,8 +148,8 @@ public struct IAMClient {
     }
 
     let headers = convertHeadersToDictionary(httpResponse)
-    if let opcClientRequestId = headers["opc-client-request-id"], let opcRequestId = headers["opc-request-id"] {
-      logger.debug("opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId)")
+    if let opcWorkRequestId = headers["opc-work-request-id"], let opcRequestId = headers["opc-request-id"] {
+      logger.debug("opc-work-request-id: \(opcWorkRequestId), opc-request-id: \(opcRequestId)")
     }
   }
 
@@ -273,6 +273,73 @@ public struct IAMClient {
     }
     catch {
       throw IAMError.jsonDecodingError("Failed to decode response data to Compartments")
+    }
+  }
+
+  // MARK: - Moves compartment
+  /// Moves a compartment to a different parent compartment within the same tenancy.
+  ///
+  /// When a compartment is moved, **all of its contents**—including subcompartments
+  /// and resources—are moved with it.
+  /// The `compartmentId` specified in the request path identifies the compartment
+  /// you intend to move.
+  ///
+  /// **Important:**
+  /// After a compartment is moved, the **access policies of the new parent**
+  /// immediately take effect, and the policies of the previous parent no longer apply.
+  /// Ensure you understand the policy implications for all resources contained within
+  /// the compartment before performing the move.
+  /// For more details, see
+  /// [Moving a Compartment](https://docs.cloud.oracle.com/Content/Identity/compartments/managingcompartments.htm#MoveCompartment).
+  ///
+  /// - Parameters:
+  ///   - compartmentId:
+  ///     The OCID of the compartment to move.
+  ///   - details:
+  ///     The request payload describing the new parent compartment.
+  ///   - opcRequestId:
+  ///     A unique Oracle‑assigned identifier for the request.
+  ///     Useful when contacting Oracle support.
+  ///
+  /// - Returns:
+  ///   A response object with no associated data.
+  public func moveCompartment(
+    compartmentId: String,
+    moveCompartmentDetails: MoveCompartmentDetails,
+    opcRequestId: String? = nil
+  ) async throws {
+    guard let endpoint else {
+      throw IAMError.missingRequiredParameter("No endpoint has been set")
+    }
+    let api = IAMAPI.moveCompartment(compartmentId: compartmentId, moveCompartmentDetails: moveCompartmentDetails, opcRequestId: opcRequestId)
+    var req = try buildRequest(api: api, endpoint: endpoint)
+
+    let payload: Data
+    do {
+      payload = try JSONEncoder().encode(moveCompartmentDetails)
+    }
+    catch {
+      throw IAMError.jsonEncodingError("MoveCompartmentDetails cannot be encoded to data")
+    }
+
+    req.httpBody = payload
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw IAMError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 202 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[moveCompartment] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+    if let opcWorkRequestId = headers["opc-work-request-id"], let opcRequestId = headers["opc-request-id"] {
+      logger.debug("opc-work-request-id: \(opcWorkRequestId), opc-request-id: \(opcRequestId)")
     }
   }
 }

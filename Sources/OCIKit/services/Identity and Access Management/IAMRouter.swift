@@ -38,6 +38,8 @@ public enum IAMAPI: API {
     sortOrder: SortOrder? = nil,
     lifecycleState: String? = nil
   )
+  /// Moves compartment
+  case moveCompartment(compartmentId: String, moveCompartmentDetails: MoveCompartmentDetails, opcRequestId: String? = nil)
 
   // Path
   public var path: String {
@@ -48,6 +50,8 @@ public enum IAMAPI: API {
     case .deleteCompartment(let compartmentId),
       .getCompartment(let compartmentId):
       return "/20160918/compartments/\(compartmentId)"
+    case .moveCompartment(let compartmentId, _, _):
+      return "/20160918/compartments/\(compartmentId)/actions/moveCompartment"
     }
   }
 
@@ -57,7 +61,8 @@ public enum IAMAPI: API {
     case .getCompartment,
       .listCompartments:
       return .get
-    case .createCompartment:
+    case .createCompartment,
+      .moveCompartment:
       return .post
     case .deleteCompartment:
       return .delete
@@ -69,7 +74,8 @@ public enum IAMAPI: API {
     switch self {
     case .createCompartment,
       .getCompartment,
-      .deleteCompartment:
+      .deleteCompartment,
+      .moveCompartment:
       return nil
     case .listCompartments(let compartmentId, let page, let limit, let accesLevel, let compartmentIdInSubtree, let name, let sortBy, let sortOrder, let lifecycleState):
       let keyValuePairs: [(String, String?)] = [
@@ -100,6 +106,11 @@ public enum IAMAPI: API {
       .deleteCompartment,
       .getCompartment,
       .listCompartments:
+      return nil
+    case .moveCompartment(_, _, let opcRequestId):
+      if let opcRequestId {
+        return ["opc-client-request-id": opcRequestId]
+      }
       return nil
     }
   }

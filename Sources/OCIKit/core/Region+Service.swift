@@ -80,7 +80,49 @@ public enum Service: String {
   }
 }
 
+/// Extracts the user's configured OCI region from an API key configuration file.
+///
+/// This helper reads the specified OCI config file (`~/.oci/config`)
+/// and loads the profile's region value as interpreted by `SignerConfiguration`.
+///
+/// - Parameters:
+///   - configPath:
+///     The filesystem path to the OCI configuration file.
+///   - profile:
+///     The profile name within the config file to load.
+///     Defaults to `"DEFAULT"`.
+///
+/// - Returns:
+///   The region identifier (for example, `"eu-frankfurt-1"`) if present in the
+///   configuration file, or `nil` if the profile does not define a region.
 public func extractUserRegion(from configPath: String, profile: String = "DEFAULT") throws -> String? {
-  let signerConfig = try SignerConfiguration.fromFileForAPIKey(configFilePath: configPath, configName: profile)
+  let signerConfig = try SignerConfiguration.fromFileForAPIKey(
+    configFilePath: configPath,
+    configName: profile
+  )
   return signerConfig.region
+}
+
+/// Extracts the tenancy OCID from an API key configuration file.
+///
+/// This helper loads the specified OCI config file and returns the tenancy OCID
+/// associated with the given profile. The tenancy OCID uniquely identifies the
+/// root compartment of the tenancy.
+///
+/// - Parameters:
+///   - configPath:
+///     The filesystem path to the OCI configuration file.
+///   - profile:
+///     The profile name within the config file to load.
+///     Defaults to `"DEFAULT"`.
+///
+/// - Returns:
+///   The tenancy OCID if present in the configuration file, or `nil` if the
+///   profile does not define one.
+public func extractTenancyId(from configPath: String, profile: String = "DEFAULT") throws -> String? {
+  let signerConfig = try SignerConfiguration.fromFileForAPIKey(
+    configFilePath: configPath,
+    configName: profile
+  )
+  return signerConfig.tenancyOCID
 }

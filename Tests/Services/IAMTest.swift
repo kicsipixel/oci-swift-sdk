@@ -19,6 +19,9 @@ import Testing
 struct IAMTest {
   let ociConfigFilePath: String
   let ociProfileName: String
+  // Define your values to be used during the test
+  let testCompartment = "ocid1.compartment.oc1..aaaaaaaavlvw5pxtgzcuvru5qvindermz6g4fen2acaikxtug6l3ztjytdeq"
+  let targetParentCompartmentId = "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q"
 
   init() throws {
     let env = ProcessInfo.processInfo.environment
@@ -26,7 +29,7 @@ struct IAMTest {
     ociProfileName = env["OCI_PROFILE"] ?? "DEFAULT"
   }
 
-  // MARK: - Creates a compartment
+  // MARK: - Creates compartment
   @Test("Creates a compartment into the specified tenancy/comaprtment")
   func createCompartmentWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -38,19 +41,18 @@ struct IAMTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try IAMClient(region: region, signer: signer)
 
+    let sut = try IAMClient(region: region, signer: signer)
     let newCompartment = CreateCompartmentDetails(
-      compartmentId: "ocid1.tenancy.oc1..aaaaaaaapt3esrvwldrfekea5ucasigr2nof7tjx6ysyb4oo3yiqgx2d72ha",
+      compartmentId: targetParentCompartmentId,
       description: "Compartment created by oci-swift-sdk.",
       name: "NewCompartment"
     )
-
     let createdCompartment = try? await sut.createCompartment(compartmentDetails: newCompartment)
 
     // Print created compartment
     if let compartment = createdCompartment {
-      print("Compartment created: \(compartment.name)")
+      print("Compartment created: \(compartment.name)\n with ID: \(compartment.id)")
     }
     #expect(createdCompartment != nil, "createdCompartment should not be nil")
   }
@@ -67,14 +69,14 @@ struct IAMTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try IAMClient(region: region, signer: signer)
 
-    let deleteCompartment: ()? = try? await sut.deleteCompartment(compartmentId: "ocid1.compartment.oc1..aaaaaaaaun4hukknl7pzxq3nttbidqqoufrpfksxp7rqpkzc5ub36v4hu7rq")
+    let sut = try IAMClient(region: region, signer: signer)
+    let deleteCompartment: ()? = try? await sut.deleteCompartment(compartmentId: testCompartment)
 
     #expect(deleteCompartment != nil, "deleteCompartment should not be nil")
   }
 
-  //MARK: - Gets a compartment
+  //MARK: - Gets compartment
   @Test("Returns the specified compartment")
   func getCompartmentWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
@@ -86,9 +88,9 @@ struct IAMTest {
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try IAMClient(region: region, signer: signer)
 
-    let compartment = try? await sut.getCompartment(compartmentId: "ocid1.compartment.oc1..aaaaaaaatcmi2vv2tmuzgpajfncnqnvwvzkg2at7ez5lykdcarwtbeieyo2q")
+    let sut = try IAMClient(region: region, signer: signer)
+    let compartment = try? await sut.getCompartment(compartmentId: targetParentCompartmentId)
 
     // Print compartment name
     if let compartment = compartment {
@@ -105,13 +107,19 @@ struct IAMTest {
       profile: ociProfileName
     )
     let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let tenancyId = try extractTenancyId(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
     let signer = try APIKeySigner(
       configFilePath: ociConfigFilePath,
       configName: ociProfileName
     )
-    let sut = try IAMClient(region: region, signer: signer)
 
-    let listOfCompartments = try? await sut.listCompartments(compartmentId: "ocid1.tenancy.oc1..aaaaaaaapt3esrvwldrfekea5ucasigr2nof7tjx6ysyb4oo3yiqgx2d72ha")
+    let sut = try IAMClient(region: region, signer: signer)
+    // List compartment in the tenancy, if it fails to extact from `config`, it will list
+    // `targetParentCompartmentId`
+    let listOfCompartments = try? await sut.listCompartments(compartmentId: tenancyId ?? targetParentCompartmentId)
 
     // Listing compartments
     if let compartments = listOfCompartments {
@@ -120,5 +128,30 @@ struct IAMTest {
       }
     }
     #expect(listOfCompartments != nil, "Expected a non-nil list of compartments")
+  }
+
+  // MARK: - Moves compartment
+  @Test("Move the compartment to a different parent compartment in the same tenancy. ")
+  func moveCompartmentWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+
+    let sut = try IAMClient(region: region, signer: signer)
+    // Define the compartment where we want to move
+    let moveCompartmentDetails = MoveCompartmentDetails(targetCompartmentId: targetParentCompartmentId)
+    // Define the compartment to be moved
+    let moveCompartment: ()? = try? await sut.moveCompartment(
+      compartmentId: testCompartment,
+      moveCompartmentDetails: moveCompartmentDetails
+    )
+
+    #expect(moveCompartment != nil, "The compartment should be moved successfully.")
   }
 }
