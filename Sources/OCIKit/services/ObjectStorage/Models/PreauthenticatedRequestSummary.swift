@@ -14,20 +14,19 @@
 
 import Foundation
 
-
 public struct PreauthenticatedRequestSummary: Codable {
-    /// The operation that can be performed on this resource.
-    public let accessType: String
-    /// Specifies whether a list operation is allowed on a PAR with accessType "AnyObjectRead" or "AnyObjectReadWrite". Deny: Prevents the user from performing a list operation. ListObjects: Authorizes the user to perform a list operation.
-    public let bucketListingAction: String?
-    /// The unique identifier to use when directly addressing the pre-authenticated request.
-    public let id: String
-    /// The user-provided name of the pre-authenticated request.
-    public let name: String
-    /// The name of the object that is being granted access to by the pre-authenticated request. Avoid entering confidential information. The object name can be null and if so, the pre-authenticated request grants access to the entire bucket. Example: test/object1.log
-    public let objectName: String?
-    /// The date when the pre-authenticated request was created as per specification RFC 3339.
-    public let timeCreated: String
-    /// The expiration date for the pre-authenticated request as per RFC 3339. After this date the pre-authenticated request will no longer be valid.
-    public let timeExpires: String
+  /// The operation that can be performed on this resource.
+  public let accessType: String
+  /// Specifies whether a list operation is allowed on a PAR with accessType "AnyObjectRead" or "AnyObjectReadWrite". Deny: Prevents the user from performing a list operation. ListObjects: Authorizes the user to perform a list operation.
+  public let bucketListingAction: String?
+  /// The unique identifier to use when directly addressing the pre-authenticated request.
+  public let id: String
+  /// The user-provided name of the pre-authenticated request.
+  public let name: String
+  /// The name of the object that is being granted access to by the pre-authenticated request. Avoid entering confidential information. The object name can be null and if so, the pre-authenticated request grants access to the entire bucket. Example: test/object1.log
+  public let objectName: String?
+  /// The date when the pre-authenticated request was created as per specification RFC 3339.
+  public let timeCreated: String
+  /// The expiration date for the pre-authenticated request as per RFC 3339. After this date the pre-authenticated request will no longer be valid.
+  public let timeExpires: String
 }

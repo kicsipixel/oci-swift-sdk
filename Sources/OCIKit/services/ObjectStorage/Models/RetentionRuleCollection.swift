@@ -16,5 +16,5 @@ import Foundation
 
 /// Retention rule collection.
 public struct RetentionRuleCollection: Codable {
-    public let items: [RetentionRuleSummary]
+  public let items: [RetentionRuleSummary]
 }

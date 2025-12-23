@@ -8,11 +8,11 @@
 import Foundation
 
 struct DocumentError: Codable {
-    let error: ErrorDetails
-    let key: String
+  let error: ErrorDetails
+  let key: String
 }
 
 struct ErrorDetails: Codable {
-    let code: String
-    let message: String
+  let code: String
+  let message: String
 }

@@ -108,7 +108,7 @@ public struct IAMClient {
       lifecycleState: lifecycleState
     )
     var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
-  
+
     try signer.sign(&req)
     let (data, response) = try await URLSession.shared.data(for: req)
 

@@ -26,6 +26,6 @@ public struct UpdateRetentionRuleDetails: Codable {
   public init(displayName: String, duration: Duration? = nil, timeRuleLocked: Date? = nil) {
     self.displayName = displayName
     self.duration = duration
-      self.timeRuleLocked = timeRuleLocked?.toRFC3339()
+    self.timeRuleLocked = timeRuleLocked?.toRFC3339()
   }
 }

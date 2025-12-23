@@ -8,9 +8,9 @@
 import Foundation
 
 struct RelationEntity: Codable {
-    let id: String
-    let objectId: String
-    let score: Double
-    let subjectId: String
-    let type: String
+  let id: String
+  let objectId: String
+  let score: Double
+  let subjectId: String
+  let type: String
 }

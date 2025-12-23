@@ -42,12 +42,12 @@ struct IAMTest {
 
     let listOfCompartments = try? await sut.listCompartments(compartmentId: "ocid1.tenancy.oc1..aaaaaaaapt3esrvwldrfekea5ucasigr2nof7tjx6ysyb4oo3yiqgx2d72ha")
 
-      // Listing compartments
-      if let compartments = listOfCompartments {
-          for compartment in compartments {
-              print("Compartment: \(compartment.name)")
-          }
+    // Listing compartments
+    if let compartments = listOfCompartments {
+      for compartment in compartments {
+        print("Compartment: \(compartment.name)")
       }
-      #expect(listOfCompartments != nil, "Expected a non-nil list of compartments")
+    }
+    #expect(listOfCompartments != nil, "Expected a non-nil list of compartments")
   }
 }

@@ -32,18 +32,18 @@ public struct RetentionRuleSummary: Codable {
 
   /// The date and time that the retention rule was created as a `Date`.
   public var timeCreated: Date? {
-      Date.fromRFC3339(timeCreatedRaw)
+    Date.fromRFC3339(timeCreatedRaw)
   }
 
   /// The date and time that the retention rule was modified as a `Date`.
   public var timeModified: Date? {
-      Date.fromRFC3339(timeModifiedRaw)
+    Date.fromRFC3339(timeModifiedRaw)
   }
 
   /// The date and time as per as `Date` after which this rule becomes locked.
   public var timeRuleLocked: Date? {
     guard let raw = timeRuleLockedRaw else { return nil }
-      return Date.fromRFC3339(raw)
+    return Date.fromRFC3339(raw)
   }
 
   // Custom CodingKeys to map raw string fields to their JSON keys

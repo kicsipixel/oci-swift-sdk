@@ -6,19 +6,19 @@
 //
 
 import Foundation
-import Testing
 import OCIKit
+import Testing
 
 struct GenAITest {
   let ociConfigFilePath: String
   let ociProfileName: String
-  
+
   init() throws {
     let env = ProcessInfo.processInfo.environment
     ociConfigFilePath = env["OCI_CONFIG_FILE"] ?? "\(NSHomeDirectory())/.oci/config"
     ociProfileName = env["OCI_PROFILE"] ?? "DEFAULT"
   }
-  
+
   @Test func testGenAICohere() async throws {
     guard
       let compartment = ProcessInfo.processInfo.environment["GENAI_COMPARTMENT_OCID"], !compartment.isEmpty,
@@ -51,7 +51,7 @@ struct GenAITest {
     let response = try await getText.getCompletion(req)
     print("reponse: \(response)")
   }
-  
+
   @Test func testGenAILlama() async throws {
     guard
       let compartment = ProcessInfo.processInfo.environment["GENAI_COMPARTMENT_OCID"], !compartment.isEmpty,
@@ -68,7 +68,8 @@ struct GenAITest {
         frequencyPenalty: nil,
         isEcho: false,
         isStream: false,
-        logProbs: nil, maxTokens: nil,
+        logProbs: nil,
+        maxTokens: nil,
         numGenerations: nil,
         presencePenalty: nil,
         prompt: "tell me about LLMs",
