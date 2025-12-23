@@ -154,4 +154,27 @@ struct IAMTest {
 
     #expect(moveCompartment != nil, "The compartment should be moved successfully.")
   }
+
+  // MARK: - Recovers compartment
+  @Test("Recover the compartment from deleted state. ")
+  func recoverCompartmentWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+
+    let sut = try IAMClient(region: region, signer: signer)
+    let recoverCompartment = try? await sut.recoverCompartment(compartmentId: testCompartment)
+
+    if let compartment = recoverCompartment {
+      print("Compartment: \(compartment.name) was recovered from deleting.")
+    }
+
+    #expect(recoverCompartment != nil, "The compartment should be recovered successfully.")
+  }
 }

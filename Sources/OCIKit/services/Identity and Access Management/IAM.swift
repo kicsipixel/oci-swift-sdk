@@ -342,4 +342,52 @@ public struct IAMClient {
       logger.debug("opc-work-request-id: \(opcWorkRequestId), opc-request-id: \(opcRequestId)")
     }
   }
+
+  // MARK: - Recovers compartment
+  /// Recovers a compartment from the `DELETED` state back to the `ACTIVE` state.
+  ///
+  /// Use this operation to restore a previously deleted compartment.
+  /// The compartment must currently be in the `DELETED` lifecycle state for the
+  /// recovery to succeed.
+  ///
+  /// - Parameters:
+  ///   - compartmentId:
+  ///     The OCID of the compartment to recover.
+  ///   - opcRequestId:
+  ///     A unique Oracle‑assigned identifier for the request.
+  ///     Useful when contacting Oracle support.
+  ///
+  /// - Returns:
+  ///   A response containing the recovered `Compartment` object.
+  public func recoverCompartment(
+    compartmentId: String,
+    opcRequestId: String? = nil
+  ) async throws -> Compartment {
+    guard let endpoint else {
+      throw IAMError.missingRequiredParameter("No endpoint has been set")
+    }
+    let api = IAMAPI.recoverCompartment(compartmentId: compartmentId, opcRequestId: opcRequestId)
+    var req = try buildRequest(api: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw IAMError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[recoverCompartment] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    do {
+      let recoveredCompartment = try JSONDecoder().decode(Compartment.self, from: data)
+      return recoveredCompartment
+    }
+    catch {
+      throw IAMError.jsonDecodingError("Failed to decode response data to Compartment")
+    }
+  }
 }
