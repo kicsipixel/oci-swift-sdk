@@ -22,6 +22,8 @@ import Foundation
 public enum IAMAPI: API {
   /// Creates a compartment
   case createCompartment(compartmentDetails: CreateCompartmentDetails)
+  /// Deletes a compartment
+  case deleteCompartment(compartmentId: String)
   /// Lists compartments
   case listCompartments(
     compartmentId: String,
@@ -41,6 +43,8 @@ public enum IAMAPI: API {
     case .createCompartment(_),
       .listCompartments(_, _, _, _, _, _, _, _, _):
       return "/20160918/compartments"
+    case .deleteCompartment(let compartmentId):
+      return "/20160918/compartments/\(compartmentId)"
     }
   }
 
@@ -51,13 +55,16 @@ public enum IAMAPI: API {
       return .get
     case .createCompartment:
       return .post
+    case .deleteCompartment:
+      return .delete
     }
   }
 
   // QueryItems
   public var queryItems: [URLQueryItem]? {
     switch self {
-    case .createCompartment:
+    case .createCompartment,
+      .deleteCompartment:
       return nil
     case .listCompartments(let compartmentId, let page, let limit, let accesLevel, let compartmentIdInSubtree, let name, let sortBy, let sortOrder, let lifecycleState):
       let keyValuePairs: [(String, String?)] = [
@@ -85,6 +92,7 @@ public enum IAMAPI: API {
   public var headers: [String: String]? {
     switch self {
     case .createCompartment,
+      .deleteCompartment,
       .listCompartments:
       return nil
     }

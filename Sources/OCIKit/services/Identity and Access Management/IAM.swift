@@ -113,6 +113,46 @@ public struct IAMClient {
     return createdCompartment
   }
 
+  // MARK: - Deletes a compartment
+  /// Deletes the specified compartment.
+  ///
+  /// The compartment **must be empty** before it can be deleted.
+  ///
+  /// - Parameters:
+  ///   - compartmentId:
+  ///     The OCID of the compartment to delete.
+  ///
+  /// - Returns:
+  ///   A response object with no associated data.
+  public func deleteCompartment(
+    compartmentId: String
+  ) async throws {
+    guard let endpoint else {
+      throw IAMError.missingRequiredParameter("No endpoint has been set")
+    }
+    let api = IAMAPI.deleteCompartment(compartmentId: compartmentId)
+    var req = try buildRequest(api: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw IAMError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 202 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[deleteCompartment] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+    if let opcClientRequestId = headers["opc-client-request-id"], let opcRequestId = headers["opc-request-id"] {
+      logger.debug("opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId)")
+    }
+  }
+
   // MARK: - Lists compartments
   /// Lists the compartments within a specified compartment.
   /// The returned list depends on the values of several parameters.
@@ -150,7 +190,6 @@ public struct IAMClient {
     guard let endpoint else {
       throw IAMError.missingRequiredParameter("No endpoint has been set")
     }
-
     let api = IAMAPI.listCompartments(
       compartmentId: compartmentId,
       page: page,
