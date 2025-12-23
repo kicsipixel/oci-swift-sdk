@@ -630,37 +630,3 @@ public enum ObjectStorageAPI: API {
     }
   }
 }
-
-/// Build request from components defined in ObjectStorageAPIRouter
-public func buildRequest(objectStorageAPI: API, endpoint: URL) throws -> URLRequest {
-  guard
-    var components = URLComponents(
-      url: endpoint,
-      resolvingAgainstBaseURL: false
-    )
-  else {
-    throw ObjectStorageError.invalidURL("Enpoint URL is invalid")
-  }
-
-  // Build path
-  components.path = objectStorageAPI.path
-
-  // Add query items
-  components.queryItems = objectStorageAPI.queryItems
-  guard let url = components.url else {
-    throw ObjectStorageError.invalidURL("Could not construct final URL")
-  }
-
-  // Build request
-  var request = URLRequest(url: url)
-  request.httpMethod = objectStorageAPI.method.rawValue
-
-  // Add headers
-  objectStorageAPI.headers?.forEach { key, value in
-    request.addValue(value, forHTTPHeaderField: key)
-  }
-  request.setValue("application/json", forHTTPHeaderField: "accept")
-  request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-  return request
-}

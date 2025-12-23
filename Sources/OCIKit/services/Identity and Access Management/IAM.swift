@@ -31,12 +31,6 @@ public struct IAMClient {
   ///     - region: A region used to determine the service endpoint.
   ///     - endpoint: The fully qualified endpoint URL
   ///     - signer: A signer implementation which can be used by this client.
-  ///
-  ///  TODO:
-  ///     - proxySettings: If your environment requires you to use a proxy server for outgoing HTTP requests the details for the proxy can be provided in this parameter
-  ///     - retryConfig: The retry configuration for this service client
-  ///
-  ///     Either a region or an endpoint must be specified. If an endpoint is specified, it will be used instead of the region.
   public init(region: Region? = nil, endpoint: String? = nil, signer: Signer, retryConfig: RetryConfig? = nil) throws {
     self.signer = signer
     self.retryConfig = retryConfig
@@ -78,9 +72,6 @@ public struct IAMClient {
 
   ///
   /// - Returns: An array of `Compartment` objects representing the compartments in the specified compartment.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config is used. If explicitly set to `nil`, no retries are performed.
   public func listCompartments(
     compartmentId: String,
     page: String? = nil,
@@ -107,7 +98,7 @@ public struct IAMClient {
       sortOrder: sortOrder,
       lifecycleState: lifecycleState
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
     let (data, response) = try await URLSession.shared.data(for: req)
