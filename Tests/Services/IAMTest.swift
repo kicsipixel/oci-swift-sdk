@@ -26,8 +26,37 @@ struct IAMTest {
     ociProfileName = env["OCI_PROFILE"] ?? "DEFAULT"
   }
 
+  // MARK: - Creates a compartment
+  @Test("Creates a compartment into the specified tenancy/comaprtment")
+  func createCompartmentWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+    let sut = try IAMClient(region: region, signer: signer)
+
+    let newCompartment = CreateCompartmentDetails(
+      compartmentId: "ocid1.tenancy.oc1..aaaaaaaapt3esrvwldrfekea5ucasigr2nof7tjx6ysyb4oo3yiqgx2d72ha",
+      description: "Compartment created by oci-swift-sdk.",
+      name: "NewCompartment"
+    )
+
+    let createdCompartment = try? await sut.createCompartment(compartmentDetails: newCompartment)
+
+    // Print created compartment
+    if let compartment = createdCompartment {
+      print("Compartment created: \(compartment.name)")
+    }
+    #expect(createdCompartment != nil, "createdCompartment should not be nil")
+  }
+
   // MARK: - Lists compartments
-  @Test("Returns with list of compartments in the same tenancy")
+  @Test("Returns with list of compartments in the same tenancy/compartment")
   func listCompartmentsWithAPIKeySigner() async throws {
     let regionId = try extractUserRegion(
       from: ociConfigFilePath,

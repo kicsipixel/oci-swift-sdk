@@ -22,6 +22,7 @@ public enum IAMError: Error {
   case invalidUTF8
   case jsonEncodingError(String)
   case jsonDecodingError(String)
+  case unexpectedStatusCode(Int, String)
 }
 
 extension IAMError: LocalizedError {
@@ -33,6 +34,8 @@ extension IAMError: LocalizedError {
     case .invalidUTF8: return "Malformed UTF8 representation"
     case .jsonEncodingError(let errorString): return "JSON encoding error: \(errorString)"
     case .jsonDecodingError(let errorString): return "JSON decoding error: \(errorString)"
+    case .unexpectedStatusCode(let code, let message):
+      return "Error (\(code)): \(message)"
     }
   }
 }

@@ -20,6 +20,8 @@ import Foundation
 
 // API
 public enum IAMAPI: API {
+  /// Creates a compartment
+  case createCompartment(compartmentDetails: CreateCompartmentDetails)
   /// Lists compartments
   case listCompartments(
     compartmentId: String,
@@ -36,7 +38,8 @@ public enum IAMAPI: API {
   // Path
   public var path: String {
     switch self {
-    case .listCompartments(_, _, _, _, _, _, _, _, _):
+    case .createCompartment(_),
+      .listCompartments(_, _, _, _, _, _, _, _, _):
       return "/20160918/compartments"
     }
   }
@@ -46,12 +49,16 @@ public enum IAMAPI: API {
     switch self {
     case .listCompartments:
       return .get
+    case .createCompartment:
+      return .post
     }
   }
 
   // QueryItems
   public var queryItems: [URLQueryItem]? {
     switch self {
+    case .createCompartment:
+      return nil
     case .listCompartments(let compartmentId, let page, let limit, let accesLevel, let compartmentIdInSubtree, let name, let sortBy, let sortOrder, let lifecycleState):
       let keyValuePairs: [(String, String?)] = [
         ("compartmentId", compartmentId),
@@ -77,7 +84,8 @@ public enum IAMAPI: API {
   // Headers
   public var headers: [String: String]? {
     switch self {
-    case .listCompartments:
+    case .createCompartment,
+      .listCompartments:
       return nil
     }
   }
