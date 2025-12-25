@@ -80,12 +80,35 @@ public enum Service: String {
   }
 }
 
-/// Extracts the user's configured OCI region from an API key configuration file.
+/// Represents the individual configuration fields that can be extracted
+/// from an OCI API key profile within a standard OCI configuration file.
+private enum ConfigField {
+  /// The region identifier (e.g., `"eu-frankfurt-1"`).
+  case region
+
+  /// The tenancy OCID associated with the profile.
+  case tenancy
+
+  /// The user OCID associated with the profile.
+  case user
+
+  /// The fingerprint of the API key.
+  case fingerprint
+
+  /// The security token value, if present.
+  case securityToken
+}
+
+/// Extracts a specific configuration field from an OCI API key configuration file.
 ///
-/// This helper reads the specified OCI config file (`~/.oci/config`)
-/// and loads the profile's region value as interpreted by `SignerConfiguration`.
+/// This helper loads the specified OCI config file (typically `~/.oci/config`)
+/// and returns the requested field from the given profile.
+/// It centralizes configuration parsing logic and ensures consistent behavior
+/// across all higher‑level extractors.
 ///
 /// - Parameters:
+///   - field:
+///     The configuration field to extract.
 ///   - configPath:
 ///     The filesystem path to the OCI configuration file.
 ///   - profile:
@@ -93,36 +116,63 @@ public enum Service: String {
 ///     Defaults to `"DEFAULT"`.
 ///
 /// - Returns:
-///   The region identifier (for example, `"eu-frankfurt-1"`) if present in the
-///   configuration file, or `nil` if the profile does not define a region.
-public func extractUserRegion(from configPath: String, profile: String = "DEFAULT") throws -> String? {
-  let signerConfig = try SignerConfiguration.fromFileForAPIKey(
+///   The extracted value for the requested field, or `nil` if the field is not defined.
+private func extract(
+  _ field: ConfigField,
+  from configPath: String,
+  profile: String = "DEFAULT"
+) throws -> String? {
+  let config = try SignerConfiguration.fromFileForAPIKey(
     configFilePath: configPath,
     configName: profile
   )
-  return signerConfig.region
+
+  switch field {
+  case .region:
+    return config.region
+  case .tenancy:
+    return config.tenancyOCID
+  case .user:
+    return config.userOCID
+  case .fingerprint:
+    return config.fingerprint
+  case .securityToken:
+    return config.securityToken
+  }
+}
+
+/// Extracts the user's configured OCI region from an API key configuration file.
+///
+/// This is a convenience wrapper around the generic `extract` helper, returning
+/// only the region value for the specified profile.
+///
+/// - Parameters:
+///   - path:
+///     The filesystem path to the OCI configuration file.
+///   - profile:
+///     The profile name within the config file to load.
+///     Defaults to `"DEFAULT"`.
+///
+/// - Returns:
+///   The region identifier (for example, `"eu-frankfurt-1"`) if present, or `nil` otherwise.
+public func extractUserRegion(from path: String, profile: String = "DEFAULT") throws -> String? {
+  try extract(.region, from: path, profile: profile)
 }
 
 /// Extracts the tenancy OCID from an API key configuration file.
 ///
-/// This helper loads the specified OCI config file and returns the tenancy OCID
-/// associated with the given profile. The tenancy OCID uniquely identifies the
-/// root compartment of the tenancy.
+/// This helper returns the tenancy OCID associated with the given profile.
+/// The tenancy OCID uniquely identifies the root compartment of the tenancy.
 ///
 /// - Parameters:
-///   - configPath:
+///   - path:
 ///     The filesystem path to the OCI configuration file.
 ///   - profile:
 ///     The profile name within the config file to load.
 ///     Defaults to `"DEFAULT"`.
 ///
 /// - Returns:
-///   The tenancy OCID if present in the configuration file, or `nil` if the
-///   profile does not define one.
-public func extractTenancyId(from configPath: String, profile: String = "DEFAULT") throws -> String? {
-  let signerConfig = try SignerConfiguration.fromFileForAPIKey(
-    configFilePath: configPath,
-    configName: profile
-  )
-  return signerConfig.tenancyOCID
+///   The tenancy OCID if present, or `nil` if the profile does not define one.
+public func extractTenancyId(from path: String, profile: String = "DEFAULT") throws -> String? {
+  try extract(.tenancy, from: path, profile: profile)
 }
