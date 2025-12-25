@@ -42,6 +42,8 @@ public enum IAMAPI: API {
   case moveCompartment(compartmentId: String, moveCompartmentDetails: MoveCompartmentDetails, opcRequestId: String? = nil)
   /// Recovers compartment
   case recoverCompartment(compartmentId: String, opcRequestId: String? = nil)
+  /// Updates compartment
+  case updateCompartment(compartmentId: String, updateCompartmentDetails: UpdateCompartmentDetails)
 
   // Path
   public var path: String {
@@ -50,7 +52,8 @@ public enum IAMAPI: API {
       .listCompartments(_, _, _, _, _, _, _, _, _):
       return "/20160918/compartments"
     case .deleteCompartment(let compartmentId),
-      .getCompartment(let compartmentId):
+      .getCompartment(let compartmentId),
+      .updateCompartment(let compartmentId, _):
       return "/20160918/compartments/\(compartmentId)"
     case .moveCompartment(let compartmentId, _, _):
       return "/20160918/compartments/\(compartmentId)/actions/moveCompartment"
@@ -69,6 +72,8 @@ public enum IAMAPI: API {
       .moveCompartment,
       .recoverCompartment:
       return .post
+    case .updateCompartment:
+      return .put
     case .deleteCompartment:
       return .delete
     }
@@ -81,7 +86,8 @@ public enum IAMAPI: API {
       .getCompartment,
       .deleteCompartment,
       .moveCompartment,
-      .recoverCompartment:
+      .recoverCompartment,
+      .updateCompartment:
       return nil
     case .listCompartments(let compartmentId, let page, let limit, let accesLevel, let compartmentIdInSubtree, let name, let sortBy, let sortOrder, let lifecycleState):
       let keyValuePairs: [(String, String?)] = [
@@ -111,7 +117,8 @@ public enum IAMAPI: API {
     case .createCompartment,
       .deleteCompartment,
       .getCompartment,
-      .listCompartments:
+      .listCompartments,
+      .updateCompartment:
       return nil
     case .moveCompartment(_, _, let opcRequestId),
       .recoverCompartment(_, let opcRequestId):

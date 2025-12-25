@@ -74,7 +74,7 @@ public struct IAMClient {
   /// Before using the compartment, ensure that its state has transitioned to `.ACTIVE`.
   ///
   /// - Parameters:
-  ///   - details: The request payload describing the new compartment to create.
+  ///   - compartmentDetails: The request payload describing the new compartment to create.
   ///
   /// - Returns: A response containing the newly created `Compartment`.
   public func createCompartment(
@@ -295,7 +295,7 @@ public struct IAMClient {
   /// - Parameters:
   ///   - compartmentId:
   ///     The OCID of the compartment to move.
-  ///   - details:
+  ///   - moveCompartmentDetails:
   ///     The request payload describing the new parent compartment.
   ///   - opcRequestId:
   ///     A unique Oracle‑assigned identifier for the request.
@@ -389,5 +389,57 @@ public struct IAMClient {
     catch {
       throw IAMError.jsonDecodingError("Failed to decode response data to Compartment")
     }
+  }
+
+  // MARK: - Updates compartment
+  /// Updates the specified compartment’s name or description.
+  ///
+  /// This operation cannot be used to modify the **root compartment**.
+  /// Only non‑root compartments may be updated.
+  ///
+  /// - Parameters:
+  ///   - compartmentId:
+  ///     The OCID of the compartment to update.
+  ///   - updateCompartmentDetails:
+  ///     The request payload containing the updated name and/or description.
+  ///
+  /// - Returns:
+  ///   A response containing the updated `Compartment` object.
+  public func updateCompartment(
+    compartmentId: String,
+    updateCompartmentDetails: UpdateCompartmentDetails
+  ) async throws -> Compartment {
+    guard let endpoint else {
+      throw IAMError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = IAMAPI.updateCompartment(compartmentId: compartmentId, updateCompartmentDetails: updateCompartmentDetails)
+    var req = try buildRequest(api: api, endpoint: endpoint)
+
+    let payload: Data
+    do {
+      payload = try JSONEncoder().encode(updateCompartmentDetails)
+    }
+    catch {
+      throw IAMError.jsonEncodingError("UpdateCompartmentDetails cannot be encoded to data")
+    }
+
+    req.httpBody = payload
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw IAMError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[updateCompartment] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw IAMError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    let updatedCompartment = try JSONDecoder().decode(Compartment.self, from: data)
+    return updatedCompartment
   }
 }

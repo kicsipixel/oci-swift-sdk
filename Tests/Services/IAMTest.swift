@@ -177,4 +177,31 @@ struct IAMTest {
 
     #expect(recoverCompartment != nil, "The compartment should be recovered successfully.")
   }
+
+  // MARK: - Updates compartment
+  @Test("Update the name and description of the compartment.")
+  func updateCompartmentWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+
+    let sut = try IAMClient(region: region, signer: signer)
+    let updateCompartmentDetails = UpdateCompartmentDetails(description: "Updated by oci-swift-sdk.", name: "UpdatedCompartment")
+    let updatedCompartment = try? await sut.updateCompartment(
+      compartmentId: testCompartment,
+      updateCompartmentDetails: updateCompartmentDetails
+    )
+
+    // Print the new name and description the updated compartment
+    if let compartment = updatedCompartment {
+      print("Compartment: \(compartment.name) with description: \(compartment.description) was updated.")
+    }
+    #expect(updatedCompartment != nil, "The compartment should be updated successfully.")
+  }
 }
