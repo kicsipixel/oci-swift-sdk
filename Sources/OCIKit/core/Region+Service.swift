@@ -9,8 +9,8 @@ import Foundation
 
 public enum Region: String, CaseIterable {
   case syd, mel, gru, vcp, yul, yyz, scl, vap, bog, cdg, mrs, fra, hyd, bom,
-    hsg, mtz, lin, kix, nrt, qro, mty, ams, ruh, jed, beg, sin, xsp, jnb,
-    icn, yny, mad, arn, zrh, auh, dxb, lhr, cwl, iad, ord, phx, sjc
+    hsg, mtz, lin, nrq, kix, nrt, qro, mty, ams, ruh, jed, beg, sin, xsp, jnb,
+    icn, yny, mad, orf, arn, zrh, auh, dxb, lhr, cwl, iad, ord, phx, sjc
 
   var urlPart: String {
     switch self {
@@ -31,6 +31,7 @@ public enum Region: String, CaseIterable {
     case .hsg: "ap-batam-1"
     case .mtz: "il-jerusalem-1"
     case .lin: "eu-milan-1"
+    case .nrq: "eu-turin-1"
     case .kix: "ap-osaka-1"
     case .nrt: "ap-tokyo-1"
     case .qro: "mx-queretaro-1"
@@ -45,6 +46,7 @@ public enum Region: String, CaseIterable {
     case .icn: "ap-seoul-1"
     case .yny: "ap-chuncheon-1"
     case .mad: "eu-madrid-1"
+    case .orf: "eu-madrid-3"
     case .arn: "eu-stockholm-1"
     case .zrh: "eu-zurich-1"
     case .auh: "me-abudhabi-1"
