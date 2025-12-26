@@ -28,6 +28,8 @@ public enum IAMAPI: API {
   case deleteCompartment(compartmentId: String)
   /// Gets a compartment
   case getCompartment(compartmentId: String)
+  /// List bulk action resource types
+  case listBulkActionResourceTypes(bulkActionTytpe: String, page: String? = nil, limit: Int? = nil)
   /// Lists compartments
   case listCompartments(
     compartmentId: String,
@@ -55,6 +57,8 @@ public enum IAMAPI: API {
     case .createCompartment(_),
       .listCompartments(_, _, _, _, _, _, _, _, _):
       return "/20160918/compartments"
+    case .listBulkActionResourceTypes(_, _, _):
+      return "/20160918/compartments/bulkActionResourceTypes"
     case .deleteCompartment(let compartmentId),
       .getCompartment(let compartmentId),
       .updateCompartment(let compartmentId, _):
@@ -70,6 +74,7 @@ public enum IAMAPI: API {
   public var method: HTTPMethod {
     switch self {
     case .getCompartment,
+      .listBulkActionResourceTypes,
       .listCompartments:
       return .get
     case .bulkDeleteResources,
@@ -95,6 +100,19 @@ public enum IAMAPI: API {
       .recoverCompartment,
       .updateCompartment:
       return nil
+    case .listBulkActionResourceTypes(let bulkActionType, let page, let limit):
+      let keyValuePairs: [(String, String?)] = [
+        ("bulkActionType", bulkActionType),
+        ("page", page),
+        ("limit", limit.map(String.init)),
+      ]
+
+      // Convert non-nil values into URLQueryItems
+      let queryItems = keyValuePairs.compactMap { key, value in
+        value.map { URLQueryItem(name: key, value: $0) }
+      }
+
+      return queryItems.isEmpty ? nil : queryItems
     case .listCompartments(let compartmentId, let page, let limit, let accesLevel, let compartmentIdInSubtree, let name, let sortBy, let sortOrder, let lifecycleState):
       let keyValuePairs: [(String, String?)] = [
         ("compartmentId", compartmentId),
@@ -124,6 +142,7 @@ public enum IAMAPI: API {
       .createCompartment,
       .deleteCompartment,
       .getCompartment,
+      .listBulkActionResourceTypes,
       .listCompartments,
       .updateCompartment:
       return nil

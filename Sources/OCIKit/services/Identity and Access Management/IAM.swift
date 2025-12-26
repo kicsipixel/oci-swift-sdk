@@ -292,11 +292,37 @@ public struct IAMClient {
   ///   A response containing a `BulkActionResourceTypeCollection` describing all
   ///   resource types supported for the specified bulk action.
   public func listBulkActionResourceTypes(
-    bulkActionType: String,
+    bulkActionType: BulkActionType,
     page: String? = nil,
     limit: Int? = nil
   ) async throws -> BulkActionResourceTypeCollection {
+    guard let endpoint else {
+      throw IAMError.missingRequiredParameter("No endpoint has been set")
+    }
+    let api = IAMAPI.listBulkActionResourceTypes(bulkActionTytpe: bulkActionType.rawValue, page: page, limit: limit)
 
+    var req = try buildRequest(api: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw IAMError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[listBulkActionResourceTypes] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    do {
+      let listOfBulkActionResourceTypes = try JSONDecoder().decode(BulkActionResourceTypeCollection.self, from: data)
+      return listOfBulkActionResourceTypes
+    }
+    catch {
+      throw IAMError.jsonDecodingError("Failed to decode response data to BulkActionResourceTypeCollection")
+    }
   }
 
   // MARK: - Lists compartments

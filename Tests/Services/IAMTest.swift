@@ -43,7 +43,10 @@ struct IAMTest {
     )
 
     let sut = try IAMClient(region: region, signer: signer)
-    let bulkDeleteResourceDetails = BulkDeleteResourcesDetails(resources: [BulkActionResource(entityType: "", identifier: "")])
+    let bulkDeleteResourceDetails = BulkDeleteResourcesDetails(resources: [BulkActionResource(entityType: "Image", identifier: testCompartment)])
+    let bulkDelete: ()? = try? await sut.bulkdeleteResources(compartmentId: testCompartment, bulkDeleteResourcesDetails: bulkDeleteResourceDetails)
+
+    #expect(bulkDelete != nil, "The operation should succeed")
   }
 
   // MARK: - Creates compartment
@@ -114,6 +117,31 @@ struct IAMTest {
       print(compartment.name)
     }
     #expect(compartment != nil, "The compartment should not be nil")
+  }
+
+  // MARK: - Lists bulk action resource type
+  @Test("Returns with list of bulk action resource types")
+  func listBulkActionResourceTypesWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+
+    let sut = try IAMClient(region: region, signer: signer)
+    let bulkActionResourceTypes = try? await sut.listBulkActionResourceTypes(bulkActionType: BulkActionType.bulkDeleteResources, limit: 10)
+
+    if let resources = bulkActionResourceTypes?.items {
+      for resource in resources {
+        print(resource.name)
+      }
+    }
+
+    #expect(bulkActionResourceTypes != nil, "The bulk action resource types should not be nil")
   }
 
   // MARK: - Lists compartments
