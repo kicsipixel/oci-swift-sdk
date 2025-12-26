@@ -52,13 +52,13 @@ enum RequestSigner {
     let query = req.url?.query
     let encodedPath: String
     // Keeping the different tries herem if a new issue appears we know what we tried.
-    // let fullPath = query != nil ? "\(path)?\(query!)" : path
+    //  let fullPath = query != nil ? "\(path)?\(query!)" : path
     // let encodedPath = fullPath.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? fullPath
     // let encodedPath = fullPath
-    //      let encodedPath = fullPath.addingPercentEncoding(
-    //          withAllowedCharacters: .urlPathAllowed.union(.urlQueryAllowed)
-    //       ) ?? ""
-    //        let encodedPath = req.url?.relativePath.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+    //          let encodedPath = fullPath.addingPercentEncoding(
+    //              withAllowedCharacters: .urlPathAllowed.union(.urlQueryAllowed)
+    //           ) ?? ""
+    //           let encodedPath = req.url?.relativePath.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
 
     // ************************************
     // * One more try for proper encoding *

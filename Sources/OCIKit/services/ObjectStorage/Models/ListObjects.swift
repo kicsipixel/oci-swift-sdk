@@ -14,17 +14,17 @@
 
 import Foundation
 
-public class ListObjects: Codable  {
+public class ListObjects: Codable {
   /// The name of the object to use in the start parameter to obtain the next page of a truncated ListObjects response. Avoid entering confidential information. Example: test/object1.log
   public var nextStartWith: String?
   /// An array of object summaries.
   public var objects: [ObjectSummary]
   /// Prefixes that are common to the results returned by the request if the request specified a delimiter.
   public var prefixes: [String]?
-    
-    public init(nextStartWith: String?, objects: [ObjectSummary], prefixes: [String]?) {
-        self.nextStartWith = nextStartWith
-        self.objects = objects
-        self.prefixes = prefixes
-    }
+
+  public init(nextStartWith: String?, objects: [ObjectSummary], prefixes: [String]?) {
+    self.nextStartWith = nextStartWith
+    self.objects = objects
+    self.prefixes = prefixes
+  }
 }

@@ -6,21 +6,22 @@
 //
 
 import Foundation
+
 #if canImport(FoundationNetworking)
-import FoundationNetworking
+  import FoundationNetworking
 #endif
 
 public final class X509FederationClientBasedSecurityTokenSigner: Signer {
-    private let federationClient: X509FederationClientProtocol
-    
-    public init(federationClient: X509FederationClientProtocol) {
-        self.federationClient = federationClient
-    }
-    
-    public func sign(_ req: inout URLRequest) throws {
-        let token = try federationClient.currentSecurityToken()
-        let key = try federationClient.currentPrivateKey()
-        let delegateSigner = SecurityTokenSigner(securityToken: token, privateKey: key)
-        try delegateSigner.sign(&req)
-    }
+  private let federationClient: X509FederationClientProtocol
+
+  public init(federationClient: X509FederationClientProtocol) {
+    self.federationClient = federationClient
+  }
+
+  public func sign(_ req: inout URLRequest) throws {
+    let token = try federationClient.currentSecurityToken()
+    let key = try federationClient.currentPrivateKey()
+    let delegateSigner = SecurityTokenSigner(securityToken: token, privateKey: key)
+    try delegateSigner.sign(&req)
+  }
 }

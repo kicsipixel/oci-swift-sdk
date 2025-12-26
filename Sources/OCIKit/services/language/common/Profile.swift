@@ -8,10 +8,10 @@
 import Foundation
 
 public struct Profile: Codable {
-    let documentType: String?
-    let domain: String?
-    let specialty: String?
-  
+  let documentType: String?
+  let domain: String?
+  let specialty: String?
+
   public init(documentType: String?, domain: String?, specialty: String?) {
     self.documentType = documentType
     self.domain = domain

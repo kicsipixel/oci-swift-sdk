@@ -8,8 +8,8 @@
 import Foundation
 
 struct AssertionDetails: Codable {
-    let id: String
-    let score: Double
-    let type: String
-    let value: String
+  let id: String
+  let score: Double
+  let type: String
+  let value: String
 }

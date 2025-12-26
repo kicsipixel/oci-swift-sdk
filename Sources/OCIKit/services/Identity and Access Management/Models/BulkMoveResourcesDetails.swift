@@ -14,19 +14,15 @@
 
 import Foundation
 
-public struct Duration: Codable {
-  /// The timeAmount is interpreted in units defined by the timeUnit parameter, and is calculated in relation to each object's Last-Modified timestamp.
-  public let timeAmount: Int
-  /// The unit that should be used to interpret timeAmount.
-  public let timeUnit: TimeUnit
+public struct BulkMoveResourcesDetails: Codable {
+  /// The resources to be moved.
+  public let resources: [BulkActionResource]
 
-  public init(timeAmount: Int, timeUnit: TimeUnit) {
-    self.timeAmount = timeAmount
-    self.timeUnit = timeUnit
+  /// The OCID of the destination compartment into which to move the resources.
+  public let targetCompartmentId: String
+
+  public init(resources: [BulkActionResource], targetCompartmentId: String) {
+    self.resources = resources
+    self.targetCompartmentId = targetCompartmentId
   }
-}
-
-public enum TimeUnit: String, Codable {
-  case years = "YEAR"
-  case days = "DAYS"
 }

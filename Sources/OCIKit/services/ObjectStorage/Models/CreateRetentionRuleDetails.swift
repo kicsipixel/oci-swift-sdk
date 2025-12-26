@@ -22,10 +22,10 @@ public struct CreateRetentionRuleDetails: Codable {
   public let duration: Duration?
   /// The date and time as per RFC 3339 after which this rule is locked and can only be deleted by deleting the bucket. Once a rule is locked, only increases in the duration are allowed and no other properties can be changed. This property cannot be updated for rules that are in a locked state. Specifying it when a duration is not specified is considered an error.
   public let timeRuleLocked: String?
-    
-    public init(displayName: String, duration: Duration? = nil, timeRuleLocked: Date? = nil) {
-        self.displayName = displayName
-        self.duration = duration
-        self.timeRuleLocked = timeRuleLocked?.toRFC3339()
-    }
+
+  public init(displayName: String, duration: Duration? = nil, timeRuleLocked: Date? = nil) {
+    self.displayName = displayName
+    self.duration = duration
+    self.timeRuleLocked = timeRuleLocked?.toRFC3339()
+  }
 }

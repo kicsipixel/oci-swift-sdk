@@ -14,19 +14,11 @@
 
 import Foundation
 
-public struct Duration: Codable {
-  /// The timeAmount is interpreted in units defined by the timeUnit parameter, and is calculated in relation to each object's Last-Modified timestamp.
-  public let timeAmount: Int
-  /// The unit that should be used to interpret timeAmount.
-  public let timeUnit: TimeUnit
+public struct BulkDeleteResourcesDetails: Codable {
+  /// The resources to be deleted.
+  let resources: [BulkActionResource]
 
-  public init(timeAmount: Int, timeUnit: TimeUnit) {
-    self.timeAmount = timeAmount
-    self.timeUnit = timeUnit
+  public init(resources: [BulkActionResource]) {
+    self.resources = resources
   }
-}
-
-public enum TimeUnit: String, Codable {
-  case years = "YEAR"
-  case days = "DAYS"
 }

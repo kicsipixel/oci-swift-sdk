@@ -8,27 +8,27 @@
 import Foundation
 
 #if canImport(FoundationNetworking)
-import FoundationNetworking
+  import FoundationNetworking
 #endif
 
 #if os(Linux)
 
-/// Defines the possible errors
-public enum URLSessionAsyncErrors: Error, LocalizedError {
-  case invalidUrlResponse, missingResponseData
-  
-  public var errorDescription: String? {
-    switch self {
+  /// Defines the possible errors
+  public enum URLSessionAsyncErrors: Error, LocalizedError {
+    case invalidUrlResponse, missingResponseData
+
+    public var errorDescription: String? {
+      switch self {
       case .invalidUrlResponse: return "Received invalid response"
       case .missingResponseData: return "Missing response data"
+      }
     }
   }
-}
 
-/// An extension that provides async support for fetching a URL
-///
-/// Needed because the Linux version of Swift does not support async URLSession yet.
-public extension URLSession {
+  /// An extension that provides async support for fetching a URL
+  ///
+  /// Needed because the Linux version of Swift does not support async URLSession yet.
+  extension URLSession {
 
     /// A reimplementation of `URLSession.shared.data(from: url)` required for Linux
     ///
@@ -38,26 +38,26 @@ public extension URLSession {
     /// - Usage:
     ///
     ///     let (data, response) = try await URLSession.shared.asyncData(from: url)
-    func data(for urlRequest: URLRequest) async throws -> (Data, URLResponse) {
-        return try await withCheckedThrowingContinuation { continuation in
-            let task = self.dataTask(with: urlRequest) { data, response, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                guard let response = response as? HTTPURLResponse else {
-                    continuation.resume(throwing: URLSessionAsyncErrors.invalidUrlResponse)
-                    return
-                }
-                guard let data = data else {
-                    continuation.resume(throwing: URLSessionAsyncErrors.missingResponseData)
-                    return
-                }
-                continuation.resume(returning: (data, response))
-            }
-            task.resume()
+    public func data(for urlRequest: URLRequest) async throws -> (Data, URLResponse) {
+      return try await withCheckedThrowingContinuation { continuation in
+        let task = self.dataTask(with: urlRequest) { data, response, error in
+          if let error = error {
+            continuation.resume(throwing: error)
+            return
+          }
+          guard let response = response as? HTTPURLResponse else {
+            continuation.resume(throwing: URLSessionAsyncErrors.invalidUrlResponse)
+            return
+          }
+          guard let data = data else {
+            continuation.resume(throwing: URLSessionAsyncErrors.missingResponseData)
+            return
+          }
+          continuation.resume(returning: (data, response))
         }
+        task.resume()
+      }
     }
-}
+  }
 
 #endif

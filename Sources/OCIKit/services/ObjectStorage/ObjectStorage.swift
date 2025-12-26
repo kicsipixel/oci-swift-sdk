@@ -72,7 +72,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.cancelWorkRequest(workRequestId: workRequestId, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -123,7 +123,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.copyObject(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     do {
       let payload: Data
@@ -174,7 +174,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.createBucket(namespaceName: namespaceName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     do {
       let payload: Data
@@ -243,7 +243,7 @@ public struct ObjectStorageClient {
       opcClientRequestId: opcClientRequestId
     )
 
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     let payload: Data
     do {
@@ -303,7 +303,7 @@ public struct ObjectStorageClient {
       opcClientRequestId: opcClientRequestId
     )
 
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     let payload: Data
     do {
@@ -358,7 +358,7 @@ public struct ObjectStorageClient {
       opcClientRequestId: opcClientRequestId
     )
 
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     let payload: Data
     do {
@@ -412,7 +412,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.deleteBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -461,7 +461,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.deleteObject(namespaceName: namespaceName, bucketName: bucketName, objectName: objectName, opcClientRequestId: opcClientRequestId, versionId: versionId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -514,7 +514,7 @@ public struct ObjectStorageClient {
       replicationId: replicationId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -569,7 +569,7 @@ public struct ObjectStorageClient {
       retentionId: retentionRuleId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -622,7 +622,7 @@ public struct ObjectStorageClient {
       parId: parId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -677,7 +677,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.getBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -723,7 +723,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.getNamespace()
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -768,7 +768,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.getNamespaceMetadata(namespaceName: namespaceName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -850,7 +850,7 @@ public struct ObjectStorageClient {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -943,7 +943,7 @@ public struct ObjectStorageClient {
       httpResponseExpires: httpResponseExpires
     )
 
-    let req = try buildRequest(objectStorageAPI: api, endpoint: baseURL)
+    let req = try buildRequest(api: api, endpoint: baseURL)
 
     let (data, response) = try await URLSession.shared.data(for: req)
 
@@ -1012,7 +1012,7 @@ public struct ObjectStorageClient {
       replicationId: replicationId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1062,7 +1062,7 @@ public struct ObjectStorageClient {
       retentionId: retentionRuleId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1112,7 +1112,7 @@ public struct ObjectStorageClient {
       parId: parId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1149,7 +1149,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.getWorkRequest(workRequestId: workRequestId, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1194,7 +1194,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.headBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1259,7 +1259,7 @@ public struct ObjectStorageClient {
       opcSseCustomerKey: opcSseCustomerKey,
       opcSseCustomerKeySha256: opcSseCustomerKeySha256
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1349,7 +1349,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.listBuckets(namespaceName: namespaceName, compartmentId: compartmentId, limit: limit, page: page, fields: fields, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1396,7 +1396,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.listReplicationPolicies(namespaceName: namespaceName, bucketName: bucketName, page: page, limit: limit, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1442,7 +1442,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.listReplicationSources(namespaceName: namespaceName, bucketName: bucketName, page: page, limit: limit, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1488,7 +1488,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.listRetentionRules(namespaceName: namespaceName, bucketName: bucketName, page: page, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1565,7 +1565,7 @@ public struct ObjectStorageClient {
       opcClientRequiredId: opcClientRequestId,
       startAfter: startAfter
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1643,7 +1643,7 @@ public struct ObjectStorageClient {
     guard let host = parURL.host(), let baseURL = URL(string: "https://\(host)") else {
       throw ObjectStorageError.missingRequiredParameter("Malformed PAR URL")
     }
-    let req = try buildRequest(objectStorageAPI: api, endpoint: baseURL)
+    let req = try buildRequest(api: api, endpoint: baseURL)
 
     let (data, response) = try await URLSession.shared.data(for: req)
 
@@ -1718,7 +1718,7 @@ public struct ObjectStorageClient {
       startAfter: startAfter,
       page: page
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1773,7 +1773,7 @@ public struct ObjectStorageClient {
       page: page,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1815,7 +1815,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.listWorkRequests(compartmentId: compartmentId, opcCLientRequestId: opcClientRequestId, page: page, limit: limit)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1863,7 +1863,7 @@ public struct ObjectStorageClient {
       bucketName: bucketName,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -1935,7 +1935,7 @@ public struct ObjectStorageClient {
       opcClientRequestId: opcClientRequestId,
       StorageTier: storageTier
     )
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     req.httpBody = putObjectBody
 
@@ -2026,7 +2026,7 @@ public struct ObjectStorageClient {
       StorageTier: storageTier
     )
 
-    var req = try buildRequest(objectStorageAPI: api, endpoint: baseURL)
+    var req = try buildRequest(api: api, endpoint: baseURL)
 
     req.httpBody = putObjectBody
 
@@ -2100,7 +2100,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.reencryptBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     try signer.sign(&req)
 
@@ -2155,7 +2155,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.reencryptObject(namespaceName: namespaceName, bucketName: bucketName, objectName: objectName, versionId: versionId, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     do {
       let payload: Data
@@ -2216,7 +2216,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.renameObject(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     do {
       let payload: Data
@@ -2285,7 +2285,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.restoreObject(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     do {
       let payload: Data
@@ -2354,7 +2354,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.updateBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     do {
       let payload: Data
@@ -2423,7 +2423,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.updateNamespaceMetadata(namespaceName: namespaceName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     do {
       let payload: Data
@@ -2501,7 +2501,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.updadateObjectStorageTier(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     do {
       let payload: Data
@@ -2568,7 +2568,7 @@ public struct ObjectStorageClient {
     }
 
     let api = ObjectStorageAPI.updateRetentionRule(namespaceName: namespaceName, bucketName: bucketName, retentionId: retentionRuleId, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(objectStorageAPI: api, endpoint: endpoint)
+    var req = try buildRequest(api: api, endpoint: endpoint)
 
     do {
       let payload: Data

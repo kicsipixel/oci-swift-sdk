@@ -6,19 +6,19 @@
 //
 
 import Foundation
-import Testing
 import OCIKit
+import Testing
 
 struct HealthEntityTest {
   let ociConfigFilePath: String
   let ociProfileName: String
-  
+
   init() throws {
     let env = ProcessInfo.processInfo.environment
     ociConfigFilePath = env["OCI_CONFIG_FILE"] ?? "\(NSHomeDirectory())/.oci/config"
     ociProfileName = env["OCI_PROFILE"] ?? "DEFAULT"
   }
-  
+
   @Test func testHealthNER() async throws {
     guard let endpoint = ProcessInfo.processInfo.environment["HEALTH_NER_ENDPOINT"], !endpoint.isEmpty else {
       print("testHealthNER not configured")
