@@ -22,6 +22,8 @@ import Foundation
 public enum IAMAPI: API {
   /// Bulk delete resources
   case bulkDeleteResources(compartmentId: String, bulkDeleteResourcesDetails: BulkDeleteResourcesDetails, opcRequestId: String? = nil)
+  /// Bulk move resources
+  case bulkMoveResources(compartmentId: String, bulkMoveResourcesDetails: BulkMoveResourcesDetails, opcRequestId: String? = nil)
   /// Creates a compartment
   case createCompartment(compartmentDetails: CreateCompartmentDetails)
   /// Deletes a compartment
@@ -54,6 +56,8 @@ public enum IAMAPI: API {
     switch self {
     case .bulkDeleteResources(let compartmentId, _, _):
       return "/20160918/compartments/\(compartmentId)/actions/bulkDeleteResources"
+    case .bulkMoveResources(let compartmentId, _, _):
+      return "/20160918/compartments/\(compartmentId)/actions/bulkMoveResources"
     case .createCompartment(_),
       .listCompartments(_, _, _, _, _, _, _, _, _):
       return "/20160918/compartments"
@@ -78,6 +82,7 @@ public enum IAMAPI: API {
       .listCompartments:
       return .get
     case .bulkDeleteResources,
+      .bulkMoveResources,
       .createCompartment,
       .moveCompartment,
       .recoverCompartment:
@@ -93,6 +98,7 @@ public enum IAMAPI: API {
   public var queryItems: [URLQueryItem]? {
     switch self {
     case .bulkDeleteResources,
+      .bulkMoveResources,
       .createCompartment,
       .getCompartment,
       .deleteCompartment,
@@ -138,15 +144,16 @@ public enum IAMAPI: API {
   // Headers
   public var headers: [String: String]? {
     switch self {
-    case .bulkDeleteResources,
-      .createCompartment,
+    case .createCompartment,
       .deleteCompartment,
       .getCompartment,
       .listBulkActionResourceTypes,
       .listCompartments,
       .updateCompartment:
       return nil
-    case .moveCompartment(_, _, let opcRequestId),
+    case .bulkDeleteResources(_, _, let opcRequestId),
+      .bulkMoveResources(_, _, let opcRequestId),
+      .moveCompartment(_, _, let opcRequestId),
       .recoverCompartment(_, let opcRequestId):
       if let opcRequestId {
         return ["opc-client-request-id": opcRequestId]

@@ -49,6 +49,30 @@ struct IAMTest {
     #expect(bulkDelete != nil, "The operation should succeed")
   }
 
+  // MARK: - Bulk move resource
+  @Test("Moves all resources in the specified compartment to another compartment")
+  func bulkMoveResourcesWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let tenancyId = try extractTenancyId(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+
+    let sut = try IAMClient(region: region, signer: signer)
+    let bulkMoveResourceDetails = BulkMoveResourcesDetails(resources: [BulkActionResource(entityType: "Compartment", identifier: "")], targetCompartmentId: tenancyId ?? "")
+    let bulkMove: ()? = try? await sut.bulkMoveResources(compartmentId: testCompartment, bulkMoveResourcesDetails: bulkMoveResourceDetails)
+
+    #expect(bulkMove != nil, "The operation should succeed")
+  }
+
   // MARK: - Creates compartment
   @Test("Creates a compartment into the specified tenancy/comaprtment")
   func createCompartmentWithAPIKeySigner() async throws {

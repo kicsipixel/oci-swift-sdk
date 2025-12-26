@@ -112,6 +112,72 @@ public struct IAMClient {
     }
   }
 
+  // MARK: - Bulk move resources
+  /// Moves multiple resources from one compartment to another.
+  ///
+  /// All resources referenced in the request must belong to the **same source compartment**.
+  ///
+  /// This operation can only be invoked from the tenancy’s **home region**.
+  ///
+  /// To perform a bulk move, the caller must have the required permissions in both:
+  /// - the **source compartment**, and
+  /// - the **target compartment**.
+  ///
+  /// The request initiates a long‑running **WorkRequest**.
+  /// Use `getWorkRequest` to monitor the progress and completion of the bulk action.
+  ///
+  /// - Parameters:
+  ///   - compartmentId:
+  ///     The OCID of the compartment containing the resources to move.
+  ///   - bulkMoveResourcesDetails:
+  ///     The request payload describing the resources to move and the target compartment.
+  ///   - opcRequestId:
+  ///     A unique Oracle‑assigned identifier for the request.
+  ///     Provide this value when contacting Oracle about a specific operation.
+  ///
+  /// - Returns:
+  ///   A response object with no data payload.
+  ///   The associated `WorkRequest` tracks the actual move operation.
+  public func bulkMoveResources(
+    compartmentId: String,
+    bulkMoveResourcesDetails: BulkMoveResourcesDetails,
+    opcRequestId: String? = nil
+  ) async throws {
+    guard let endpoint else {
+      throw IAMError.missingRequiredParameter("No endpoint has been set")
+    }
+    let api = IAMAPI.bulkMoveResources(compartmentId: compartmentId, bulkMoveResourcesDetails: bulkMoveResourcesDetails, opcRequestId: opcRequestId)
+    var req = try buildRequest(api: api, endpoint: endpoint)
+
+    let payload: Data
+    do {
+      payload = try JSONEncoder().encode(bulkMoveResourcesDetails)
+    }
+    catch {
+      throw IAMError.jsonEncodingError("BulkMoveResourcesDetails cannot be encoded to data")
+    }
+
+    req.httpBody = payload
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw IAMError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 202 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[bulkMoveResources] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw IAMError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+    if let opcWorkRequestId = headers["opc-work-request-id"], let opcRequestId = headers["opc-request-id"] {
+      logger.debug("opc-work-request-id: \(opcWorkRequestId), opc-request-id: \(opcRequestId)")
+    }
+  }
+
   // MARK: - Creates a compartment
   /// Creates a new compartment inside the specified parent compartment.
   ///
