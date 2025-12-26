@@ -20,6 +20,8 @@ import Foundation
 
 // API
 public enum IAMAPI: API {
+  /// Bulk delete resources
+  case bulkDeleteResources(compartmentId: String, bulkDeleteResourcesDetails: BulkDeleteResourcesDetails, opcRequestId: String? = nil)
   /// Creates a compartment
   case createCompartment(compartmentDetails: CreateCompartmentDetails)
   /// Deletes a compartment
@@ -48,6 +50,8 @@ public enum IAMAPI: API {
   // Path
   public var path: String {
     switch self {
+    case .bulkDeleteResources(let compartmentId, _, _):
+      return "/20160918/compartments/\(compartmentId)/actions/bulkDeleteResources"
     case .createCompartment(_),
       .listCompartments(_, _, _, _, _, _, _, _, _):
       return "/20160918/compartments"
@@ -68,7 +72,8 @@ public enum IAMAPI: API {
     case .getCompartment,
       .listCompartments:
       return .get
-    case .createCompartment,
+    case .bulkDeleteResources,
+      .createCompartment,
       .moveCompartment,
       .recoverCompartment:
       return .post
@@ -82,7 +87,8 @@ public enum IAMAPI: API {
   // QueryItems
   public var queryItems: [URLQueryItem]? {
     switch self {
-    case .createCompartment,
+    case .bulkDeleteResources,
+      .createCompartment,
       .getCompartment,
       .deleteCompartment,
       .moveCompartment,
@@ -114,7 +120,8 @@ public enum IAMAPI: API {
   // Headers
   public var headers: [String: String]? {
     switch self {
-    case .createCompartment,
+    case .bulkDeleteResources,
+      .createCompartment,
       .deleteCompartment,
       .getCompartment,
       .listCompartments,

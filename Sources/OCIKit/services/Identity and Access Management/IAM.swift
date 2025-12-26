@@ -51,6 +51,67 @@ public struct IAMClient {
     }
   }
 
+  // MARK: - Bulk delete resources
+  /// Deletes multiple resources within a single compartment.
+  ///
+  /// All resources referenced in the request must belong to the **same compartment**,
+  /// and the caller must have the required permissions to delete each resource.
+  ///
+  /// This operation can only be invoked from the tenancy’s
+  /// **home region** (see Oracle documentation on managing regions).
+  ///
+  /// The request initiates a long‑running **WorkRequest**.
+  /// Use `getWorkRequest` to monitor the progress and completion state of the bulk action.
+  ///
+  /// - Parameters:
+  ///   - compartmentId:
+  ///     The OCID of the compartment containing the resources to delete.
+  ///   - bulkDeleteResourcesDetails:
+  ///     The request payload describing the resources to delete in bulk.
+  ///   - opcRequestId:
+  ///     A unique Oracle‑assigned identifier for the request.
+  ///     Provide this value when contacting Oracle about a specific operation.
+
+  public func bulkdeleteResources(
+    compartmentId: String,
+    bulkDeleteResourcesDetails: BulkDeleteResourcesDetails,
+    opcRequestId: String? = nil
+  ) async throws {
+    guard let endpoint else {
+      throw IAMError.missingRequiredParameter("No endpoint has been set")
+    }
+    let api = IAMAPI.bulkDeleteResources(compartmentId: compartmentId, bulkDeleteResourcesDetails: bulkDeleteResourcesDetails, opcRequestId: opcRequestId)
+    var req = try buildRequest(api: api, endpoint: endpoint)
+
+    let payload: Data
+    do {
+      payload = try JSONEncoder().encode(bulkDeleteResourcesDetails)
+    }
+    catch {
+      throw IAMError.jsonEncodingError("BulkDeleteResourcesDetails cannot be encoded to data")
+    }
+
+    req.httpBody = payload
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw IAMError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 202 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[bulkDeleteResources] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw IAMError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+    if let opcWorkRequestId = headers["opc-work-request-id"], let opcRequestId = headers["opc-request-id"] {
+      logger.debug("opc-work-request-id: \(opcWorkRequestId), opc-request-id: \(opcRequestId)")
+    }
+  }
+
   // MARK: - Creates a compartment
   /// Creates a new compartment inside the specified parent compartment.
   ///
@@ -203,6 +264,39 @@ public struct IAMClient {
     catch {
       throw IAMError.jsonDecodingError("Failed to decode response data to Compartment")
     }
+  }
+
+  // MARK: - List bulk action resource types
+  /// Lists the resource types supported by compartment bulk actions.
+  ///
+  /// Use this operation to determine the correct `resourceType` values to supply
+  /// when invoking `bulkDeleteResources` or `bulkMoveResources`.
+  ///
+  /// The response describes each supported resource type along with the
+  /// identifying information required for bulk operations.
+  /// Most resource types can be uniquely identified by an OCID, but some—such as
+  /// Object Storage buckets—require additional identifying fields.
+  ///
+  /// - Parameters:
+  ///   - bulkActionType:
+  ///     The type of bulk action being performed.
+  ///     Allowed values are:
+  ///       - `"BULK_MOVE_RESOURCES"`
+  ///       - `"BULK_DELETE_RESOURCES"`
+  ///   - page:
+  ///     The pagination token (`opc-next-page`) from a previous list response.
+  ///   - limit:
+  ///     The maximum number of items to return in a paginated list call.
+  ///
+  /// - Returns:
+  ///   A response containing a `BulkActionResourceTypeCollection` describing all
+  ///   resource types supported for the specified bulk action.
+  public func listBulkActionResourceTypes(
+    bulkActionType: String,
+    page: String? = nil,
+    limit: Int? = nil
+  ) async throws -> BulkActionResourceTypeCollection {
+
   }
 
   // MARK: - Lists compartments

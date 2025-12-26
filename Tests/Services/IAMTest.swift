@@ -29,6 +29,23 @@ struct IAMTest {
     ociProfileName = env["OCI_PROFILE"] ?? "DEFAULT"
   }
 
+  // MARK: - Bulk delete resource
+  @Test("Deletes all resources in the specified compartment")
+  func bulkDeleteResourcesWithAPIKeySigner() async throws {
+    let regionId = try extractUserRegion(
+      from: ociConfigFilePath,
+      profile: ociProfileName
+    )
+    let region = Region.from(regionId: regionId ?? "") ?? .iad
+    let signer = try APIKeySigner(
+      configFilePath: ociConfigFilePath,
+      configName: ociProfileName
+    )
+
+    let sut = try IAMClient(region: region, signer: signer)
+    let bulkDeleteResourceDetails = BulkDeleteResourcesDetails(resources: [BulkActionResource(entityType: "", identifier: "")])
+  }
+
   // MARK: - Creates compartment
   @Test("Creates a compartment into the specified tenancy/comaprtment")
   func createCompartmentWithAPIKeySigner() async throws {
