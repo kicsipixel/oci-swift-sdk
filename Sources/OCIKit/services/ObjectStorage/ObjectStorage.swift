@@ -57,6 +57,54 @@ public struct ObjectStorageClient {
     }
   }
 
+  // MARK: - Aborts mulitpart upload
+  /// Aborts an in‑progress multipart upload and deletes all uploaded parts.
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace for this request.
+  ///   - bucketName: The name of the bucket. Avoid including confidential information.
+  ///     Example: "my-new-bucket1"
+  ///   - objectName: The name of the object. Avoid including confidential information.
+  ///     Example: "test/object1.log"
+  ///   - uploadId: The upload identifier for the multipart upload.
+  ///   - opcClientRequestId: Optional client‑supplied identifier for tracing.
+
+  func abortMultipartUpload(
+    namespaceName: String,
+    bucketName: String,
+    objectName: String,
+    uploadId: String,
+    opcClientRequestId: String? = nil
+  ) async throws {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.abortMultipartUpload(namespaceName: namespaceName, bucketName: bucketName, objectName: objectName, uploadId: uploadId, opcClientRequestId: opcClientRequestId)
+    var req = try buildRequest(api: api, endpoint: endpoint)
+
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 204 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[aboutMultipartUpload] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    let headers = convertHeadersToDictionary(httpResponse)
+    if let opcRequestId = headers["opc-request-id"],
+      let opcClientRequestId = headers["opc-client-request-id"]
+    {
+      logger.debug("opc-request-id: \(opcRequestId), opc-client-request-id: \(opcClientRequestId)")
+    }
+  }
+
   // MARK: - Cancels work request
   /// Cancels a work request.
   ///

@@ -37,6 +37,8 @@ public protocol API {
 
 // API
 public enum ObjectStorageAPI: API {
+  /// Aborts multipart upload
+  case abortMultipartUpload(namespaceName: String, bucketName: String, objectName: String, uploadId: String, opcClientRequestId: String? = nil)
   /// Cancels work request
   case cancelWorkRequest(workRequestId: String, opcClientRequestId: String? = nil)
   /// Copies object
@@ -219,6 +221,8 @@ public enum ObjectStorageAPI: API {
   // Path
   public var path: String {
     switch self {
+    case .abortMultipartUpload(let namespaceName, let bucketName, let objectName, _, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/u/\(objectName)"
     case .cancelWorkRequest(let workRequestId, _),
       .getWorkRequest(let workRequestId, _):
       return "/workRequests/\(workRequestId)"
@@ -306,7 +310,8 @@ public enum ObjectStorageAPI: API {
       .updateBucket,
       .updadateObjectStorageTier:
       return .post
-    case .cancelWorkRequest,
+    case .abortMultipartUpload,
+      .cancelWorkRequest,
       .deleteBucket,
       .deleteObject,
       .deleteReplicationPolicy,
@@ -346,6 +351,11 @@ public enum ObjectStorageAPI: API {
   // QueryItems
   public var queryItems: [URLQueryItem]? {
     switch self {
+    case .abortMultipartUpload(_, _, _, let uploadId, _):
+      return [
+        URLQueryItem(name: "uploadId", value: uploadId)
+      ]
+
     case .cancelWorkRequest,
       .copyObject,
       .createBucket,
@@ -557,7 +567,8 @@ public enum ObjectStorageAPI: API {
   // Headers
   public var headers: [String: String]? {
     switch self {
-    case .cancelWorkRequest(_, let opcClientRequestId),
+    case .abortMultipartUpload(_, _, _, _, let opcClientRequestId),
+      .cancelWorkRequest(_, let opcClientRequestId),
       .copyObject(_, _, let opcClientRequestId),
       .createBucket(_, let opcClientRequestId),
       .createReplicationPolicy(_, _, let opcClientRequestId),
