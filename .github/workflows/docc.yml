@@ -2,7 +2,7 @@ name: Build and Deploy DocC
 
 on:
   push:
-    branches: [ main ]
+    branches: [ multiupload ]
   workflow_dispatch:
 
 permissions:
