@@ -51,6 +51,17 @@ public enum ObjectStorageAPI: API {
   case createRetentionRule(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Creates preauthenticated request
   case createPreauthenticatedRequest(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
+  /// Creates multipart upload
+  case createMultipartUpload(
+    namespaceName: String,
+    bucketName: String,
+    opcClientRequestId: String? = nil,
+    opcSseCustomerAlgorithm: String? = nil,
+    opcSseCustomerKey: String? = nil,
+    opcSseCustomerKeySha256: String? = nil,
+    opcSseKmsKeyId: String? = nil,
+    opcChecksumAlgorithm: String? = nil
+  )
   /// Deletes bucket
   case deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil)
   /// Deletes object
@@ -223,6 +234,8 @@ public enum ObjectStorageAPI: API {
     switch self {
     case .abortMultipartUpload(let namespaceName, let bucketName, let objectName, _, _):
       return "/n/\(namespaceName)/b/\(bucketName)/u/\(objectName)"
+    case .createMultipartUpload(let namespaceName, let bucketName, _, _, _, _, _, _):
+      return "/n/\(namespaceName)/b/\(bucketName)/u"
     case .cancelWorkRequest(let workRequestId, _),
       .getWorkRequest(let workRequestId, _):
       return "/workRequests/\(workRequestId)"
@@ -299,6 +312,7 @@ public enum ObjectStorageAPI: API {
     switch self {
     case .copyObject,
       .createBucket,
+      .createMultipartUpload,
       .createReplicationPolicy,
       .createRetentionRule,
       .createPreauthenticatedRequest,
@@ -359,6 +373,7 @@ public enum ObjectStorageAPI: API {
     case .cancelWorkRequest,
       .copyObject,
       .createBucket,
+      .createMultipartUpload,
       .createReplicationPolicy,
       .createRetentionRule,
       .createPreauthenticatedRequest,
@@ -632,6 +647,30 @@ public enum ObjectStorageAPI: API {
         ("content-md5", contentMD5),
         ("opc-client-request-id", opcClientRequestId),
         ("storage-tier", storageTier),
+      ].compactMap { key, value in
+        value.map { (key, $0) }
+      }
+
+      let headers = Dictionary(uniqueKeysWithValues: keyValuePairs)
+      return headers.isEmpty ? nil : headers
+
+    case .createMultipartUpload(
+      _,
+      _,
+      let opcClientRequestId,
+      let opcSseCustomerAlgorithm,
+      let opcSseCustomerKey,
+      let opcSseCustomerKeySha256,
+      let opcSseKmsKeyId,
+      let opcChecksumAlgorithm
+    ):
+      let keyValuePairs: [(String, String)] = [
+        ("opc-client-request-id", opcClientRequestId),
+        ("opc-sse-customer-algorithm", opcSseCustomerAlgorithm),
+        ("opc-sse-customer-key", opcSseCustomerKey),
+        ("opc-sse-customer-key-sha256", opcSseCustomerKeySha256),
+        ("opc-sse-kms-key-id", opcSseKmsKeyId),
+        ("opc-checksum-algorithm", opcChecksumAlgorithm),
       ].compactMap { key, value in
         value.map { (key, $0) }
       }

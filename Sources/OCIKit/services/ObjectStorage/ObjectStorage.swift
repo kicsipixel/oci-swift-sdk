@@ -69,7 +69,7 @@ public struct ObjectStorageClient {
   ///   - uploadId: The upload identifier for the multipart upload.
   ///   - opcClientRequestId: Optional client‑supplied identifier for tracing.
 
-  func abortMultipartUpload(
+  public func abortMultipartUpload(
     namespaceName: String,
     bucketName: String,
     objectName: String,
@@ -155,16 +155,6 @@ public struct ObjectStorageClient {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - copyObjectDetails: The source and destination of the object to be copied.
   ///   - opcClientRequestId: Optional client request ID for tracing.
-  ///
-  /// TODO:
-  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
-  ///   - opcSseCustomerAlgorithm: Optional header specifying `"AES256"` as the encryption algorithm. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
-  ///   - opcSseCustomerKey: Optional header specifying the base64-encoded 256-bit encryption key to encrypt or decrypt the data. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
-  ///   - opcSseCustomerKeySha256: Optional header specifying the base64-encoded SHA256 hash of the encryption key to verify its integrity. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
-  ///   - opcSourceSseCustomerAlgorithm: Optional header specifying `"AES256"` as the encryption algorithm to decrypt the source object. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
-  ///   - opcSourceSseCustomerKey: Optional header specifying the base64-encoded 256-bit encryption key to decrypt the source object. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
-  ///   - opcSourceSseCustomerKeySha256: Optional header specifying the base64-encoded SHA256 hash of the encryption key used to decrypt the source object. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
-  ///   - opcSseKmsKeyId: The [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) of a master encryption key used to call the Key Management service.
   public func copyObject(namespaceName: String, bucketName: String, copyObjectDetails: CopyObjectDetails, opcClientRequestId: String? = nil) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -262,6 +252,79 @@ public struct ObjectStorageClient {
     }
   }
 
+  // MARK: - Creates multipart upload
+  /// Starts a new multipart upload for the specified object.
+  ///
+  /// See the Object Storage documentation for object naming requirements:
+  /// https://docs.cloud.oracle.com/Content/Object/Tasks/managingobjects.htm#namerequirements
+  ///
+  /// - Parameters:
+  ///   - namespaceName: The Object Storage namespace used for the request.
+  ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
+  ///   - details: The request payload describing the multipart upload to create.
+  ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - opcSseCustomerAlgorithm: Optional encryption algorithm, typically `"AES256"`.
+  ///   - opcSseCustomerKey: Optional base64‑encoded 256‑bit encryption key for server‑side encryption.
+  ///   - opcSseCustomerKeySha256: Optional base64‑encoded SHA‑256 hash of the encryption key.
+  ///   - opcSseKmsKeyId: Optional OCID of a master encryption key used with the Key Management service.
+  ///   - opcChecksumAlgorithm: Optional checksum algorithm for validating request body integrity.
+  ///
+  /// - Returns: A response object containing `MultipartUpload`.
+  public func createMultipartUpload(
+    namespaceName: String,
+    bucketName: String,
+    details: CreateMultipartUploadDetails,
+    opcClientRequestId: String? = nil,
+    opcSseCustomerAlgorithm: String? = nil,
+    opcSseCustomerKey: String? = nil,
+    opcSseCustomerKeySha256: String? = nil,
+    opcSseKmsKeyId: String? = nil,
+    opcChecksumAlgorithm: String? = nil
+  ) async throws -> MultipartUpload {
+    guard let endpoint else {
+      throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
+    }
+
+    let api = ObjectStorageAPI.createMultipartUpload(
+      namespaceName: namespaceName,
+      bucketName: bucketName,
+      opcClientRequestId: opcClientRequestId,
+      opcSseCustomerAlgorithm: opcSseCustomerAlgorithm,
+      opcSseCustomerKey: opcSseCustomerKey,
+      opcSseCustomerKeySha256: opcSseCustomerKeySha256,
+      opcSseKmsKeyId: opcSseKmsKeyId,
+      opcChecksumAlgorithm: opcChecksumAlgorithm
+    )
+
+    var req = try buildRequest(api: api, endpoint: endpoint)
+
+    let payload: Data
+    do {
+      payload = try JSONEncoder().encode(details)
+    }
+    catch {
+      throw ObjectStorageError.jsonEncodingError("CreateMultipartUploadDetails cannot be encoded to data")
+    }
+
+    req.httpBody = payload
+    try signer.sign(&req)
+
+    let (data, response) = try await URLSession.shared.data(for: req)
+
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw ObjectStorageError.invalidResponse("Invalid HTTP response")
+    }
+
+    if httpResponse.statusCode != 200 {
+      let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
+      self.logger.error("[createMultipartUpload] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
+      throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
+    }
+
+    let multipartUpload = try JSONDecoder().decode(MultipartUpload.self, from: data)
+    return multipartUpload
+  }
+
   // MARK: - Creates replication policy
   /// Creates a replication policy for the specified bucket.
   ///
@@ -272,9 +335,6 @@ public struct ObjectStorageClient {
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///
   /// - Returns: A response object containing `ReplicationPolicy`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func createReplicationPolicy(
     namespaceName: String,
     bucketName: String,
