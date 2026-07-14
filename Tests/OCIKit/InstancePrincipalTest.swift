@@ -22,7 +22,7 @@ struct InstancePrincipalObjectStorageTest {
     req.setValue("Bearer Oracle", forHTTPHeaderField: "Authorization")
 
     let sem = DispatchSemaphore(value: 0)
-    var result: String?
+    nonisolated(unsafe) var result: String?
     URLSession.shared.dataTask(with: req) { data, resp, err in
       defer { sem.signal() }
       guard err == nil,
