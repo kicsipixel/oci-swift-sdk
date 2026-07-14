@@ -10,6 +10,10 @@ import XCTest
 
 @testable import OCIKit
 
+#if canImport(FoundationNetworking)
+   import FoundationNetworking
+#endif
+
 final class OCIKitTests: XCTestCase {
   let ociConfigFilePath = ProcessInfo.processInfo.environment["OCI_CONFIG_FILE"] ?? "\(NSHomeDirectory())/.oci/config"
   let ociProfileName = ProcessInfo.processInfo.environment["OCI_PROFILE"] ?? "DEFAULT"
