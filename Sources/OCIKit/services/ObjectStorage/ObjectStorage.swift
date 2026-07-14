@@ -2613,7 +2613,7 @@ public struct RetryConfig: Sendable {
 func convertHeadersToDictionary(_ httpResponse: HTTPURLResponse) -> [String: String] {
   return httpResponse.allHeaderFields.reduce(into: [String: String]()) { dict, pair in
     if let key = pair.key as? String, let value = pair.value as? String {
-      dict[key] = value
+      dict[key.lowercased()] = value
     }
   }
 }
