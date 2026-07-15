@@ -1,0 +1,70 @@
+name: Linux CI
+
+# Builds OCIKit and its test targets on Linux, then runs the credential-free
+# unit tests. Runs on every pull request and can be triggered manually.
+#
+# Why only *some* tests run here:
+#   Most of the suites under Tests/ are live integration tests. They construct
+#   `APIKeySigner(configFilePath:...)`, which reads ~/.oci/config and throws
+#   `ConfigErrors.missingConfig` when it is absent — so they fail on any runner
+#   without real OCI credentials (and some are destructive, e.g. IAM bulk delete).
+#   CI therefore runs ONLY the pure unit suites listed in UNIT_TEST_FILTER below.
+#   The `swift build --build-tests` step still compiles ALL targets, so a Linux
+#   compile break in any test (or in the library) still fails the build.
+#
+# Adding a new unit test suite? Add its type name to UNIT_TEST_FILTER.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: linux-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Regex (OR-separated) of swift-testing suite type names that are pure unit
+  # tests — no ~/.oci/config, no network, no env vars. These MUST pass in CI.
+  UNIT_TEST_FILTER: >-
+    SecretBundleDecodingTests|SecretBundleContentDetailsDecodingTests|SecretBundleVersionSummaryDecodingTests|SecretsEnumsTests|SecretsRouterTests|SecretsErrorTests
+
+jobs:
+  build-and-test:
+    name: Build & unit tests (${{ matrix.runner }}, Swift ${{ matrix.swift }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Run on both x86_64 (ubuntu-latest) and arm64 (ubuntu-24.04-arm) Linux.
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        # The container tag must be >= the swift-tools-version in Package.swift (6.2).
+        # Add e.g. "6.3" here to test additional toolchains.
+        swift: ["6.2"]
+    container:
+      # Multi-arch image: resolves to linux/amd64 or linux/arm64 to match the runner.
+      image: swift:${{ matrix.swift }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Cache .build
+        uses: actions/cache@v5
+        with:
+          path: .build
+          key: ${{ matrix.runner }}-spm-${{ matrix.swift }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            ${{ matrix.runner }}-spm-${{ matrix.swift }}-
+
+      - name: Resolve dependencies
+        run: swift package resolve
+
+      # Compiling the library AND every test target is the primary Linux signal:
+      # a Linux-only compile error (e.g. a @Sendable capture) fails here.
+      - name: Build (library + tests)
+        run: swift build --build-tests
+
+      - name: Run unit tests (credential-free)
+        run: swift test --skip-build --filter "$UNIT_TEST_FILTER"
