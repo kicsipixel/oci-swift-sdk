@@ -25,6 +25,7 @@ public struct ObjectStorageClient: Sendable {
   let retryConfig: RetryConfig?
   let signer: Signer
   let logger: Logger
+  let httpClient: HTTPClient
 
   // MARK: - Initialization
   /// Initialize the object storage client
@@ -38,10 +39,11 @@ public struct ObjectStorageClient: Sendable {
   ///     - retryConfig: The retry configuration for this service client
   ///
   ///     Either a region or an endpoint must be specified. If an endpoint is specified, it will be used instead of the region.
-  public init(region: Region? = nil, endpoint: String? = nil, signer: Signer, retryConfig: RetryConfig? = nil, logger: Logger = Logger(label: "ObjectStorageClient")) throws {
+  public init(region: Region? = nil, endpoint: String? = nil, signer: Signer, retryConfig: RetryConfig? = nil, logger: Logger = Logger(label: "ObjectStorageClient"), httpClient: HTTPClient = .live) throws {
     self.signer = signer
     self.retryConfig = retryConfig
     self.logger = logger
+    self.httpClient = httpClient
 
     if let endpoint, let endpointURL = URL(string: endpoint) {
       self.endpoint = endpointURL
@@ -76,7 +78,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -137,7 +139,7 @@ public struct ObjectStorageClient: Sendable {
 
       try signer.sign(&req)
 
-      let (data, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await httpClient.data(req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -187,7 +189,7 @@ public struct ObjectStorageClient: Sendable {
 
       try signer.sign(&req)
 
-      let (data, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await httpClient.data(req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -254,7 +256,7 @@ public struct ObjectStorageClient: Sendable {
     req.httpBody = payload
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -314,7 +316,7 @@ public struct ObjectStorageClient: Sendable {
     req.httpBody = payload
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -369,7 +371,7 @@ public struct ObjectStorageClient: Sendable {
     req.httpBody = payload
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -414,7 +416,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -462,7 +464,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -514,7 +516,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -568,7 +570,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -620,7 +622,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -674,7 +676,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -720,7 +722,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -765,7 +767,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -847,7 +849,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -938,7 +940,7 @@ public struct ObjectStorageClient: Sendable {
 
     let req = try buildRequest(api: api, endpoint: baseURL)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1009,7 +1011,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1059,7 +1061,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1109,7 +1111,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1146,7 +1148,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1191,7 +1193,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1255,7 +1257,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1352,7 +1354,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1399,7 +1401,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1445,7 +1447,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1491,7 +1493,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1568,7 +1570,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1644,7 +1646,7 @@ public struct ObjectStorageClient: Sendable {
     }
     let req = try buildRequest(api: api, endpoint: baseURL)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1721,7 +1723,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1776,7 +1778,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1818,7 +1820,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1866,7 +1868,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1939,7 +1941,7 @@ public struct ObjectStorageClient: Sendable {
     try signer.sign(&req)
 
     self.logger.info("[putObject] Starting upload of \(objectName) to folder: \(toFolder ?? "/")")
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2027,7 +2029,7 @@ public struct ObjectStorageClient: Sendable {
 
     self.logger.info("[putObjectPAR] Starting upload of \(objectName) to folder: \(toFolder ?? "/")")
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2097,7 +2099,7 @@ public struct ObjectStorageClient: Sendable {
 
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2162,7 +2164,7 @@ public struct ObjectStorageClient: Sendable {
 
       try signer.sign(&req)
 
-      let (data, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await httpClient.data(req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2222,7 +2224,7 @@ public struct ObjectStorageClient: Sendable {
 
       try signer.sign(&req)
 
-      let (data, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await httpClient.data(req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2289,7 +2291,7 @@ public struct ObjectStorageClient: Sendable {
 
       try signer.sign(&req)
 
-      let (data, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await httpClient.data(req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2356,7 +2358,7 @@ public struct ObjectStorageClient: Sendable {
 
       try signer.sign(&req)
 
-      let (data, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await httpClient.data(req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2425,7 +2427,7 @@ public struct ObjectStorageClient: Sendable {
 
       try signer.sign(&req)
 
-      let (data, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await httpClient.data(req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2503,7 +2505,7 @@ public struct ObjectStorageClient: Sendable {
 
       try signer.sign(&req)
 
-      let (data, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await httpClient.data(req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2568,7 +2570,7 @@ public struct ObjectStorageClient: Sendable {
 
       try signer.sign(&req)
 
-      let (data, response) = try await URLSession.shared.data(for: req)
+      let (data, response) = try await httpClient.data(req)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
