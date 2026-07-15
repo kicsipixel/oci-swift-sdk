@@ -106,8 +106,7 @@ public struct IAMClient: Sendable {
       throw IAMError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let opcWorkRequestId = headers["opc-work-request-id"], let opcRequestId = headers["opc-request-id"] {
+    if let opcWorkRequestId = httpResponse.value(forHTTPHeaderField: "opc-work-request-id"), let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id") {
       logger.debug("opc-work-request-id: \(opcWorkRequestId), opc-request-id: \(opcRequestId)")
     }
   }
@@ -172,8 +171,7 @@ public struct IAMClient: Sendable {
       throw IAMError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let opcWorkRequestId = headers["opc-work-request-id"], let opcRequestId = headers["opc-request-id"] {
+    if let opcWorkRequestId = httpResponse.value(forHTTPHeaderField: "opc-work-request-id"), let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id") {
       logger.debug("opc-work-request-id: \(opcWorkRequestId), opc-request-id: \(opcRequestId)")
     }
   }
@@ -274,8 +272,7 @@ public struct IAMClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let opcWorkRequestId = headers["opc-work-request-id"], let opcRequestId = headers["opc-request-id"] {
+    if let opcWorkRequestId = httpResponse.value(forHTTPHeaderField: "opc-work-request-id"), let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id") {
       logger.debug("opc-work-request-id: \(opcWorkRequestId), opc-request-id: \(opcRequestId)")
     }
   }
@@ -523,8 +520,7 @@ public struct IAMClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let opcWorkRequestId = headers["opc-work-request-id"], let opcRequestId = headers["opc-request-id"] {
+    if let opcWorkRequestId = httpResponse.value(forHTTPHeaderField: "opc-work-request-id"), let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id") {
       logger.debug("opc-work-request-id: \(opcWorkRequestId), opc-request-id: \(opcRequestId)")
     }
   }

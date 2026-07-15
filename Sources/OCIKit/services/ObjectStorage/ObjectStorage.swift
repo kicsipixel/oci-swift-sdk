@@ -88,9 +88,8 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let opcRequestId = headers["opc-request-id"],
-      let opcClientRequestId = headers["opc-client-request-id"]
+    if let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"),
+      let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id")
     {
       logger.debug("opc-request-id: \(opcRequestId), opc-client-request-id: \(opcClientRequestId)")
     }
@@ -150,8 +149,7 @@ public struct ObjectStorageClient: Sendable {
         throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
-      let headers = convertHeadersToDictionary(httpResponse)
-      if let opcRequestId = headers["opc-request-id"], let opcWorkRequestId = headers["opc-work-request-id"], let opcClientRequestId = headers["opc-client-request-id"] {
+      if let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"), let opcWorkRequestId = httpResponse.value(forHTTPHeaderField: "opc-work-request-id"), let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id") {
         logger.debug("opc-request-id: \(opcRequestId), opc-work-request-id: \(opcWorkRequestId), opc-client-request-id: \(opcClientRequestId)")
       }
     }
@@ -428,8 +426,7 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let opcRequestId = headers["opc-request-id"] {
+    if let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id") {
       logger.debug("The \(bucketName) bucket was delete from \(namespaceName) namespace. RequestID: \(opcRequestId)")
     }
   }
@@ -477,9 +474,8 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let isDeleteMarker = headers["is-delete-marker"], let lastModified = headers["last-modified"], let opcClientRequestId = headers["opc-client-request-id"],
-      let opcRequestId = headers["opc-request-id"], let versionId = headers["version-id"]
+    if let isDeleteMarker = httpResponse.value(forHTTPHeaderField: "is-delete-marker"), let lastModified = httpResponse.value(forHTTPHeaderField: "last-modified"), let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id"),
+      let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"), let versionId = httpResponse.value(forHTTPHeaderField: "version-id")
     {
       logger.debug("is-delete-marker: \(isDeleteMarker), last-modified: \(lastModified), opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId), version-id: \(versionId)")
     }
@@ -530,9 +526,8 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let opcRequestId = headers["opc-request-id"],
-      let opcClientRequestId = headers["opc-client-request-id"]
+    if let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"),
+      let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id")
     {
       logger.debug("opc-request-id: \(opcRequestId), opc-client-request-id: \(opcClientRequestId)")
     }
@@ -585,9 +580,8 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let opcRequestId = headers["opc-request-id"],
-      let opcClientRequestId = headers["opc-client-request-id"]
+    if let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"),
+      let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id")
     {
       logger.debug("opc-request-id: \(opcRequestId), opc-client-request-id: \(opcClientRequestId)")
     }
@@ -639,9 +633,8 @@ public struct ObjectStorageClient: Sendable {
 
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let opcClientRequestId = headers["opc-client-request-id"],
-      let opcRequestId = headers["opc-request-id"]
+    if let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id"),
+      let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id")
     {
       logger.debug("opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId)")
     }
@@ -1210,8 +1203,7 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let etag = headers["ETag"], let opcRequestId = headers["opc-request-id"] {
+    if let etag = httpResponse.value(forHTTPHeaderField: "etag"), let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id") {
       logger.debug("ETag: \(etag), opc-request-id: \(opcRequestId)")
     }
   }
@@ -1275,28 +1267,35 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-
-    if let etag = headers["ETag"],
-      let archivalState = headers["archival-state"],
-      let cacheControl = headers["cache-control"],
-      let contentDisposition = headers["content-disposition"],
-      let contentEncoding = headers["content-encoding"],
-      let contentLanguage = headers["content-language"],
-      let contentLength = headers["content-length"],
-      let contentMd5 = headers["content-md5"],
-      let contentType = headers["content-type"],
-      let lastModified = headers["last-modified"],
-      let opcClientRequestId = headers["opc-client-request-id"],
-      let opcMultipartMd5 = headers["opc-multipart-md5"],
-      let opcRequestId = headers["opc-request-id"],
-      let storageTier = headers["storage-tier"],
-      let timeOfArchival = headers["time-of-archival"],
-      let versionId = headers["version-id"]
+    if let etag = httpResponse.value(forHTTPHeaderField: "etag"),
+      let archivalState = httpResponse.value(forHTTPHeaderField: "archival-state"),
+      let cacheControl = httpResponse.value(forHTTPHeaderField: "cache-control"),
+      let contentDisposition = httpResponse.value(forHTTPHeaderField: "content-disposition"),
+      let contentEncoding = httpResponse.value(forHTTPHeaderField: "content-encoding"),
+      let contentLanguage = httpResponse.value(forHTTPHeaderField: "content-language"),
+      let contentLength = httpResponse.value(forHTTPHeaderField: "content-length"),
+      let contentMd5 = httpResponse.value(forHTTPHeaderField: "content-md5"),
+      let contentType = httpResponse.value(forHTTPHeaderField: "content-type"),
+      let lastModified = httpResponse.value(forHTTPHeaderField: "last-modified"),
+      let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id"),
+      let opcMultipartMd5 = httpResponse.value(forHTTPHeaderField: "opc-multipart-md5"),
+      let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"),
+      let storageTier = httpResponse.value(forHTTPHeaderField: "storage-tier"),
+      let timeOfArchival = httpResponse.value(forHTTPHeaderField: "time-of-archival"),
+      let versionId = httpResponse.value(forHTTPHeaderField: "version-id")
     {
 
-      // Extract all user-defined metadata headers
-      let opcMeta = headers.filter { $0.key.hasPrefix("opc-meta-") }
+      // Extract all user-defined metadata headers. Match case-insensitively and
+      // normalize the keys to lower case, because swift-corelibs-foundation on Linux
+      // capitalizes response header names (e.g. `Opc-Meta-Foo`) while Darwin preserves
+      // the server's original casing (`opc-meta-foo`).
+      let opcMeta = httpResponse.allHeaderFields.reduce(into: [String: String]()) { result, pair in
+        if let key = pair.key as? String, let value = pair.value as? String,
+          key.lowercased().hasPrefix("opc-meta-")
+        {
+          result[key.lowercased()] = value
+        }
+      }
 
       logger.debug(
         """
@@ -1879,10 +1878,8 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-
-    if let opcClientRequestId = headers["opc-client-request-id"],
-      let opcRequestId = headers["opc-request-id"]
+    if let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id"),
+      let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id")
     {
       logger.debug("opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId)")
     }
@@ -1954,18 +1951,16 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-
-    guard let etag = headers["Etag"],
-      let lastModified = headers["Last-Modified"],
-      let opcContentMd5 = headers["opc-content-md5"],
-      let opcRequestId = headers["opc-request-id"],
-      let versionId = headers["version-id"]
+    guard let etag = httpResponse.value(forHTTPHeaderField: "etag"),
+      let lastModified = httpResponse.value(forHTTPHeaderField: "last-modified"),
+      let opcContentMd5 = httpResponse.value(forHTTPHeaderField: "opc-content-md5"),
+      let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"),
+      let versionId = httpResponse.value(forHTTPHeaderField: "version-id")
     else {
       throw ObjectStorageError.invalidResponse("Missing required response headers")
     }
 
-    let opcClientRequestId = headers["opc-client-request-id"] ?? "nil"
+    let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id") ?? "nil"
 
     self.logger.info(
       """
@@ -2044,18 +2039,16 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-
-    guard let etag = headers["Etag"],
-      let lastModified = headers["Last-Modified"],
-      let opcContentMd5 = headers["opc-content-md5"],
-      let opcRequestId = headers["opc-request-id"],
-      let versionId = headers["version-id"]
+    guard let etag = httpResponse.value(forHTTPHeaderField: "etag"),
+      let lastModified = httpResponse.value(forHTTPHeaderField: "last-modified"),
+      let opcContentMd5 = httpResponse.value(forHTTPHeaderField: "opc-content-md5"),
+      let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"),
+      let versionId = httpResponse.value(forHTTPHeaderField: "version-id")
     else {
       throw ObjectStorageError.invalidResponse("Missing required response headers")
     }
 
-    let opcClientRequestId = headers["opc-client-request-id"] ?? "nil"
+    let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id") ?? "nil"
 
     self.logger.info(
       """
@@ -2116,8 +2109,7 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    let headers = convertHeadersToDictionary(httpResponse)
-    if let opcRequestId = headers["opc-request-id"], let opcWorkRequestId = headers["opc-work-request-id"] {
+    if let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"), let opcWorkRequestId = httpResponse.value(forHTTPHeaderField: "opc-work-request-id") {
       logger.debug("opc-request-id: \(opcRequestId), opc-work-request-id: \(opcWorkRequestId)")
     }
   }
@@ -2182,8 +2174,7 @@ public struct ObjectStorageClient: Sendable {
         throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
-      let headers = convertHeadersToDictionary(httpResponse)
-      if let opcClientRequestId = headers["opc-client-request-id"], let opcRequestId = headers["opc-request-id"] {
+      if let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id"), let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id") {
         logger.debug("opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId)")
       }
     }
@@ -2243,13 +2234,11 @@ public struct ObjectStorageClient: Sendable {
         throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
-      let headers = convertHeadersToDictionary(httpResponse)
-
-      if let etag = headers["ETag"],
-        let lastModified = headers["last-modified"],
-        let opcClientRequestId = headers["opc-client-request-id"],
-        let opcRequestId = headers["opc-request-id"],
-        let versionId = headers["version-id"]
+      if let etag = httpResponse.value(forHTTPHeaderField: "etag"),
+        let lastModified = httpResponse.value(forHTTPHeaderField: "last-modified"),
+        let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id"),
+        let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"),
+        let versionId = httpResponse.value(forHTTPHeaderField: "version-id")
       {
 
         logger.debug(
@@ -2312,9 +2301,7 @@ public struct ObjectStorageClient: Sendable {
         throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
-      let headers = convertHeadersToDictionary(httpResponse)
-
-      if let opcClientRequestId = headers["opc-client-request-id"], let opcRequestId = headers["opc-request-id"] {
+      if let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id"), let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id") {
         logger.debug(
           """
           opc-client-request-id: \(opcClientRequestId)
@@ -2528,9 +2515,7 @@ public struct ObjectStorageClient: Sendable {
         throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
-      let headers = convertHeadersToDictionary(httpResponse)
-
-      if let opcClientRequestId = headers["opc-client-request-id"], let opcRequestId = headers["opc-request-id"] {
+      if let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id"), let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id") {
         logger.debug(
           """
           opc-client-request-id: \(opcClientRequestId)
@@ -2606,14 +2591,4 @@ public struct ObjectStorageClient: Sendable {
 public struct RetryConfig: Sendable {
   let maxAttempts: Int
   let baseDelay: TimeInterval
-}
-
-// Convert HTTPURLResponse to dictionary
-// TODO: Move to utility file
-func convertHeadersToDictionary(_ httpResponse: HTTPURLResponse) -> [String: String] {
-  return httpResponse.allHeaderFields.reduce(into: [String: String]()) { dict, pair in
-    if let key = pair.key as? String, let value = pair.value as? String {
-      dict[key] = value
-    }
-  }
 }
