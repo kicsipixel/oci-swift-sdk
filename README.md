@@ -12,11 +12,14 @@ Support for OCI services is being added incrementally, starting with those curre
 ## TODO List
 - [x] API Key authN
 - [x] GenAI inference (common models)
-- [ ] Instance Principal authN
+- [x] Instance Principal authN
 - [ ] Resource Principal authN
-- [ ] Object Storage
+- [x] Object Storage
 - [ ] Container Instances
-- [ ] GenAI inference (custom models)
+- [x] GenAI inference (custom models)
+- [x] Identity & Access Management (compartments)
+- [x] Secrets (secret bundles)
+- [x] AI Language (health entity detection)
 
 ## License
 
