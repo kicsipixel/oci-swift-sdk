@@ -24,7 +24,7 @@ struct GenAITest {
       let compartment = ProcessInfo.processInfo.environment["GENAI_COMPARTMENT_OCID"], !compartment.isEmpty,
       let modelId = ProcessInfo.processInfo.environment["GENAI_COHERE_MODEL_OCID"], !modelId.isEmpty
     else {
-      print("testGenAICohere not configured")
+      logger.info("testGenAICohere not configured")
       return
     }
     let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
@@ -49,7 +49,7 @@ struct GenAITest {
       servingMode: GenerateText.OnDemandServingMode(modelId: modelId)
     )
     let response = try await getText.getCompletion(req)
-    print("reponse: \(response)")
+    logger.info("reponse: \(response)")
   }
 
   @Test func testGenAILlama() async throws {
@@ -57,7 +57,7 @@ struct GenAITest {
       let compartment = ProcessInfo.processInfo.environment["GENAI_COMPARTMENT_OCID"], !compartment.isEmpty,
       let modelId = ProcessInfo.processInfo.environment["GENAI_LLAMA_MODEL_OCID"], !modelId.isEmpty
     else {
-      print("testGenAILlama not configured")
+      logger.info("testGenAILlama not configured")
       return
     }
     let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
@@ -81,6 +81,6 @@ struct GenAITest {
       servingMode: GenerateText.OnDemandServingMode(modelId: modelId)
     )
     let response = try await getText.getCompletion(req)
-    print("reponse: \(response)")
+    logger.info("reponse: \(response)")
   }
 }

@@ -21,10 +21,10 @@ struct HealthEntityTest {
 
   @Test func testHealthNER() async throws {
     guard let endpoint = ProcessInfo.processInfo.environment["HEALTH_NER_ENDPOINT"], !endpoint.isEmpty else {
-      print("testHealthNER not configured")
+      logger.info("testHealthNER not configured")
       return
     }
-    print("ociProfileName: \(ociProfileName)")
+    logger.info("ociProfileName: \(ociProfileName)")
     let signer = try APIKeySigner(configFilePath: ociConfigFilePath, configName: ociProfileName)
     let healthNER = BatchDetectHealthEntity(region: .iad, signer: signer)
     let req = BatchDetectHealthEntity.BatchDetectHealthEntityDetails(
@@ -34,6 +34,6 @@ struct HealthEntityTest {
       isDetectRelationships: true
     )
     let response = try await healthNER.getHealthEntities(req)
-    print("reponse: \(response)")
+    logger.info("reponse: \(response)")
   }
 }

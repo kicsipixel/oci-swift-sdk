@@ -47,7 +47,7 @@ struct ObjectStorageTestOnLinux {
     let namespace = try await sut.getNamespace()
 
     // Prints the namespace
-    print("The current namespace is: \(namespace)")
+    logger.info("The current namespace is: \(namespace)")
     #expect(!namespace.isEmpty, "Namespace should not be empty")
   }
 
@@ -107,7 +107,7 @@ struct ObjectStorageTestOnLinux {
     // Print objects
     for object in originalObjects.objects {
       if let timeCreated = object.timeCreated, let size = object.size {
-        print("ID: \(object.id ), Name: \(object.name), Size: \(size), Created: \(timeCreated)")
+        logger.info("ID: \(object.id ), Name: \(object.name), Size: \(size), Created: \(timeCreated)")
       }
     }
     #expect(!originalObjects.objects.isEmpty, "Expected non-empty object list after API execution")
@@ -153,7 +153,7 @@ struct ObjectStorageTestOnLinux {
 
     // Lists all buckets in the compartment
     for bucket in listOfBuckets {
-      print(bucket.name)
+      logger.info("\(bucket.name)")
     }
     #expect(
       listOfBuckets.count > 0,

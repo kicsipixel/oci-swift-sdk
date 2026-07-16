@@ -79,8 +79,8 @@ struct PutObjectHeaderCasingDiagnostics {
     let client = try ObjectStorageClient(region: region, signer: signer)
     let namespace = try await client.getNamespace()
 
-    print("\n========== [\(platform)] PutObject header-casing diagnostic ==========")
-    print("namespace: \(namespace)  bucket: \(bucketName)")
+    logger.info("\n========== [\(platform)] PutObject header-casing diagnostic ==========")
+    logger.info("namespace: \(namespace)  bucket: \(bucketName)")
 
     let objectName = "linux-header-casing-test.txt"
     let body = Data("Hello from \(platform)".utf8)
@@ -97,9 +97,9 @@ struct PutObjectHeaderCasingDiagnostics {
 
     let (data, response) = try await URLSession.shared.data(for: req)
     let http = try #require(response as? HTTPURLResponse)
-    print("HTTP status: \(http.statusCode)  (200 == server stored the object)")
+    logger.info("HTTP status: \(http.statusCode)  (200 == server stored the object)")
     if http.statusCode != 200 {
-      print("response body: \(String(data: data, encoding: .utf8) ?? "<non-utf8>")")
+      logger.info("response body: \(String(data: data, encoding: .utf8) ?? "<non-utf8>")")
     }
 
     // Build the OLD case-sensitive dictionary to show how the previous code failed.
@@ -107,21 +107,21 @@ struct PutObjectHeaderCasingDiagnostics {
       if let k = pair.key as? String, let v = pair.value as? String { acc[k] = v }
     }
 
-    print("--- allHeaderFields keys, verbatim (\(dict.count)) ---")
-    for k in dict.keys.sorted() { print("    '\(k)' = \(dict[k]!)") }
+    logger.info("--- allHeaderFields keys, verbatim (\(dict.count)) ---")
+    for k in dict.keys.sorted() { logger.info("    '\(k)' = \(dict[k]!)") }
 
     let sdkKeys = ["etag", "last-modified", "opc-content-md5", "opc-request-id", "version-id"]
-    print("--- OLD case-sensitive dict lookups (what the bug did) ---")
+    logger.info("--- OLD case-sensitive dict lookups (what the bug did) ---")
     for key in sdkKeys {
-      print("    dict[\"\(key)\"] -> \(dict[key] != nil ? "FOUND" : "nil  <-- guard failed here")")
+      logger.info("    dict[\"\(key)\"] -> \(dict[key] != nil ? "FOUND" : "nil  <-- guard failed here")")
     }
 
-    print("--- NEW value(forHTTPHeaderField:) lookups (the fix) ---")
+    logger.info("--- NEW value(forHTTPHeaderField:) lookups (the fix) ---")
     for key in sdkKeys {
       let v = http.value(forHTTPHeaderField: key)
-      print("    value(\"\(key)\") -> \(v != nil ? "FOUND" : "nil")")
+      logger.info("    value(\"\(key)\") -> \(v != nil ? "FOUND" : "nil")")
     }
-    print("======================================================================\n")
+    logger.info("======================================================================\n")
 
     #expect(http.statusCode == 200, "The upload itself must succeed (server returns 200)")
   }
@@ -143,12 +143,12 @@ struct PutObjectHeaderCasingDiagnostics {
         objectName: "linux-putobject-repro.txt",
         putObjectBody: Data("repro".utf8)
       )
-      print("=== [\(platform)] putObject returned normally (no error) ===")
+      logger.info("=== [\(platform)] putObject returned normally (no error) ===")
     }
     catch {
-      print("=== [\(platform)] putObject THREW after a successful upload ===")
-      print("    error: \(error)")
-      print("    localizedDescription: \(error.localizedDescription)")
+      logger.info("=== [\(platform)] putObject THREW after a successful upload ===")
+      logger.info("    error: \(error)")
+      logger.info("    localizedDescription: \(error.localizedDescription)")
       Issue.record("putObject threw despite the object being uploaded: \(error.localizedDescription)")
     }
   }
