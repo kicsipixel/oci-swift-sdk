@@ -57,12 +57,13 @@ CI. Follow the existing `captureGetNamespace` pattern: build the client with a
 vars — never hardcode them):
 
 ```swift
-@Test func captureListCompartments() async throws {
+@Test("captures listCompartments from live OCI into a fixture")
+func captureListCompartments() async throws {
   let env = ProcessInfo.processInfo.environment
   guard let out = env["OCI_FIXTURE_OUT"],
         let configFile = env["OCI_CONFIG_FILE"],
         let compartmentId = env["OCI_COMPARTMENT_ID"] else {
-    print("capture skipped — set OCI_FIXTURE_OUT, OCI_CONFIG_FILE, OCI_COMPARTMENT_ID")
+    logger.info("capture skipped — set OCI_FIXTURE_OUT, OCI_CONFIG_FILE, OCI_COMPARTMENT_ID")
     return
   }
   let profile = env["OCI_PROFILE"] ?? "DEFAULT"
