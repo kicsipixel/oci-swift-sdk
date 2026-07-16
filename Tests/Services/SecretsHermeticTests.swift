@@ -69,7 +69,10 @@ struct SecretsHermeticTests {
     let http = HTTPClient { request in
       await recorder.record(request)
       let response = HTTPURLResponse(
-        url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: [:]
+        url: request.url!,
+        statusCode: status,
+        httpVersion: "HTTP/1.1",
+        headerFields: [:]
       )!
       return (body, response)
     }
