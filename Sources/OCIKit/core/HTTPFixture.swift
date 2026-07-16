@@ -53,7 +53,10 @@ public struct HTTPFixture: Codable, Sendable {
   public func makeResponse() -> (Data, HTTPURLResponse) {
     let url = URL(string: request.url) ?? URL(string: "https://oci.invalid")!
     let response = HTTPURLResponse(
-      url: url, statusCode: statusCode, httpVersion: "HTTP/1.1", headerFields: headers
+      url: url,
+      statusCode: statusCode,
+      httpVersion: "HTTP/1.1",
+      headerFields: headers
     )!
     return (body, response)
   }

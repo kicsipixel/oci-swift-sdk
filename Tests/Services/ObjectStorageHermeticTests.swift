@@ -52,7 +52,10 @@ private func makeClient(
   let http = HTTPClient { request in
     await recorder.record(request)
     let response = HTTPURLResponse(
-      url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: responseHeaders
+      url: request.url!,
+      statusCode: status,
+      httpVersion: "HTTP/1.1",
+      headerFields: responseHeaders
     )!
     return (body, response)
   }
