@@ -67,4 +67,80 @@ struct OCICaptureTests {
     let namespace = try await client.getNamespace()
     print("OCICaptureTests: captured getNamespace -> \"\(namespace)\"; fixture written under \(out)")
   }
+
+  // MARK: - Secrets Retrieval API captures
+
+  /// Builds a live, recording `SecretsClient` for the configured profile, or
+  /// returns `nil` (with a printed reason) when the required env vars are absent
+  /// so the capture self-skips in CI.
+  private func makeRecordingSecretsClient(_ env: [String: String]) throws -> (client: SecretsClient, out: String)? {
+    guard let out = env["OCI_FIXTURE_OUT"], let configFile = env["OCI_CONFIG_FILE"] else {
+      print("Secrets capture skipped — set OCI_FIXTURE_OUT and OCI_CONFIG_FILE to record.")
+      return nil
+    }
+    let profile = env["OCI_PROFILE"] ?? "DEFAULT"
+    let signer = try APIKeySigner(configFilePath: configFile, configName: profile)
+    let region = Region.from(regionId: try extractUserRegion(from: configFile, profile: profile) ?? "") ?? .iad
+    let client = try SecretsClient(
+      region: region,
+      signer: signer,
+      httpClient: .recording(into: URL(filePath: out))
+    )
+    return (client, out)
+  }
+
+  @Test("captures getSecretBundle from live OCI into a fixture")
+  func captureGetSecretBundle() async throws {
+    let env = ProcessInfo.processInfo.environment
+    guard let secretId = env["OCI_SECRET_ID"] else {
+      print("captureGetSecretBundle skipped — set OCI_SECRET_ID.")
+      return
+    }
+    guard let (client, out) = try makeRecordingSecretsClient(env) else { return }
+
+    let bundle = try await client.getSecretBundle(secretId: secretId)
+    print("OCICaptureTests: captured getSecretBundle v\(bundle.versionNumber); fixture written under \(out)")
+  }
+
+  @Test("captures listSecretBundleVersions from live OCI into a fixture")
+  func captureListSecretBundleVersions() async throws {
+    let env = ProcessInfo.processInfo.environment
+    guard let secretId = env["OCI_SECRET_ID"] else {
+      print("captureListSecretBundleVersions skipped — set OCI_SECRET_ID.")
+      return
+    }
+    guard let (client, out) = try makeRecordingSecretsClient(env) else { return }
+
+    let versions = try await client.listSecretBundleVersions(secretId: secretId)
+    print("OCICaptureTests: captured listSecretBundleVersions -> \(versions.count) versions; fixture written under \(out)")
+  }
+
+  @Test("captures getSecretBundleByName from live OCI into a fixture")
+  func captureGetSecretBundleByName() async throws {
+    let env = ProcessInfo.processInfo.environment
+    guard let secretName = env["OCI_SECRET_NAME"], let vaultId = env["OCI_VAULT_ID"] else {
+      print("captureGetSecretBundleByName skipped — set OCI_SECRET_NAME and OCI_VAULT_ID.")
+      return
+    }
+    guard let (client, out) = try makeRecordingSecretsClient(env) else { return }
+
+    let bundle = try await client.getSecretBundleByName(secretName: secretName, vaultId: vaultId)
+    print("OCICaptureTests: captured getSecretBundleByName v\(bundle.versionNumber); fixture written under \(out)")
+  }
+
+  /// Captures a real 404 error body/headers. The recording transport writes the
+  /// fixture before the client parses the non-2xx status and throws, so the
+  /// thrown `SecretsError` is expected and ignored here.
+  @Test("captures a real 404 from getSecretBundle into a fixture")
+  func captureGetSecretBundleNotFound() async throws {
+    let env = ProcessInfo.processInfo.environment
+    guard let badSecretId = env["OCI_BAD_SECRET_ID"] else {
+      print("captureGetSecretBundleNotFound skipped — set OCI_BAD_SECRET_ID.")
+      return
+    }
+    guard let (client, out) = try makeRecordingSecretsClient(env) else { return }
+
+    _ = try? await client.getSecretBundle(secretId: badSecretId)
+    print("OCICaptureTests: captured getSecretBundle 404 fixture under \(out)")
+  }
 }

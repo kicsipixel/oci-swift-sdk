@@ -42,6 +42,7 @@ public struct SecretsClient: Sendable {
   let retryConfig: RetryConfig?
   let signer: Signer
   let logger: Logger
+  let httpClient: HTTPClient
 
   // MARK: - Initialization
 
@@ -53,6 +54,8 @@ public struct SecretsClient: Sendable {
   ///   - signer: A signer implementation used for authenticating requests.
   ///   - retryConfig: Optional retry configuration for this service client.
   ///   - logger: Optional logger for debugging and diagnostics.
+  ///   - httpClient: The HTTP transport used to perform requests. Defaults to ``HTTPClient/live``
+  ///     (real `URLSession` I/O); tests can inject a recording or replaying transport.
   ///
   /// - Throws: `SecretsError.missingRequiredParameter` if neither endpoint nor region is specified.
   ///
@@ -63,11 +66,13 @@ public struct SecretsClient: Sendable {
     endpoint: String? = nil,
     signer: Signer,
     retryConfig: RetryConfig? = nil,
-    logger: Logger = Logger(label: "SecretsClient")
+    logger: Logger = Logger(label: "SecretsClient"),
+    httpClient: HTTPClient = .live
   ) throws {
     self.signer = signer
     self.retryConfig = retryConfig
     self.logger = logger
+    self.httpClient = httpClient
 
     if let endpoint, let endpointURL = URL(string: endpoint) {
       self.endpoint = endpointURL
@@ -124,7 +129,7 @@ public struct SecretsClient: Sendable {
     var req = try buildRequest(api: api, endpoint: endpoint)
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw SecretsError.invalidResponse("Invalid HTTP response")
@@ -190,7 +195,7 @@ public struct SecretsClient: Sendable {
     var req = try buildRequest(api: api, endpoint: endpoint)
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw SecretsError.invalidResponse("Invalid HTTP response")
@@ -250,7 +255,7 @@ public struct SecretsClient: Sendable {
     var req = try buildRequest(api: api, endpoint: endpoint)
     try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.data(req)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw SecretsError.invalidResponse("Invalid HTTP response")
