@@ -2,7 +2,7 @@
 //
 // This source file is part of the oci-swift-sdk open source project
 //
-// Copyright (c) 2026 the oci-swift-sdk project authors
+// Copyright (c) 2026 Ilia Sazonov and the oci-swift-sdk project authors
 // Licensed under MIT License
 //
 // See LICENSE for license information
