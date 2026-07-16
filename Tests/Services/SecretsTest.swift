@@ -513,9 +513,9 @@ struct SecretsIntegrationTest {
 
     // Print secret info (not the actual content for security)
     if let bundle = secretBundle {
-      print("Secret ID: \(bundle.secretId)")
-      print("Version: \(bundle.versionNumber)")
-      print("Stages: \(bundle.stages ?? [])")
+      logger.info("Secret ID: \(bundle.secretId)")
+      logger.info("Version: \(bundle.versionNumber)")
+      logger.info("Stages: \(bundle.stages ?? [])")
     }
 
     #expect(secretBundle != nil, "Secret bundle should not be nil")
@@ -540,7 +540,7 @@ struct SecretsIntegrationTest {
     )
 
     if let bundle = secretBundle {
-      print("Retrieved version: \(bundle.versionNumber)")
+      logger.info("Retrieved version: \(bundle.versionNumber)")
       #expect(bundle.versionNumber == 1, "Should retrieve version 1")
     }
 
@@ -566,7 +566,7 @@ struct SecretsIntegrationTest {
     )
 
     if let bundle = secretBundle {
-      print("Stages: \(bundle.stages ?? [])")
+      logger.info("Stages: \(bundle.stages ?? [])")
       #expect(bundle.stages?.contains(.current) == true, "Should contain CURRENT stage")
     }
 
@@ -594,8 +594,8 @@ struct SecretsIntegrationTest {
     )
 
     if let bundle = secretBundle {
-      print("Secret ID: \(bundle.secretId)")
-      print("Version: \(bundle.versionNumber)")
+      logger.info("Secret ID: \(bundle.secretId)")
+      logger.info("Version: \(bundle.versionNumber)")
     }
 
     #expect(secretBundle != nil, "Secret bundle should not be nil")
@@ -619,9 +619,9 @@ struct SecretsIntegrationTest {
     let versions = try? await sut.listSecretBundleVersions(secretId: testSecretId)
 
     if let versions {
-      print("Found \(versions.count) version(s)")
+      logger.info("Found \(versions.count) version(s)")
       for version in versions {
-        print("  Version \(version.versionNumber): \(version.stages ?? [])")
+        logger.info("  Version \(version.versionNumber): \(version.stages ?? [])")
       }
     }
 
@@ -647,7 +647,7 @@ struct SecretsIntegrationTest {
     )
 
     if let versions {
-      print("Found \(versions.count) version(s) (limit 5)")
+      logger.info("Found \(versions.count) version(s) (limit 5)")
       #expect(versions.count <= 5, "Should return at most 5 versions")
     }
 
@@ -711,7 +711,7 @@ struct SecretsIntegrationTest {
       #expect(decodedData != nil, "Should be able to decode Base64 content")
 
       // Don't print actual secret value for security
-      print("Secret content length: \(decodedData?.count ?? 0) bytes")
+      logger.info("Secret content length: \(decodedData?.count ?? 0) bytes")
     }
 
     #expect(secretBundle != nil, "Secret bundle should not be nil")

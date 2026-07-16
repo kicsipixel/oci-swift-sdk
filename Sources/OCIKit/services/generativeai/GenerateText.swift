@@ -294,7 +294,6 @@ public struct GenerateText {
     let (data, _) = try await URLSession.shared.data(for: urlRequest)
     let debugString = String(data: data, encoding: .utf8) ?? ""
     logger.debug("http response: \(debugString)")
-    print("http response: \(debugString)")
     let decoder = JSONDecoder()
     let response = try decoder.decode(GenerateTextResult.self, from: data)
     return response

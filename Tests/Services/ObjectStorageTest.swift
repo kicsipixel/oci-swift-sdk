@@ -86,7 +86,7 @@ struct ObjectStorageTest {
     )
 
     // Prints the name of the new bucket
-    print("Created bucket: \(bucket.name)")
+    logger.info("Created bucket: \(bucket.name)")
 
     #expect(bucket.name == "test_bucket_by_sdk", "Bucket name should match the requested one")
   }
@@ -115,7 +115,7 @@ struct ObjectStorageTest {
     )
 
     // Prints the name of the new bucket
-    print("Created bucket: \(bucket.name)")
+    logger.info("Created bucket: \(bucket.name)")
 
     #expect(bucket.name == "archive_test_bucket_by_sdk", "Bucket name should match the requested one")
   }
@@ -180,7 +180,7 @@ struct ObjectStorageTest {
 
     // Prints rule
     if let rule = createRetentionRule {
-      print("You applied rule: \(rule.displayName).")
+      logger.info("You applied rule: \(rule.displayName).")
     }
     #expect(createRetentionRule != nil, "The operation should succeed")
   }
@@ -214,7 +214,7 @@ struct ObjectStorageTest {
 
     if let createPreauthenticatedRequest {
       let host = Service.objectstorage.getHost(in: region)
-      print(host + createPreauthenticatedRequest.accessUri)
+      logger.info("\(host + createPreauthenticatedRequest.accessUri)")
     }
     #expect(createPreauthenticatedRequest != nil, "The operation should succeed")
   }
@@ -247,7 +247,7 @@ struct ObjectStorageTest {
 
     if let createPreauthenticatedRequest {
       let host = Service.objectstorage.getHost(in: region)
-      print(host + createPreauthenticatedRequest.accessUri)
+      logger.info("\(host + createPreauthenticatedRequest.accessUri)")
     }
     #expect(createPreauthenticatedRequest != nil, "The operation should succeed")
   }
@@ -403,9 +403,7 @@ struct ObjectStorageTest {
 
     // Prints the name of the bucket
     if let getBucket {
-      print(
-        "The bucket: \(getBucket.name) is in the compartment: \(getBucket.compartmentId), created by: \(getBucket.createdBy)"
-      )
+      logger.info("The bucket: \(getBucket.name) is in the compartment: \(getBucket.compartmentId), created by: \(getBucket.createdBy)")
     }
 
     #expect(getBucket != nil, "The return value should not be nil")
@@ -427,7 +425,7 @@ struct ObjectStorageTest {
     let namespace = try await sut.getNamespace()
 
     // Prints the namespace
-    print("The current namespace is: \(namespace)")
+    logger.info("The current namespace is: \(namespace)")
     #expect(!namespace.isEmpty, "Namespace should not be empty")
   }
 
@@ -476,9 +474,7 @@ struct ObjectStorageTest {
 
     // Prints metadata
     if let metadata = getNamespaceMetadata {
-      print(
-        "default-swift-compartment-id: \(metadata.defaultSwiftCompartmentId), \ndefault-s3-compartment-id: \(metadata.defaultS3CompartmentId), \nnamespace: \(metadata.namespace)"
-      )
+      logger.info("default-swift-compartment-id: \(metadata.defaultSwiftCompartmentId), \ndefault-s3-compartment-id: \(metadata.defaultS3CompartmentId), \nnamespace: \(metadata.namespace)")
     }
     #expect(getNamespaceMetadata != nil, "The operation should succeed")
   }
@@ -518,7 +514,7 @@ struct ObjectStorageTest {
       parURL: URL(string: "https://objectstorage.us-ashburn-1.oraclecloud.com/p/ugf-ZiRD-jayajvUvmJ1Uzva5ICb36kRaok7SNA1iOZU00Z1ujTPa6StuGfKSAcj/n/idhwcifwd5xy/b/myTestBucket/o/")!,
       objectName: "dir1/test_file.txt"
     )
-    print("downloaded object size: \(getObject?.count ?? -1)")
+    logger.info("downloaded object size: \(getObject?.count ?? -1)")
     #expect(getObject != nil, "The operation should succeed")
   }
 
@@ -561,7 +557,7 @@ struct ObjectStorageTest {
 
     // Print policy details
     if let policy = getReplicationPolicy {
-      print("id: \(policy.id) - name: \(policy.name)")
+      logger.info("id: \(policy.id) - name: \(policy.name)")
     }
     #expect(getReplicationPolicy != nil, "The operation should succeed")
   }
@@ -610,7 +606,7 @@ struct ObjectStorageTest {
     // Prints retention rule
     if let rule = getRetentionRule {
       if let timeCreated = rule.timeCreated {
-        print("id: \(rule.id) - name: \(rule.displayName) on \(timeCreated)")
+        logger.info("id: \(rule.id) - name: \(rule.displayName) on \(timeCreated)")
       }
     }
     #expect(getRetentionRule != nil, "The operation should succeed")
@@ -658,7 +654,7 @@ struct ObjectStorageTest {
 
     // Lists all buckets in the compartment
     for bucket in listOfBuckets {
-      print(bucket.name)
+      logger.info("\(bucket.name)")
     }
     #expect(
       listOfBuckets.count > 0,
@@ -688,7 +684,7 @@ struct ObjectStorageTest {
 
     // Lists all buckets in the compartment
     for bucket in listOfBuckets {
-      print(bucket.name)
+      logger.info("\(bucket.name)")
     }
     #expect(
       listOfBuckets.count < 3,
@@ -718,7 +714,7 @@ struct ObjectStorageTest {
     // Print polices
     if let policies = listReplicationPolicies {
       for policy in policies {
-        print("id: \(policy.id) - name: \(policy.name)")
+        logger.info("id: \(policy.id) - name: \(policy.name)")
       }
     }
     #expect(listReplicationPolicies != nil, "The operation should succeed")
@@ -747,7 +743,7 @@ struct ObjectStorageTest {
     // Print resources
     if let resources = listReplicationResources {
       for resource in resources {
-        print("id: \(resource.id) - name: \(resource.name) - destination: \(resource.destinationBucketName)")
+        logger.info("id: \(resource.id) - name: \(resource.name) - destination: \(resource.destinationBucketName)")
       }
     }
     #expect(listReplicationResources != nil, "The operation should succeed")
@@ -776,7 +772,7 @@ struct ObjectStorageTest {
 
       for rule in rules.items {
         if let timeCreated = rule.timeCreated {
-          print("- id: \(rule.id) name: \(rule.displayName) on \(timeCreated)")
+          logger.info("- id: \(rule.id) name: \(rule.displayName) on \(timeCreated)")
         }
       }
     }
@@ -806,7 +802,7 @@ struct ObjectStorageTest {
     if let objects = listOfObjects {
       for object in objects.objects {
         if let timeCreated = object.timeCreated, let size = object.size {
-          print("The name of the file: \(object.name), size: \(size) on \(timeCreated)")
+          logger.info("The name of the file: \(object.name), size: \(size) on \(timeCreated)")
         }
       }
     }
@@ -836,7 +832,7 @@ struct ObjectStorageTest {
     if let objectsInBucket = listOfObjects {
       for object in objectsInBucket.objects {
         if let size = object.size, let timeCreated = object.timeCreated, let md5 = object.md5, let storageTier = object.storageTier {
-          print("Name: \(object.name), size: \(size), created on: \(timeCreated), md5: \(md5), storageTier: \(storageTier)")
+          logger.info("Name: \(object.name), size: \(size), created on: \(timeCreated), md5: \(md5), storageTier: \(storageTier)")
         }
       }
     }
@@ -867,7 +863,7 @@ struct ObjectStorageTest {
     if let objectsInBucket = listOfObjects {
       for object in objectsInBucket.objects {
         if let size = object.size, let timeCreated = object.timeCreated, let timeModified = object.timeModified, let md5 = object.md5 {
-          print("Name: \(object.name), size: \(size), created on: \(timeCreated), modified: \(timeModified) and md5: \(md5)")
+          logger.info("Name: \(object.name), size: \(size), created on: \(timeCreated), modified: \(timeModified) and md5: \(md5)")
         }
       }
     }
@@ -896,7 +892,7 @@ struct ObjectStorageTest {
     if let objectsInBucket = listOfObjects {
       for object in objectsInBucket.objects {
         if let size = object.size, let timeCreated = object.timeCreated {
-          print("Name: \(object.name), size: \(size), created on: \(timeCreated)")
+          logger.info("Name: \(object.name), size: \(size), created on: \(timeCreated)")
         }
       }
     }
@@ -928,7 +924,7 @@ struct ObjectStorageTest {
     // Prints versions
     if let versions = listOfObjectVersions?.items {
       for version in versions {
-        print("File: \(version.name), size: \(version.size ?? 0), md5: \(version.md5 ?? "") and version: \(version.versionId)")
+        logger.info("File: \(version.name), size: \(version.size ?? 0), md5: \(version.md5 ?? "") and version: \(version.versionId)")
       }
     }
     #expect(listOfObjectVersions != nil, "The operation should succeed")
@@ -1213,12 +1209,12 @@ struct ObjectStorageTest {
     )
 
     if let updateBucket {
-      print(updateBucket.name)
+      logger.info("\(updateBucket.name)")
     }
 
     // Prints the new name of the updated bucket
     if let updateBucket {
-      print(updateBucket.name)
+      logger.info("\(updateBucket.name)")
     }
     #expect(updateBucket != nil, "The return value should not be nil")
   }
@@ -1244,12 +1240,12 @@ struct ObjectStorageTest {
     )
 
     if let updateBucket {
-      print(updateBucket.name)
+      logger.info("\(updateBucket.name)")
     }
 
     // Prints the new name of the updated bucket
     if let updateBucket {
-      print(updateBucket.name)
+      logger.info("\(updateBucket.name)")
     }
     #expect(updateBucket != nil, "The return value should not be nil")
   }
@@ -1278,9 +1274,7 @@ struct ObjectStorageTest {
 
     // Prints metadata
     if let updateNamespaceMetadata {
-      print(
-        "default-swift-compartment-id: \(updateNamespaceMetadata.defaultSwiftCompartmentId), \ndefault-s3-compartment-id: \(updateNamespaceMetadata.defaultS3CompartmentId), \nnamespace: \(updateNamespaceMetadata.namespace)"
-      )
+      logger.info("default-swift-compartment-id: \(updateNamespaceMetadata.defaultSwiftCompartmentId), \ndefault-s3-compartment-id: \(updateNamespaceMetadata.defaultS3CompartmentId), \nnamespace: \(updateNamespaceMetadata.namespace)")
     }
     #expect(updateNamespaceMetadata != nil, "The operation should succeed")
   }
@@ -1340,7 +1334,7 @@ struct ObjectStorageTest {
     // Prints updated retention rule
     if let rule = updateRetentionRule {
       if let timeRuleLocked = rule.timeRuleLocked {
-        print("New rule applies lock on \(timeRuleLocked)")
+        logger.info("New rule applies lock on \(timeRuleLocked)")
       }
     }
     #expect(updateRetentionRule != nil, "The operation should succeed")

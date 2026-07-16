@@ -39,12 +39,12 @@ struct InstancePrincipalObjectStorageTest {
 
   @Test func getNamespace_withInstancePrincipalSigner() async throws {
     guard let regionRaw = await fetchIMDSRegion() else {
-      print("Skipping Instance Principal test: IMDS region unavailable (not running on OCI instance?)")
+      logger.info("Skipping Instance Principal test: IMDS region unavailable (not running on OCI instance?)")
       return
     }
 
     guard let region = Region.from(regionId: regionRaw) else {
-      print("Skipping Instance Principal test: IMDS returned unsupported or short region '\(regionRaw)'; Region enum expects long-form (e.g. us-phoenix-1).")
+      logger.info("Skipping Instance Principal test: IMDS returned unsupported or short region '\(regionRaw)'; Region enum expects long-form (e.g. us-phoenix-1).")
       return
     }
 
@@ -52,7 +52,7 @@ struct InstancePrincipalObjectStorageTest {
     let client = try ObjectStorageClient(region: region, signer: signer)
 
     let namespace = try await client.getNamespace()
-    print("Namespace (Instance Principal): \(namespace)")
+    logger.info("Namespace (Instance Principal): \(namespace)")
     #expect(!namespace.isEmpty)
   }
 }

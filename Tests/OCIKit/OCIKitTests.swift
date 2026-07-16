@@ -40,7 +40,7 @@ final class OCIKitTests: XCTestCase {
 
     var req = URLRequest(url: URL(string: "https://objectstorage.\(userRegion).oraclecloud.com/n")!)
     try signer.sign(&req)
-    print(">>> All Headers: >>> \n\(req.allHTTPHeaderFields ?? [:])\n>>>>>>>>\n")
+    logger.info(">>> All Headers: >>> \n\(req.allHTTPHeaderFields ?? [:])\n>>>>>>>>\n")
 
     let (data, response) = try await URLSession.shared.data(for: req)
 
@@ -52,6 +52,6 @@ final class OCIKitTests: XCTestCase {
     XCTAssertEqual(httpResponse.statusCode, 200, "Expected HTTP 200 OK, got \(httpResponse.statusCode)")
 
     let responseBody = String(data: data, encoding: .utf8)
-    print("Response: \(responseBody ?? "<no body>")")
+    logger.info("Response: \(responseBody ?? "<no body>")")
   }
 }

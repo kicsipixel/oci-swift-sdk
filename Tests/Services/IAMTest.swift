@@ -96,7 +96,7 @@ struct IAMTest {
 
     // Print created compartment
     if let compartment = createdCompartment {
-      print("Compartment created: \(compartment.name)\n with ID: \(compartment.id)")
+      logger.info("Compartment created: \(compartment.name)\n with ID: \(compartment.id)")
     }
     #expect(createdCompartment != nil, "createdCompartment should not be nil")
   }
@@ -138,7 +138,7 @@ struct IAMTest {
 
     // Print compartment name
     if let compartment = compartment {
-      print(compartment.name)
+      logger.info("\(compartment.name)")
     }
     #expect(compartment != nil, "The compartment should not be nil")
   }
@@ -161,7 +161,7 @@ struct IAMTest {
 
     if let resources = bulkActionResourceTypes?.items {
       for resource in resources {
-        print(resource.name)
+        logger.info("\(resource.name)")
       }
     }
 
@@ -193,7 +193,7 @@ struct IAMTest {
     // Listing compartments
     if let compartments = listOfCompartments {
       for compartment in compartments {
-        print("Compartment: \(compartment.name)")
+        logger.info("Compartment: \(compartment.name)")
       }
     }
     #expect(listOfCompartments != nil, "Expected a non-nil list of compartments")
@@ -241,7 +241,7 @@ struct IAMTest {
     let recoverCompartment = try? await sut.recoverCompartment(compartmentId: testCompartment)
 
     if let compartment = recoverCompartment {
-      print("Compartment: \(compartment.name) was recovered from deleting.")
+      logger.info("Compartment: \(compartment.name) was recovered from deleting.")
     }
 
     #expect(recoverCompartment != nil, "The compartment should be recovered successfully.")
@@ -269,7 +269,7 @@ struct IAMTest {
 
     // Print the new name and description the updated compartment
     if let compartment = updatedCompartment {
-      print("Compartment: \(compartment.name) with description: \(compartment.description) was updated.")
+      logger.info("Compartment: \(compartment.name) with description: \(compartment.description) was updated.")
     }
     #expect(updatedCompartment != nil, "The compartment should be updated successfully.")
   }
