@@ -41,7 +41,8 @@ private struct CaptureStubSigner: Signer {
 }
 
 struct OCICaptureTests {
-  @Test func captureGetNamespace() async throws {
+  @Test("captures getNamespace from a live endpoint into a replayable fixture")
+  func captureGetNamespace() async throws {
     let env = ProcessInfo.processInfo.environment
     guard let base = env["OCI_CAPTURE_BASE_URL"], let out = env["OCI_FIXTURE_OUT"] else {
       print("OCICaptureTests skipped — set OCI_CAPTURE_BASE_URL and OCI_FIXTURE_OUT to record.")

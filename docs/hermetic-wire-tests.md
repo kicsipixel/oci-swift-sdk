@@ -61,12 +61,13 @@ Point the SDK at real OCI with a **recording** transport. Add a case to the gate
 capture tool (`Tests/Services/OCICaptureTests.swift`) or run a one-off:
 
 ```swift
-@Test func captureListCompartments() async throws {
+@Test("captures listCompartments from live OCI into a fixture")
+func captureListCompartments() async throws {
   let env = ProcessInfo.processInfo.environment
   guard let out = env["OCI_FIXTURE_OUT"],
         let configFile = env["OCI_CONFIG_FILE"],
         let compartmentId = env["OCI_COMPARTMENT_ID"] else {
-    print("capture skipped — set OCI_FIXTURE_OUT, OCI_CONFIG_FILE, OCI_COMPARTMENT_ID")
+    logger.info("capture skipped — set OCI_FIXTURE_OUT, OCI_CONFIG_FILE, OCI_COMPARTMENT_ID")
     return
   }
   let signer = try APIKeySigner(configFilePath: configFile,
