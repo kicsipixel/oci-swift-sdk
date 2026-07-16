@@ -89,7 +89,8 @@ struct OCICaptureTests {
     return (client, out)
   }
 
-  @Test func captureGetSecretBundle() async throws {
+  @Test("captures getSecretBundle from live OCI into a fixture")
+  func captureGetSecretBundle() async throws {
     let env = ProcessInfo.processInfo.environment
     guard let secretId = env["OCI_SECRET_ID"] else {
       print("captureGetSecretBundle skipped — set OCI_SECRET_ID.")
@@ -101,7 +102,8 @@ struct OCICaptureTests {
     print("OCICaptureTests: captured getSecretBundle v\(bundle.versionNumber); fixture written under \(out)")
   }
 
-  @Test func captureListSecretBundleVersions() async throws {
+  @Test("captures listSecretBundleVersions from live OCI into a fixture")
+  func captureListSecretBundleVersions() async throws {
     let env = ProcessInfo.processInfo.environment
     guard let secretId = env["OCI_SECRET_ID"] else {
       print("captureListSecretBundleVersions skipped — set OCI_SECRET_ID.")
@@ -113,7 +115,8 @@ struct OCICaptureTests {
     print("OCICaptureTests: captured listSecretBundleVersions -> \(versions.count) versions; fixture written under \(out)")
   }
 
-  @Test func captureGetSecretBundleByName() async throws {
+  @Test("captures getSecretBundleByName from live OCI into a fixture")
+  func captureGetSecretBundleByName() async throws {
     let env = ProcessInfo.processInfo.environment
     guard let secretName = env["OCI_SECRET_NAME"], let vaultId = env["OCI_VAULT_ID"] else {
       print("captureGetSecretBundleByName skipped — set OCI_SECRET_NAME and OCI_VAULT_ID.")
@@ -128,7 +131,8 @@ struct OCICaptureTests {
   /// Captures a real 404 error body/headers. The recording transport writes the
   /// fixture before the client parses the non-2xx status and throws, so the
   /// thrown `SecretsError` is expected and ignored here.
-  @Test func captureGetSecretBundleNotFound() async throws {
+  @Test("captures a real 404 from getSecretBundle into a fixture")
+  func captureGetSecretBundleNotFound() async throws {
     let env = ProcessInfo.processInfo.environment
     guard let badSecretId = env["OCI_BAD_SECRET_ID"] else {
       print("captureGetSecretBundleNotFound skipped — set OCI_BAD_SECRET_ID.")
