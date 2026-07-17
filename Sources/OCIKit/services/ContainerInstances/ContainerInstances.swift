@@ -51,6 +51,7 @@ public struct ContainerInstancesClient: Sendable {
   let retryConfig: RetryConfig?
   let signer: Signer
   let logger: Logger
+  let httpClient: HTTPClient
 
   // MARK: - Initialization
 
@@ -60,8 +61,10 @@ public struct ContainerInstancesClient: Sendable {
   ///   - region: A region used to determine the service endpoint.
   ///   - endpoint: A fully-qualified endpoint URL. Takes precedence over `region`.
   ///   - signer: A signer used to authenticate requests.
-  ///   - retryConfig: Optional retry configuration.
+  ///   - retryConfig: The retry configuration applied to every operation of this client. `nil` (the default) disables retries.
   ///   - logger: Optional logger.
+  ///   - httpClient: The HTTP transport used to perform requests. Defaults to ``HTTPClient/live``
+  ///     (real `URLSession` I/O); tests can inject a recording or replaying transport.
   /// - Throws: ``ContainerInstancesError/missingRequiredParameter(_:)`` if neither
   ///   `region` nor `endpoint` is provided.
   public init(
@@ -69,11 +72,13 @@ public struct ContainerInstancesClient: Sendable {
     endpoint: String? = nil,
     signer: Signer,
     retryConfig: RetryConfig? = nil,
-    logger: Logger = Logger(label: "ContainerInstancesClient")
+    logger: Logger = Logger(label: "ContainerInstancesClient"),
+    httpClient: HTTPClient = .live
   ) throws {
     self.signer = signer
     self.retryConfig = retryConfig
     self.logger = logger
+    self.httpClient = httpClient
 
     if let endpoint, let endpointURL = URL(string: endpoint) {
       self.endpoint = endpointURL
@@ -134,9 +139,16 @@ public struct ContainerInstancesClient: Sendable {
   ) async throws -> ContainerInstanceCollection {
     let (data, _) = try await execute(
       .listContainerInstances(
-        compartmentId: compartmentId, lifecycleState: lifecycleState, displayName: displayName,
-        availabilityDomain: availabilityDomain, limit: limit, page: page, sortOrder: sortOrder,
-        sortBy: sortBy, opcRequestId: opcRequestId),
+        compartmentId: compartmentId,
+        lifecycleState: lifecycleState,
+        displayName: displayName,
+        availabilityDomain: availabilityDomain,
+        limit: limit,
+        page: page,
+        sortOrder: sortOrder,
+        sortBy: sortBy,
+        opcRequestId: opcRequestId
+      ),
       expectedStatus: 200
     )
     return try decode(ContainerInstanceCollection.self, from: data, op: "listContainerInstances")
@@ -245,8 +257,12 @@ public struct ContainerInstancesClient: Sendable {
   ) async throws -> ContainerInstanceShapeCollection {
     let (data, _) = try await execute(
       .listContainerInstanceShapes(
-        compartmentId: compartmentId, availabilityDomain: availabilityDomain, limit: limit, page: page,
-        opcRequestId: opcRequestId),
+        compartmentId: compartmentId,
+        availabilityDomain: availabilityDomain,
+        limit: limit,
+        page: page,
+        opcRequestId: opcRequestId
+      ),
       expectedStatus: 200
     )
     return try decode(ContainerInstanceShapeCollection.self, from: data, op: "listContainerInstanceShapes")
@@ -278,9 +294,17 @@ public struct ContainerInstancesClient: Sendable {
   ) async throws -> ContainerCollection {
     let (data, _) = try await execute(
       .listContainers(
-        compartmentId: compartmentId, lifecycleState: lifecycleState, displayName: displayName,
-        containerInstanceId: containerInstanceId, availabilityDomain: availabilityDomain, limit: limit,
-        page: page, sortOrder: sortOrder, sortBy: sortBy, opcRequestId: opcRequestId),
+        compartmentId: compartmentId,
+        lifecycleState: lifecycleState,
+        displayName: displayName,
+        containerInstanceId: containerInstanceId,
+        availabilityDomain: availabilityDomain,
+        limit: limit,
+        page: page,
+        sortOrder: sortOrder,
+        sortBy: sortBy,
+        opcRequestId: opcRequestId
+      ),
       expectedStatus: 200
     )
     return try decode(ContainerCollection.self, from: data, op: "listContainers")
@@ -360,9 +384,17 @@ public struct ContainerInstancesClient: Sendable {
   ) async throws -> ContainerInstanceWorkRequestSummaryCollection {
     let (data, _) = try await execute(
       .listWorkRequests(
-        compartmentId: compartmentId, workRequestId: workRequestId, resourceId: resourceId,
-        availabilityDomain: availabilityDomain, status: status, limit: limit, page: page,
-        sortOrder: sortOrder, sortBy: sortBy, opcRequestId: opcRequestId),
+        compartmentId: compartmentId,
+        workRequestId: workRequestId,
+        resourceId: resourceId,
+        availabilityDomain: availabilityDomain,
+        status: status,
+        limit: limit,
+        page: page,
+        sortOrder: sortOrder,
+        sortBy: sortBy,
+        opcRequestId: opcRequestId
+      ),
       expectedStatus: 200
     )
     return try decode(ContainerInstanceWorkRequestSummaryCollection.self, from: data, op: "listWorkRequests")
@@ -379,8 +411,13 @@ public struct ContainerInstancesClient: Sendable {
   ) async throws -> ContainerInstanceWorkRequestErrorCollection {
     let (data, _) = try await execute(
       .listWorkRequestErrors(
-        workRequestId: workRequestId, limit: limit, page: page, sortOrder: sortOrder, sortBy: sortBy,
-        opcRequestId: opcRequestId),
+        workRequestId: workRequestId,
+        limit: limit,
+        page: page,
+        sortOrder: sortOrder,
+        sortBy: sortBy,
+        opcRequestId: opcRequestId
+      ),
       expectedStatus: 200
     )
     return try decode(ContainerInstanceWorkRequestErrorCollection.self, from: data, op: "listWorkRequestErrors")
@@ -397,8 +434,13 @@ public struct ContainerInstancesClient: Sendable {
   ) async throws -> ContainerInstanceWorkRequestLogEntryCollection {
     let (data, _) = try await execute(
       .listWorkRequestLogs(
-        workRequestId: workRequestId, limit: limit, page: page, sortOrder: sortOrder, sortBy: sortBy,
-        opcRequestId: opcRequestId),
+        workRequestId: workRequestId,
+        limit: limit,
+        page: page,
+        sortOrder: sortOrder,
+        sortBy: sortBy,
+        opcRequestId: opcRequestId
+      ),
       expectedStatus: 200
     )
     return try decode(ContainerInstanceWorkRequestLogEntryCollection.self, from: data, op: "listWorkRequestLogs")
@@ -417,9 +459,8 @@ public struct ContainerInstancesClient: Sendable {
     }
     var req = try buildRequest(api: api, endpoint: endpoint)
     if let body { req.httpBody = body }
-    try signer.sign(&req)
 
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
     guard let http = response as? HTTPURLResponse else {
       throw ContainerInstancesError.invalidResponse("Invalid HTTP response")
     }

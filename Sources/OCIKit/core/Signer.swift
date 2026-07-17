@@ -35,9 +35,30 @@ public protocol Signer: Sendable {
   func sign(_ req: inout URLRequest) throws
 }
 
+/// A signer whose credentials can be forcibly refreshed after an authentication
+/// failure.
+///
+/// Token-based signers cache short-lived security tokens that can be rejected by
+/// the service (HTTP `401`) even though they still look valid locally — e.g. when
+/// the underlying instance identity certificate rotates. When a request signed by
+/// a `RefreshableSigner` receives a `401`, ``HTTPClient/send(_:signer:retry:logger:)``
+/// calls ``forceRefresh()`` and retries the request once.
+public protocol RefreshableSigner: Signer {
+  /// Discards any cached security material so the next ``Signer/sign(_:)`` call
+  /// obtains fresh credentials.
+  func forceRefresh() throws
+}
+
 public protocol X509FederationClientProtocol: Sendable {
   func currentSecurityToken() throws -> String
   func currentPrivateKey() throws -> _RSA.Signing.PrivateKey
+  /// Invalidates any cached security token so the next ``currentSecurityToken()``
+  /// re-federates. The default implementation does nothing.
+  func forceRefresh() throws
+}
+
+extension X509FederationClientProtocol {
+  public func forceRefresh() throws {}
 }
 
 enum RequestSigner {

@@ -25,17 +25,22 @@ public struct IAMClient: Sendable {
   let retryConfig: RetryConfig?
   let signer: Signer
   let logger: Logger
+  let httpClient: HTTPClient
 
   // MARK: - Initialization
-  /// Initialize the object storage client
+  /// Initialize the IAM client
   /// Parameters:
   ///     - region: A region used to determine the service endpoint.
   ///     - endpoint: The fully qualified endpoint URL
   ///     - signer: A signer implementation which can be used by this client.
-  public init(region: Region? = nil, endpoint: String? = nil, signer: Signer, retryConfig: RetryConfig? = nil, logger: Logger = Logger(label: "IAMClient")) throws {
+  ///     - retryConfig: The retry configuration applied to every operation of this client. `nil` (the default) disables retries.
+  ///     - httpClient: The HTTP transport used to perform requests. Defaults to ``HTTPClient/live``
+  ///       (real `URLSession` I/O); tests can inject a recording or replaying transport.
+  public init(region: Region? = nil, endpoint: String? = nil, signer: Signer, retryConfig: RetryConfig? = nil, logger: Logger = Logger(label: "IAMClient"), httpClient: HTTPClient = .live) throws {
     self.signer = signer
     self.retryConfig = retryConfig
     self.logger = logger
+    self.httpClient = httpClient
 
     if let endpoint, let endpointURL = URL(string: endpoint) {
       self.endpoint = endpointURL
@@ -92,9 +97,7 @@ public struct IAMClient: Sendable {
     }
 
     req.httpBody = payload
-    try signer.sign(&req)
-
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw IAMError.invalidResponse("Invalid HTTP response")
@@ -157,9 +160,7 @@ public struct IAMClient: Sendable {
     }
 
     req.httpBody = payload
-    try signer.sign(&req)
-
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw IAMError.invalidResponse("Invalid HTTP response")
@@ -220,9 +221,7 @@ public struct IAMClient: Sendable {
     }
 
     req.httpBody = payload
-    try signer.sign(&req)
-
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw IAMError.invalidResponse("Invalid HTTP response")
@@ -256,11 +255,9 @@ public struct IAMClient: Sendable {
       throw IAMError.missingRequiredParameter("No endpoint has been set")
     }
     let api = IAMAPI.deleteCompartment(compartmentId: compartmentId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw IAMError.invalidResponse("Invalid HTTP response")
@@ -304,11 +301,9 @@ public struct IAMClient: Sendable {
       throw IAMError.missingRequiredParameter("No endpoint has been set")
     }
     let api = IAMAPI.getCompartment(compartmentId: compartmentId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw IAMError.invalidResponse("Invalid HTTP response")
@@ -364,10 +359,9 @@ public struct IAMClient: Sendable {
     }
     let api = IAMAPI.listBulkActionResourceTypes(bulkActionTytpe: bulkActionType.rawValue, page: page, limit: limit)
 
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw IAMError.invalidResponse("Invalid HTTP response")
@@ -435,10 +429,9 @@ public struct IAMClient: Sendable {
       sortOrder: sortOrder,
       lifecycleState: lifecycleState
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw IAMError.invalidResponse("Invalid HTTP response")
@@ -506,9 +499,7 @@ public struct IAMClient: Sendable {
     }
 
     req.httpBody = payload
-    try signer.sign(&req)
-
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw IAMError.invalidResponse("Invalid HTTP response")
@@ -549,10 +540,9 @@ public struct IAMClient: Sendable {
       throw IAMError.missingRequiredParameter("No endpoint has been set")
     }
     let api = IAMAPI.recoverCompartment(compartmentId: compartmentId, opcRequestId: opcRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw IAMError.invalidResponse("Invalid HTTP response")
@@ -607,9 +597,7 @@ public struct IAMClient: Sendable {
     }
 
     req.httpBody = payload
-    try signer.sign(&req)
-
-    let (data, response) = try await URLSession.shared.data(for: req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw IAMError.invalidResponse("Invalid HTTP response")

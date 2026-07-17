@@ -33,13 +33,15 @@ public struct ObjectStorageClient: Sendable {
   ///     - region: A region used to determine the service endpoint.
   ///     - endpoint: The fully qualified endpoint URL
   ///     - signer: A signer implementation which can be used by this client.
+  ///     - retryConfig: The retry configuration applied to every operation of this client. `nil` (the default) disables retries; individual operations can override it via their own `retryConfig` parameter.
   ///
   ///  TODO:
   ///     - proxySettings: If your environment requires you to use a proxy server for outgoing HTTP requests the details for the proxy can be provided in this parameter
-  ///     - retryConfig: The retry configuration for this service client
   ///
   ///     Either a region or an endpoint must be specified. If an endpoint is specified, it will be used instead of the region.
-  public init(region: Region? = nil, endpoint: String? = nil, signer: Signer, retryConfig: RetryConfig? = nil, logger: Logger = Logger(label: "ObjectStorageClient"), httpClient: HTTPClient = .live) throws {
+  public init(region: Region? = nil, endpoint: String? = nil, signer: Signer, retryConfig: RetryConfig? = nil, logger: Logger = Logger(label: "ObjectStorageClient"), httpClient: HTTPClient = .live)
+    throws
+  {
     self.signer = signer
     self.retryConfig = retryConfig
     self.logger = logger
@@ -65,20 +67,20 @@ public struct ObjectStorageClient: Sendable {
   /// - Parameters:
   ///   - workRequestId: The ID of the asynchronous request.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   public func cancelWorkRequest(
     workRequestId: String,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.cancelWorkRequest(workRequestId: workRequestId, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -108,9 +110,9 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - copyObjectDetails: The source and destination of the object to be copied.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// TODO:
-  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
   ///   - opcSseCustomerAlgorithm: Optional header specifying `"AES256"` as the encryption algorithm. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
   ///   - opcSseCustomerKey: Optional header specifying the base64-encoded 256-bit encryption key to encrypt or decrypt the data. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
   ///   - opcSseCustomerKeySha256: Optional header specifying the base64-encoded SHA256 hash of the encryption key to verify its integrity. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
@@ -118,7 +120,7 @@ public struct ObjectStorageClient: Sendable {
   ///   - opcSourceSseCustomerKey: Optional header specifying the base64-encoded 256-bit encryption key to decrypt the source object. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
   ///   - opcSourceSseCustomerKeySha256: Optional header specifying the base64-encoded SHA256 hash of the encryption key used to decrypt the source object. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
   ///   - opcSseKmsKeyId: The [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) of a master encryption key used to call the Key Management service.
-  public func copyObject(namespaceName: String, bucketName: String, copyObjectDetails: CopyObjectDetails, opcClientRequestId: String? = nil) async throws {
+  public func copyObject(namespaceName: String, bucketName: String, copyObjectDetails: CopyObjectDetails, opcClientRequestId: String? = nil, retryConfig: RetryConfig? = nil) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -137,9 +139,7 @@ public struct ObjectStorageClient: Sendable {
 
       req.httpBody = payload
 
-      try signer.sign(&req)
-
-      let (data, response) = try await httpClient.data(req)
+      let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -151,7 +151,9 @@ public struct ObjectStorageClient: Sendable {
         throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
       }
 
-      if let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"), let opcWorkRequestId = httpResponse.value(forHTTPHeaderField: "opc-work-request-id"), let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id") {
+      if let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"), let opcWorkRequestId = httpResponse.value(forHTTPHeaderField: "opc-work-request-id"),
+        let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id")
+      {
         logger.debug("opc-request-id: \(opcRequestId), opc-work-request-id: \(opcWorkRequestId), opc-client-request-id: \(opcClientRequestId)")
       }
     }
@@ -167,8 +169,9 @@ public struct ObjectStorageClient: Sendable {
   /// - Parameters:
   ///     - namespaceName: The Object Storage namespace used for the request.
   ///     - opcClientRequestId: Optional client request ID for tracing.
+  ///     - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///  - Returns: The response body will contain a single Bucket resource.
-  public func createBucket(namespaceName: String, createBucketDetails: CreateBucketDetails, opcClientRequestId: String? = nil) async throws -> Bucket {
+  public func createBucket(namespaceName: String, createBucketDetails: CreateBucketDetails, opcClientRequestId: String? = nil, retryConfig: RetryConfig? = nil) async throws -> Bucket {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -187,9 +190,7 @@ public struct ObjectStorageClient: Sendable {
 
       req.httpBody = payload
 
-      try signer.sign(&req)
-
-      let (data, response) = try await httpClient.data(req)
+      let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -222,16 +223,15 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - policyDetails: The replication policy details to be created.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing `ReplicationPolicy`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func createReplicationPolicy(
     namespaceName: String,
     bucketName: String,
     policyDetails: CreateReplicationPolicyDetails,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> ReplicationPolicy {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -254,9 +254,7 @@ public struct ObjectStorageClient: Sendable {
     }
 
     req.httpBody = payload
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -282,16 +280,15 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - ruleDetails: The retention rule to create for the bucket.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing `RetentionRule`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func createRetentionRule(
     namespaceName: String,
     bucketName: String,
     ruleDetails: CreateRetentionRuleDetails,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> RetentionRule {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -314,9 +311,7 @@ public struct ObjectStorageClient: Sendable {
     }
 
     req.httpBody = payload
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -340,13 +335,15 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - requestDetails: Information needed to create the pre-authenticated request.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing `PreauthenticatedRequest`.
   public func createPreauthenticatedRequest(
     namespaceName: String,
     bucketName: String,
     requestDetails: CreatePreauthenticatedRequestDetails,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> PreauthenticatedRequest {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -369,9 +366,7 @@ public struct ObjectStorageClient: Sendable {
     }
 
     req.httpBody = payload
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -396,27 +391,23 @@ public struct ObjectStorageClient: Sendable {
   ///   - namespaceName: The Object Storage namespace used for the request.
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object with data of type `Void`.
   ///
   /// TODO:
-  /// - retryConfig: The retry configuration to apply to this operation. If no value is provided,
-  /// the service-level retry configuration will be used. If `nil` is explicitly provided,
-  /// the operation will not retry.
   ///  - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource.
   ///  If the specified ETag matches, GET and HEAD requests will return the resource,
   ///  and PUT and POST requests will upload the resource.
-  public func deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil) async throws {
+  public func deleteBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil, retryConfig: RetryConfig? = nil) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.deleteBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -442,29 +433,28 @@ public struct ObjectStorageClient: Sendable {
   ///   - objectName: The name of the object to delete. Avoid entering confidential information. Example: `"test/object1.log"`
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - versionId: Optional version ID used to identify a particular version of the object.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object with no data payload (`Void`).
   ///
   /// TODO:
-  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
   ///   - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource. If the specified ETag matches, GET and HEAD requests will return the resource, and PUT and POST requests will upload the resource.
   public func deleteObject(
     namespaceName: String,
     bucketName: String,
     objectName: String,
     opcClientRequestId: String? = nil,
-    versionId: String? = nil
+    versionId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.deleteObject(namespaceName: namespaceName, bucketName: bucketName, objectName: objectName, opcClientRequestId: opcClientRequestId, versionId: versionId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -476,7 +466,8 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
     }
 
-    if let isDeleteMarker = httpResponse.value(forHTTPHeaderField: "is-delete-marker"), let lastModified = httpResponse.value(forHTTPHeaderField: "last-modified"), let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id"),
+    if let isDeleteMarker = httpResponse.value(forHTTPHeaderField: "is-delete-marker"), let lastModified = httpResponse.value(forHTTPHeaderField: "last-modified"),
+      let opcClientRequestId = httpResponse.value(forHTTPHeaderField: "opc-client-request-id"),
       let opcRequestId = httpResponse.value(forHTTPHeaderField: "opc-request-id"), let versionId = httpResponse.value(forHTTPHeaderField: "version-id")
     {
       logger.debug("is-delete-marker: \(isDeleteMarker), last-modified: \(lastModified), opc-client-request-id: \(opcClientRequestId), opc-request-id: \(opcRequestId), version-id: \(versionId)")
@@ -491,16 +482,15 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - replicationId: The ID of the replication policy to delete.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object with no data (void).
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func deleteReplicationPolicy(
     namespaceName: String,
     bucketName: String,
     replicationId: String,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -512,11 +502,9 @@ public struct ObjectStorageClient: Sendable {
       replicationId: replicationId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -544,17 +532,18 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - retentionRuleId: The ID of the retention rule to delete.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object with no data (void).
   ///
   /// TODO:
   ///   - ifMatch: Optional ETag value for optimistic concurrency control.
-  ///   - retryConfig: Optional retry configuration for this operation.
   public func deleteRetentionRule(
     namespaceName: String,
     bucketName: String,
     retentionRuleId: String,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -566,11 +555,9 @@ public struct ObjectStorageClient: Sendable {
       retentionId: retentionRuleId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -597,16 +584,15 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - parId: The unique identifier for the pre-authenticated request.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object with no data (void).
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation.
   public func deletePreauthenticatedRequest(
     namespaceName: String,
     bucketName: String,
     parId: String,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -618,11 +604,9 @@ public struct ObjectStorageClient: Sendable {
       parId: parId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -648,12 +632,10 @@ public struct ObjectStorageClient: Sendable {
   ///     - namespaceName: The Object Storage namespace used for the request.
   ///     - bucketName: The name of the bucket. Avoid entering confidential information.
   ///     - opcClientRequestId: Optional client request ID for tracing.
+  ///     - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   /// - Returns: A bucket representation for the requested bucket.
   ///
   /// TODO:
-  ///     - retryConfig: Optional The retry configuration to apply to this operation. If no key is provided,
-  ///     then the service-level retry configuration defined by `retryConfig` will be used.
-  ///     If an explicit `nil` value is provided, the operation will not retry.
   ///   - ifMatch: Optional The entity tag (ETag) to match with the ETag of an existing resource.
   ///     If the specified ETag matches the ETag of the existing resource, `GET` and `HEAD` requests
   ///     will return the resource, and `PUT` and `POST` requests will upload the resource.
@@ -666,17 +648,15 @@ public struct ObjectStorageClient: Sendable {
   ///     - `approximateSize`: Total approximate size in bytes of all objects in the bucket.
   ///     - `autoTiering`: State of auto tiering on the bucket.
   ///
-  public func getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil) async throws -> Bucket {
+  public func getBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil, retryConfig: RetryConfig? = nil) async throws -> Bucket {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.getBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -709,20 +689,18 @@ public struct ObjectStorageClient: Sendable {
   /// - Parameters:
   ///   - compartmentId: his is an optional field representing either the tenancy [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) or the compartment [OCID](https://docs.cloud.oracle.com/Content/General/Concepts/identifiers.htm) within the tenancy whose Object Storage namespace is to be retrieved.
   ///   - opcClientRequestId: Optional client request ID for tracing.
-  ///   - retryConfig: Optional retry configuration to apply to this operation. If `nil`, the default service-level retry configuration is used. If explicitly set to `nil`, the operation will not retry.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `String` containing the Object Storage namespace.
-  public func getNamespace(compartmentId: String? = nil) async throws -> String {
+  public func getNamespace(compartmentId: String? = nil, retryConfig: RetryConfig? = nil) async throws -> String {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.getNamespace()
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -752,22 +730,18 @@ public struct ObjectStorageClient: Sendable {
   /// - Parameters:
   ///   - namespaceName: The Object Storage namespace used for the request.
   ///   - opcClientRequestId: The client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object containing `NamespaceMetadata`.
-  ///
-  /// TODO:
-  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
-  public func getNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil) async throws -> NamespaceMetadata {
+  public func getNamespaceMetadata(namespaceName: String, opcClientRequestId: String? = nil, retryConfig: RetryConfig? = nil) async throws -> NamespaceMetadata {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.getNamespaceMetadata(namespaceName: namespaceName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -803,6 +777,7 @@ public struct ObjectStorageClient: Sendable {
   ///   - httpResponseContentLanguage: Query parameter to override the `Content-Language` response header.
   ///   - httpResponseContentEncoding: Query parameter to override the `Content-Encoding` response header.
   ///   - httpResponseExpires: Query parameter to override the `Expires` response header.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Data` object containing the raw contents of the object.
   public func getObject(
@@ -821,7 +796,8 @@ public struct ObjectStorageClient: Sendable {
     httpResponseContentLanguage: String? = nil,
     httpResponseContentEncoding: String? = nil,
     httpResponseExpires: String? = nil,
-    withObjectIntegrityCheck: Bool = false
+    withObjectIntegrityCheck: Bool = false,
+    retryConfig: RetryConfig? = nil
   ) async throws -> Data {
 
     let api = ObjectStorageAPI.getObject(
@@ -845,11 +821,9 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -896,6 +870,7 @@ public struct ObjectStorageClient: Sendable {
   ///   - httpResponseExpires: Query parameter to override the `Expires` response header.
   ///   - withObjectIntegrityCheck: If `true`, validates the object length and MD5 checksum against
   ///     values reported by Object Storage.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Data` object containing the raw contents of the object.
   public func getObject(
@@ -913,7 +888,8 @@ public struct ObjectStorageClient: Sendable {
     httpResponseContentLanguage: String? = nil,
     httpResponseContentEncoding: String? = nil,
     httpResponseExpires: String? = nil,
-    withObjectIntegrityCheck: Bool = false
+    withObjectIntegrityCheck: Bool = false,
+    retryConfig: RetryConfig? = nil
   ) async throws -> Data {
 
     // The endpoint here is different from the above implementation because it already contains /p, /n, and /b in it.
@@ -940,7 +916,7 @@ public struct ObjectStorageClient: Sendable {
 
     let req = try buildRequest(api: api, endpoint: baseURL)
 
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: nil, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -986,16 +962,15 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - replicationId: The ID of the replication policy to retrieve.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing `ReplicationPolicy`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func getReplicationPolicy(
     namespaceName: String,
     bucketName: String,
     replicationId: String,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> ReplicationPolicy {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -1007,11 +982,9 @@ public struct ObjectStorageClient: Sendable {
       replicationId: replicationId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1035,17 +1008,15 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - retentionRuleId: The ID of the retention rule to retrieve.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing `RetentionRule`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation.
-  ///     If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func getRetentionRule(
     namespaceName: String,
     bucketName: String,
     retentionRuleId: String,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> RetentionRule {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -1057,11 +1028,9 @@ public struct ObjectStorageClient: Sendable {
       retentionId: retentionRuleId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1085,17 +1054,15 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - parId: The unique identifier for the pre-authenticated request.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing `PreauthenticatedRequestSummary`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation.
-  ///     If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func getPreauthenticatedRequest(
     namespaceName: String,
     bucketName: String,
     parId: String,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> PreauthenticatedRequestSummary {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -1107,11 +1074,9 @@ public struct ObjectStorageClient: Sendable {
       parId: parId,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1133,22 +1098,22 @@ public struct ObjectStorageClient: Sendable {
   /// - Parameters:
   ///   - workRequestId: The ID of the asynchronous request.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `WorkRequest` object containing the status of the work request.
   public func getWorkRequestStatus(
     workRequestId: String,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> WorkRequest {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.getWorkRequest(workRequestId: workRequestId, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1171,29 +1136,26 @@ public struct ObjectStorageClient: Sendable {
   ///   - namespaceName: The Object Storage namespace used for the request.
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object with no data payload (`Void`).
   ///
   /// TODO:
-  ///  - retryConfig: The retry configuration to apply to this operation. If no value is provided,
-  ///  the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
   ///  - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource.
   ///  If the specified ETag matches, GET and HEAD requests will return the resource,
   ///  and PUT and POST requests will upload the resource.
   ///  - ifNoneMatch: The entity tag (ETag) to avoid matching. Wildcards (`*`) are not allowed.
   ///  If the specified ETag does not match the existing resource, the request returns the expected response.
   ///  If it matches, the request returns HTTP 304 without a response body.
-  public func headBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil) async throws {
+  public func headBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil, retryConfig: RetryConfig? = nil) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.headBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1222,11 +1184,11 @@ public struct ObjectStorageClient: Sendable {
   ///   - opcSseCustomerAlgorithm: Optional header specifying `"AES256"` as the encryption algorithm. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
   ///   - opcSseCustomerKey: Optional header specifying the base64-encoded 256-bit encryption key to encrypt or decrypt the data. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
   ///   - opcSseCustomerKeySha256: Optional header specifying the base64-encoded SHA256 hash of the encryption key to verify its integrity. [More info](https://docs.cloud.oracle.com/Content/Object/Tasks/usingyourencryptionkeys.htm).
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object with no data payload (`Void`).
   ///
   /// TODO:
-  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
   ///   - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource. If the specified ETag matches, GET and HEAD requests will return the resource, and PUT and POST requests will upload the resource.
   ///   - ifNoneMatch: The entity tag (ETag) to avoid matching. Wildcards (`*`) are not allowed. If the specified ETag does not match, the request returns the expected response. If it matches, the request returns HTTP 304 without a response body.
   public func headObject(
@@ -1237,7 +1199,8 @@ public struct ObjectStorageClient: Sendable {
     opcClientRequestId: String? = nil,
     opcSseCustomerAlgorithm: String? = nil,
     opcSseCustomerKey: String? = nil,
-    opcSseCustomerKeySha256: String? = nil
+    opcSseCustomerKeySha256: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -1253,11 +1216,9 @@ public struct ObjectStorageClient: Sendable {
       opcSseCustomerKey: opcSseCustomerKey,
       opcSseCustomerKeySha256: opcSseCustomerKeySha256
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1341,8 +1302,17 @@ public struct ObjectStorageClient: Sendable {
   ///     - page: Optional value of the opc-next-page response header from the previous "List" call.
   ///     - fields:  The only supported value of this parameter is 'tags' for now.
   ///     - opcClientRequestId: Optional client request ID for tracing.
+  ///     - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///  - Returns: The response body will contain an array of BucketSummary resources.
-  public func listBuckets(namespaceName: String, compartmentId: String, limit: Int? = nil, page: String? = nil, fields: [String] = ["tags"], opcClientRequestId: String? = nil) async throws
+  public func listBuckets(
+    namespaceName: String,
+    compartmentId: String,
+    limit: Int? = nil,
+    page: String? = nil,
+    fields: [String] = ["tags"],
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
+  ) async throws
     -> [BucketSummary]
   {
     guard let endpoint else {
@@ -1350,11 +1320,9 @@ public struct ObjectStorageClient: Sendable {
     }
 
     let api = ObjectStorageAPI.listBuckets(namespaceName: namespaceName, compartmentId: compartmentId, limit: limit, page: page, fields: fields, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1380,28 +1348,25 @@ public struct ObjectStorageClient: Sendable {
   ///   - page: Optional pagination token from the previous response's `opc-next-page` header.
   ///   - limit: Optional maximum number of results per page. Defaults to 100.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing an array of `ReplicationPolicySummary`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func listReplicationPolicies(
     namespaceName: String,
     bucketName: String,
     page: String? = nil,
     limit: Int? = 100,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> [ReplicationPolicySummary] {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.listReplicationPolicies(namespaceName: namespaceName, bucketName: bucketName, page: page, limit: limit, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1426,28 +1391,25 @@ public struct ObjectStorageClient: Sendable {
   ///   - page: Optional pagination token from the previous response's `opc-next-page` header.
   ///   - limit: Optional maximum number of results per page. Defaults to 100.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing an array of `ReplicationSource`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func listReplicationSources(
     namespaceName: String,
     bucketName: String,
     page: String? = nil,
     limit: Int? = 100,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> [ReplicationSource] {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.listReplicationSources(namespaceName: namespaceName, bucketName: bucketName, page: page, limit: limit, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1471,29 +1433,25 @@ public struct ObjectStorageClient: Sendable {
   ///   - namespaceName: The Object Storage namespace used for the request.
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - page: Optional pagination token from the previous response's `opc-next-page` header.
-
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing `RetentionRuleCollection`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func listRetentionRules(
     namespaceName: String,
     bucketName: String,
     page: String? = nil,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> RetentionRuleCollection {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.listRetentionRules(namespaceName: namespaceName, bucketName: bucketName, page: page, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1535,6 +1493,7 @@ public struct ObjectStorageClient: Sendable {
   ///     Valid values: `name`, `size`, `etag`, `md5`, `timeCreated`, `timeModified`, `storageTier`, `archivalState`.
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - startAfter: Optional returns object names lexicographically strictly greater than this value.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object containing `ListObjects`.
   public func listObjects(
@@ -1547,7 +1506,8 @@ public struct ObjectStorageClient: Sendable {
     delimiter: String? = nil,
     fields: [Field] = [],
     opcClientRequestId: String? = nil,
-    startAfter: String? = nil
+    startAfter: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> ListObjects {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -1566,11 +1526,9 @@ public struct ObjectStorageClient: Sendable {
       opcClientRequiredId: opcClientRequestId,
       startAfter: startAfter
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1612,6 +1570,7 @@ public struct ObjectStorageClient: Sendable {
   ///     Valid values: `name`, `size`, `etag`, `md5`, `timeCreated`, `timeModified`, `storageTier`, `archivalState`.
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - startAfter: Optional returns object names lexicographically strictly greater than this value.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object containing `ListObjects`.
 
@@ -1624,7 +1583,8 @@ public struct ObjectStorageClient: Sendable {
     delimiter: String? = nil,
     fields: [Field] = [],
     opcClientRequestId: String? = nil,
-    startAfter: String? = nil
+    startAfter: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> ListObjects {
 
     let customFields = Array(Set(fields + [.name, .size, .timeCreated, .timeModified]))
@@ -1646,7 +1606,7 @@ public struct ObjectStorageClient: Sendable {
     }
     let req = try buildRequest(api: api, endpoint: baseURL)
 
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: nil, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1684,11 +1644,9 @@ public struct ObjectStorageClient: Sendable {
   ///   - opcClientRequestId: Optional client request ID for tracing. Optional.
   ///   - startAfter: Returns object names lexicographically strictly greater than this value.
   ///   - page: Optional pagination, use the value from the previous response's `opc-next-page` header.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object containing `ObjectVersionCollection`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Retry configuration for the operation.
   public func listObjectVersions(
     namespaceName: String,
     bucketName: String,
@@ -1701,6 +1659,7 @@ public struct ObjectStorageClient: Sendable {
     opcClientRequestId: String? = nil,
     startAfter: String? = nil,
     page: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> ObjectVersionCollection {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -1719,11 +1678,9 @@ public struct ObjectStorageClient: Sendable {
       startAfter: startAfter,
       page: page
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1749,18 +1706,17 @@ public struct ObjectStorageClient: Sendable {
   ///   - limit: Optional maximum number of results per page for pagination.
   ///   - page: Optional pagination token from a previous response's `opc-next-page` header.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing an array of `PreauthenticatedRequestSummary`.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func listPreauthenticatedRequests(
     namespaceName: String,
     bucketName: String,
     objectNamePrefix: String? = nil,
     limit: Int? = nil,
     page: String? = nil,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> [PreauthenticatedRequestSummary] {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -1774,11 +1730,9 @@ public struct ObjectStorageClient: Sendable {
       page: page,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1803,6 +1757,7 @@ public struct ObjectStorageClient: Sendable {
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - page: Optional pagination token from a previous list response (`opc-next-page`).
   ///   - limit: Optional maximum number of results to return per page.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `[WorkRequestSummary]` containing the list of work requests.
   public func listWorkRequests(
@@ -1810,17 +1765,16 @@ public struct ObjectStorageClient: Sendable {
     opcClientRequestId: String? = nil,
     page: String? = nil,
     limit: Int? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> [WorkRequestSummary] {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.listWorkRequests(compartmentId: compartmentId, opcCLientRequestId: opcClientRequestId, page: page, limit: limit)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1845,15 +1799,14 @@ public struct ObjectStorageClient: Sendable {
   ///   - namespaceName: The Object Storage namespace used for the request.
   ///   - bucketName: The name of the destination bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object with no data (void).
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for this operation. If not provided, the service-level retry config will be used. If `nil`, no retry will occur.
   public func makeBucketWritable(
     namespaceName: String,
     bucketName: String,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -1864,11 +1817,9 @@ public struct ObjectStorageClient: Sendable {
       bucketName: bucketName,
       opcClientRequestId: opcClientRequestId
     )
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1902,6 +1853,7 @@ public struct ObjectStorageClient: Sendable {
   ///  - contentMD5: Optional header that defines the base64-encoded MD5 hash of the body.
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - storageTier: Optional storage tier for the object (e.g., Standard, Archive).
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   public func putObject(
     namespaceName: String,
     bucketName: String,
@@ -1912,6 +1864,7 @@ public struct ObjectStorageClient: Sendable {
     contentMD5: String? = nil,
     opcClientRequestId: String? = nil,
     storageTier: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -1938,10 +1891,8 @@ public struct ObjectStorageClient: Sendable {
 
     req.httpBody = putObjectBody
 
-    try signer.sign(&req)
-
     self.logger.info("[putObject] Starting upload of \(objectName) to folder: \(toFolder ?? "/")")
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -1991,6 +1942,7 @@ public struct ObjectStorageClient: Sendable {
   ///  - contentMD5: Optional header that defines the base64-encoded MD5 hash of the body.
   ///   - opcClientRequestId: Optional client request ID for tracing.
   ///   - storageTier: Optional storage tier for the object (e.g., Standard, Archive).
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   public func putObject(
     parURL: URL,
     objectName: String,
@@ -2000,6 +1952,7 @@ public struct ObjectStorageClient: Sendable {
     contentMD5: String? = nil,
     opcClientRequestId: String? = nil,
     storageTier: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     // The endpoint here is different from the above implementation because it already contains /p, /n, and /b in it.
     guard let host = parURL.host(), let baseURL = URL(string: "https://\(host)") else {
@@ -2029,7 +1982,7 @@ public struct ObjectStorageClient: Sendable {
 
     self.logger.info("[putObjectPAR] Starting upload of \(objectName) to folder: \(toFolder ?? "/")")
 
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: nil, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2084,22 +2037,18 @@ public struct ObjectStorageClient: Sendable {
   ///   - namespaceName: The Object Storage namespace used for the request.
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object with no data payload (`Void`).
-  ///
-  /// TODO:
-  ///- retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
-  public func reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil) async throws {
+  public func reencryptBucket(namespaceName: String, bucketName: String, opcClientRequestId: String? = nil, retryConfig: RetryConfig? = nil) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
 
     let api = ObjectStorageAPI.reencryptBucket(namespaceName: namespaceName, bucketName: bucketName, opcClientRequestId: opcClientRequestId)
-    var req = try buildRequest(api: api, endpoint: endpoint)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    try signer.sign(&req)
-
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2131,18 +2080,17 @@ public struct ObjectStorageClient: Sendable {
   ///   - reencryptObjectDetails: Request object containing re-encryption configuration.
   ///   - versionId: Version ID used to identify a specific version of the object. Optional.
   ///   - opcClientRequestId: Client request ID for tracing. Optional.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object with no data payload (`Void`).
-  ///
-  /// TODO:
-  ///   - retryConfig: Retry configuration for the operation. Optional.
   public func reencryptObject(
     namespaceName: String,
     bucketName: String,
     objectName: String,
     reencryptObjectDetails: ReencryptObjectDetails,
     versionId: String? = nil,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -2162,9 +2110,7 @@ public struct ObjectStorageClient: Sendable {
 
       req.httpBody = payload
 
-      try signer.sign(&req)
-
-      let (data, response) = try await httpClient.data(req)
+      let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2193,16 +2139,15 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - renameObjectDetails: The source and destination object names for the rename operation. Avoid entering confidential information.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object with no data payload.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for the operation. If not provided, the service-level retry configuration will be used. If `nil`, the operation will not retry.
   public func renameObject(
     namespaceName: String,
     bucketName: String,
     renameObjectDetails: RenameObjectDetails,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -2222,9 +2167,7 @@ public struct ObjectStorageClient: Sendable {
 
       req.httpBody = payload
 
-      try signer.sign(&req)
-
-      let (data, response) = try await httpClient.data(req)
+      let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2265,12 +2208,10 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - restoreObjectsDetails: The request payload containing the object name and restore duration.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object with no data payload.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for the operation. If not provided, the service-level retry configuration will be used. If `nil`, the operation will not retry.
-  public func restoreObject(namespaceName: String, bucketName: String, restoreObjectsDetails: RestoreObjectsDetails, opcClientRequestId: String? = nil) async throws {
+  public func restoreObject(namespaceName: String, bucketName: String, restoreObjectsDetails: RestoreObjectsDetails, opcClientRequestId: String? = nil, retryConfig: RetryConfig? = nil) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
     }
@@ -2289,9 +2230,7 @@ public struct ObjectStorageClient: Sendable {
 
       req.httpBody = payload
 
-      try signer.sign(&req)
-
-      let (data, response) = try await httpClient.data(req)
+      let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2326,17 +2265,18 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - updateBucketDetails: The request object containing metadata updates for the bucket.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object containing the updated `Bucket`.
   ///
   /// TODO:
   ///  - ifMatch: The entity tag (ETag) to match with the ETag of an existing resource. If the specified ETag matches, GET and HEAD requests will return the resource, and PUT and POST requests will upload the resource.
-  ///  - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
   public func updateBucket(
     namespaceName: String,
     bucketName: String,
     updateBucketDetails: UpdateBucketDetails,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> Bucket {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -2356,9 +2296,7 @@ public struct ObjectStorageClient: Sendable {
 
       req.httpBody = payload
 
-      try signer.sign(&req)
-
-      let (data, response) = try await httpClient.data(req)
+      let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2396,16 +2334,14 @@ public struct ObjectStorageClient: Sendable {
   ///   - namespaceName: The Object Storage namespace used for the request.
   ///   - updateNamespaceMetadataDetails: The request object containing the new default compartment settings.
   ///   - opcClientRequestId: The client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A `Response` object containing `NamespaceMetadata`.
-  ///
-  /// TODO:
-  ///
-  ///   - retryConfig: The retry configuration to apply to this operation. If no value is provided, the service-level retry configuration will be used. If `nil` is explicitly provided, the operation will not retry.
   public func updateNamespaceMetadata(
     namespaceName: String,
     metadata: UpdateNamespaceMetadataDetails,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> NamespaceMetadata {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -2425,9 +2361,7 @@ public struct ObjectStorageClient: Sendable {
 
       req.httpBody = payload
 
-      try signer.sign(&req)
-
-      let (data, response) = try await httpClient.data(req)
+      let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2474,16 +2408,15 @@ public struct ObjectStorageClient: Sendable {
   ///   - bucketName: The name of the bucket. Avoid entering confidential information. Example: `"my-new-bucket1"`
   ///   - updateObjectStorageTierDetails: The object name and the desired storage tier.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object with no data payload.
-  ///
-  /// TODO:
-  ///   - retryConfig: Optional retry configuration for the operation. If not provided, the service-level retry configuration will be used. If `nil`, the operation will not retry.
   public func updateObjectStorageTier(
     namespaceName: String,
     bucketName: String,
     updateObjectStorageTierDetails: UpdateObjectStorageTierDetails,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -2503,9 +2436,7 @@ public struct ObjectStorageClient: Sendable {
 
       req.httpBody = payload
 
-      try signer.sign(&req)
-
-      let (data, response) = try await httpClient.data(req)
+      let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2537,18 +2468,19 @@ public struct ObjectStorageClient: Sendable {
   ///   - retentionRuleId: The ID of the retention rule.
   ///   - updateRetentionRuleDetails: Request object for updating the retention rule.
   ///   - opcClientRequestId: Optional client request ID for tracing.
+  ///   - retryConfig: The retry configuration to apply to this operation. If `nil` (the default), the client-level `retryConfig` is used. Pass `RetryConfig(maxAttempts: 1)` to disable retries for this call.
   ///
   /// - Returns: A response object containing the updated `RetentionRule`.
   ///
   /// TODO:
-  ///   - retryConfig: (Optional) The retry configuration to apply to this operation. If not provided, the service-level retry configuration will be used. If `nil`, the operation will not retry.
   ///   - ifMatch: (Optional) The entity tag (ETag) to match with the ETag of an existing resource. If matched, GET and HEAD requests will return the resource, and PUT and POST requests will upload the resource.
   public func updateRetentionRule(
     namespaceName: String,
     bucketName: String,
     retentionRuleId: String,
     updateRetentionRuleDetails: UpdateRetentionRuleDetails,
-    opcClientRequestId: String? = nil
+    opcClientRequestId: String? = nil,
+    retryConfig: RetryConfig? = nil
   ) async throws -> RetentionRule {
     guard let endpoint else {
       throw ObjectStorageError.missingRequiredParameter("No endpoint has been set")
@@ -2568,9 +2500,7 @@ public struct ObjectStorageClient: Sendable {
 
       req.httpBody = payload
 
-      try signer.sign(&req)
-
-      let (data, response) = try await httpClient.data(req)
+      let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig ?? self.retryConfig, logger: logger)
 
       guard let httpResponse = response as? HTTPURLResponse else {
         throw ObjectStorageError.invalidResponse("Invalid HTTP response")
@@ -2586,11 +2516,4 @@ public struct ObjectStorageClient: Sendable {
       return retenetiobRule
     }
   }
-}
-
-// TODO: Find proper place for these below
-// Retry configuration
-public struct RetryConfig: Sendable {
-  let maxAttempts: Int
-  let baseDelay: TimeInterval
 }

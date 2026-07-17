@@ -11,7 +11,7 @@ import Foundation
   import FoundationNetworking
 #endif
 
-public final class X509FederationClientBasedSecurityTokenSigner: Signer, @unchecked Sendable {
+public final class X509FederationClientBasedSecurityTokenSigner: RefreshableSigner, @unchecked Sendable {
   private let federationClient: X509FederationClientProtocol
 
   public init(federationClient: X509FederationClientProtocol) {
@@ -23,5 +23,11 @@ public final class X509FederationClientBasedSecurityTokenSigner: Signer, @unchec
     let key = try federationClient.currentPrivateKey()
     let delegateSigner = SecurityTokenSigner(securityToken: token, privateKey: key)
     try delegateSigner.sign(&req)
+  }
+
+  /// Invalidates the federation client's cached token so the next ``sign(_:)``
+  /// re-federates. Called after a `401` to ride through token rotation.
+  public func forceRefresh() throws {
+    try federationClient.forceRefresh()
   }
 }

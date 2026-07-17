@@ -52,7 +52,7 @@ public struct SecretsClient: Sendable {
   ///   - region: A region used to determine the service endpoint.
   ///   - endpoint: The fully qualified endpoint URL. If provided, this takes precedence over the region.
   ///   - signer: A signer implementation used for authenticating requests.
-  ///   - retryConfig: Optional retry configuration for this service client.
+  ///   - retryConfig: The retry configuration applied to every operation of this client. `nil` (the default) disables retries.
   ///   - logger: Optional logger for debugging and diagnostics.
   ///   - httpClient: The HTTP transport used to perform requests. Defaults to ``HTTPClient/live``
   ///     (real `URLSession` I/O); tests can inject a recording or replaying transport.
@@ -126,10 +126,9 @@ public struct SecretsClient: Sendable {
       opcRequestId: opcRequestId
     )
 
-    var req = try buildRequest(api: api, endpoint: endpoint)
-    try signer.sign(&req)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw SecretsError.invalidResponse("Invalid HTTP response")
@@ -192,10 +191,9 @@ public struct SecretsClient: Sendable {
       opcRequestId: opcRequestId
     )
 
-    var req = try buildRequest(api: api, endpoint: endpoint)
-    try signer.sign(&req)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw SecretsError.invalidResponse("Invalid HTTP response")
@@ -252,10 +250,9 @@ public struct SecretsClient: Sendable {
       opcRequestId: opcRequestId
     )
 
-    var req = try buildRequest(api: api, endpoint: endpoint)
-    try signer.sign(&req)
+    let req = try buildRequest(api: api, endpoint: endpoint)
 
-    let (data, response) = try await httpClient.data(req)
+    let (data, response) = try await httpClient.send(req, signer: signer, retry: retryConfig, logger: logger)
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw SecretsError.invalidResponse("Invalid HTTP response")

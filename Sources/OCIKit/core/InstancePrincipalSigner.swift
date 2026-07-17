@@ -18,7 +18,7 @@ import _CryptoExtras
 
 // MARK: - InstancePrincipalSigner
 
-public struct InstancePrincipalSigner: Signer {
+public struct InstancePrincipalSigner: RefreshableSigner {
   private let delegate: X509FederationClientBasedSecurityTokenSigner
 
   public init(
@@ -36,6 +36,12 @@ public struct InstancePrincipalSigner: Signer {
 
   public func sign(_ req: inout URLRequest) throws {
     try delegate.sign(&req)
+  }
+
+  /// Invalidates the cached security token so the next ``sign(_:)`` re-federates
+  /// with the instance identity certificates. Called after a `401`.
+  public func forceRefresh() throws {
+    try delegate.forceRefresh()
   }
 }
 
@@ -160,6 +166,11 @@ final class InstancePrincipalsFederationClient: X509FederationClientProtocol, @u
 
   func currentPrivateKey() throws -> _RSA.Signing.PrivateKey {
     return sessionPrivateKey
+  }
+
+  /// Drops the cached token so the next `currentSecurityToken()` re-federates.
+  func forceRefresh() throws {
+    token = nil
   }
 
   // MARK: - Token refresh

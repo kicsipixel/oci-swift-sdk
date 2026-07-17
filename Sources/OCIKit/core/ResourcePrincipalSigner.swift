@@ -130,7 +130,7 @@ enum ResourcePrincipalSource: Equatable {
 /// let signer = try ResourcePrincipalSigner.fromEnvironment()
 /// let client = try ObjectStorageClient(region: .fra, signer: signer)
 /// ```
-public final class ResourcePrincipalSigner: Signer, @unchecked Sendable {
+public final class ResourcePrincipalSigner: RefreshableSigner, @unchecked Sendable {
   private let rpstSource: ResourcePrincipalSource
   private let keySource: ResourcePrincipalSource
 
@@ -228,7 +228,8 @@ public final class ResourcePrincipalSigner: Signer, @unchecked Sendable {
           return (token, key)
         }
         // Token is within the jitter window — fall through and refresh.
-      } else {
+      }
+      else {
         // No exp claim to evaluate; keep the cached material.
         return (token, key)
       }
