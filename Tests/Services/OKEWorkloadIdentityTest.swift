@@ -158,11 +158,13 @@ struct OKEWorkloadIdentityEnvironmentTests {
   func resolvesCACertPath() {
     #expect(
       OKEWorkloadIdentitySigner.serviceAccountCertPath(fromEnvironment: [:])
-        == "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+        == "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    )
     #expect(
       OKEWorkloadIdentitySigner.serviceAccountCertPath(fromEnvironment: [
         "OCI_KUBERNETES_SERVICE_ACCOUNT_CERT_PATH": "/custom/ca.crt"
-      ]) == "/custom/ca.crt")
+      ]) == "/custom/ca.crt"
+    )
   }
 }
 
@@ -226,6 +228,21 @@ struct OKEWorkloadIdentityResponseTests {
   func decodesAndStripsPrefix() throws {
     let rpst = makeJWT(claims: ["exp": futureExp])
     let body = proxymuxResponseBody(rpst: rpst)
+    #expect(try OKEWorkloadIdentitySigner.decodeRPST(fromResponseBody: body) == rpst)
+  }
+
+  @Test("decodeRPST tolerates base64 with embedded newlines (lenient, like the other SDKs)")
+  func decodesBase64WithNewlines() throws {
+    let rpst = makeJWT(claims: ["exp": futureExp])
+    var base64 = Data("{\"token\":\"ST$\(rpst)\"}".utf8).base64EncodedString()
+    base64.insert("\n", at: base64.index(base64.startIndex, offsetBy: base64.count / 2))
+    #expect(try OKEWorkloadIdentitySigner.decodeRPST(fromResponseBody: Data(base64.utf8)) == rpst)
+  }
+
+  @Test("decodeRPST also accepts a raw (non-base64) JSON body")
+  func decodesRawJSON() throws {
+    let rpst = makeJWT(claims: ["exp": futureExp])
+    let body = Data("{\"token\":\"ST$\(rpst)\"}".utf8)
     #expect(try OKEWorkloadIdentitySigner.decodeRPST(fromResponseBody: body) == rpst)
   }
 

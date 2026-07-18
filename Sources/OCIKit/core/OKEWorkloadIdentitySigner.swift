@@ -486,27 +486,42 @@ extension OKEWorkloadIdentitySigner {
 
   /// Decodes the proxymux response body — base64 of `{"token":"ST$<rpst>"}` —
   /// into the bare RPST (with the `ST$` prefix removed).
+  ///
+  /// The base64 is decoded leniently (ignoring embedded newlines/whitespace, like
+  /// Python's `base64.b64decode` and Go/Java) rather than with Foundation's strict
+  /// `Data(base64Encoded:)`. A raw-JSON body (no base64 wrapper) is also accepted.
   static func decodeRPST(fromResponseBody data: Data) throws -> String {
     guard
-      let base64String = String(data: data, encoding: .utf8)?
-        .trimmingCharacters(in: .whitespacesAndNewlines),
-      let decoded = Data(base64Encoded: base64String),
+      let raw = String(data: data, encoding: .utf8)?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    else {
+      throw OKEWorkloadIdentityError.malformedTokenResponse("response body is not UTF-8")
+    }
+
+    // Prefer the documented base64-of-JSON form; fall back to a raw-JSON body.
+    var candidateJSONs: [String] = []
+    if let decoded = Data(base64Encoded: raw, options: .ignoreUnknownCharacters),
       let json = String(data: decoded, encoding: .utf8)
-    else {
-      throw OKEWorkloadIdentityError.malformedTokenResponse("body is not base64-of-UTF8")
+    {
+      candidateJSONs.append(json)
     }
-    guard json.contains("token"),
-      let jsonData = json.data(using: .utf8),
-      let object = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-      let tokenValue = object["token"] as? String
-    else {
-      throw OKEWorkloadIdentityError.malformedTokenResponse("missing token field")
+    candidateJSONs.append(raw)
+
+    for json in candidateJSONs {
+      guard json.contains("token"),
+        let jsonData = json.data(using: .utf8),
+        let object = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+        let tokenValue = object["token"] as? String
+      else { continue }
+      // The wire value is prefixed with "ST$"; the SecurityTokenSigner re-adds it.
+      return tokenValue.hasPrefix("ST$") ? String(tokenValue.dropFirst(3)) : tokenValue
     }
-    // The wire value is prefixed with "ST$"; the SecurityTokenSigner re-adds it.
-    if tokenValue.hasPrefix("ST$") {
-      return String(tokenValue.dropFirst(3))
-    }
-    return tokenValue
+
+    // Non-sensitive diagnostic: length + a short prefix (base64/JSON framing only).
+    let prefix = String(raw.prefix(8))
+    throw OKEWorkloadIdentityError.malformedTokenResponse(
+      "no resource principal session token in the \(data.count)-byte response (prefix: \"\(prefix)\")"
+    )
   }
 
   /// Generates an `opc-request-id`: three 16-byte random hex segments joined by
