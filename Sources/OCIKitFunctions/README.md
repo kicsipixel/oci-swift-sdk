@@ -186,11 +186,26 @@ RUN swift build -c release --static-swift-stdlib \
 
 # ---- runtime ----
 FROM ubuntu:24.04
-RUN groupadd --gid 1000 fn && adduser --uid 1000 --gid 1000 --disabled-password --gecos "" fn
+# --static-swift-stdlib bundles the Swift stdlib but NOT system C libs. A function
+# that calls an OCI service uses Foundation's URLSession, which on Linux needs
+# libcurl + a CA trust store, so install them (and libxml2).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates libxml2 tzdata \
+ && (apt-get install -y --no-install-recommends libcurl4t64 || apt-get install -y --no-install-recommends libcurl4) \
+ && rm -rf /var/lib/apt/lists/*
+# ubuntu:24.04 ships a default user at uid/gid 1000; remove it, then create the
+# non-root fn user OCI Functions require.
+RUN userdel -r ubuntu 2>/dev/null || true \
+ && groupadd --gid 1000 fn \
+ && useradd --uid 1000 --gid 1000 --create-home --shell /usr/sbin/nologin fn
 COPY --from=build /out/hello-swift-fn /function/hello-swift-fn
 USER fn
 ENTRYPOINT ["/function/hello-swift-fn"]
 ```
+
+> Without `libcurl4`/`ca-certificates` in the runtime image, a function that reaches
+> an OCI service dies at startup with `libcurl.so.4: cannot open shared object file`
+> and the platform reports "Container failed to initialize".
 
 Then, from the function directory:
 
