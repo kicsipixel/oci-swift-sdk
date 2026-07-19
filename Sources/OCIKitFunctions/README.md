@@ -173,28 +173,26 @@ triggers:
 
 ### `Dockerfile`
 
-A multi-stage build with a statically linked stdlib and the **mandatory non-root
-`fn` user** (uid/gid 1000). Replace `hello-swift-fn` with your executable's name.
+A multi-stage build on the official `swift:<version>-slim` runtime image, with the
+**mandatory non-root `fn` user** (uid/gid 1000). Replace `hello-swift-fn` with your
+executable's name.
 
 ```dockerfile
 # ---- build ----
 FROM swift:6.2 AS build
 WORKDIR /src
 COPY . .
-RUN swift build -c release --static-swift-stdlib \
+RUN swift build -c release \
  && install -Dm755 "$(swift build -c release --show-bin-path)/hello-swift-fn" /out/hello-swift-fn
 
 # ---- runtime ----
-FROM ubuntu:24.04
-# --static-swift-stdlib bundles the Swift stdlib but NOT system C libs. A function
-# that calls an OCI service uses Foundation's URLSession, which on Linux needs
-# libcurl + a CA trust store, so install them (and libxml2).
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates libxml2 tzdata \
- && (apt-get install -y --no-install-recommends libcurl4t64 || apt-get install -y --no-install-recommends libcurl4) \
- && rm -rf /var/lib/apt/lists/*
-# ubuntu:24.04 ships a default user at uid/gid 1000; remove it, then create the
-# non-root fn user OCI Functions require.
+# swift:<version>-slim carries the Swift runtime libraries plus libcurl, libxml2,
+# and ca-certificates — everything Foundation's URLSession needs on Linux. Keep
+# this tag on the SAME version as the builder: a slim image only runs binaries
+# built by its matching toolchain.
+FROM swift:6.2-slim
+# The slim image is Ubuntu 24.04-based and ships a default user at uid/gid 1000;
+# remove it, then create the non-root fn user OCI Functions require.
 RUN userdel -r ubuntu 2>/dev/null || true \
  && groupadd --gid 1000 fn \
  && useradd --uid 1000 --gid 1000 --create-home --shell /usr/sbin/nologin fn
@@ -203,9 +201,16 @@ USER fn
 ENTRYPOINT ["/function/hello-swift-fn"]
 ```
 
-> Without `libcurl4`/`ca-certificates` in the runtime image, a function that reaches
-> an OCI service dies at startup with `libcurl.so.4: cannot open shared object file`
-> and the platform reports "Container failed to initialize".
+> **Runtime image choice.** A `ubuntu:24.04` runtime with `swift build
+> --static-swift-stdlib` produces a smaller image (measured on this SDK's example
+> function, arm64: 267 MB vs 352 MB uncompressed, 81 MB vs 104 MB compressed),
+> because static linking dead-strips unused runtime code instead of shipping every
+> Swift `.so`. It costs you the deps by hand, though: `--static-swift-stdlib`
+> bundles the Swift stdlib but **not** system C libs, so an image missing
+> `libcurl4`/`ca-certificates` dies at startup with `libcurl.so.4: cannot open
+> shared object file` and the platform reports "Container failed to initialize".
+> `slim` is the more robust default, and functions sharing a host also share its
+> layers.
 
 Then, from the function directory:
 

@@ -20,8 +20,11 @@ function, and the **Object Storage client**.
   `OSS_OBJECT` from its function configuration and returns the object's bytes.
 - **`relay-invoke`** — a local CLI that invokes a function by OCID and logs the reply.
 
-> This directory is a standalone SwiftPM package that depends on `oci-swift-sdk` from
-> GitHub, so nothing here is part of the SDK's own build or CI.
+> This directory is a **standalone SwiftPM package** that depends on `oci-swift-sdk`
+> from GitHub. It is deliberately not a target of the root package — every test
+> target there declares an explicit `path:`, so SwiftPM never scans this directory
+> and `swift build`/`swift test` at the repo root ignore it. Nothing here runs in CI;
+> it must be built and run by hand, and it needs live OCI credentials.
 
 ---
 
@@ -59,8 +62,8 @@ IMAGE=$OCIR/$NS/relay-function:0.0.1
 ## 1. Build and push the function image
 
 The function is packaged with the `Dockerfile` in this directory (multi-stage:
-`swift:6.2` builder → `ubuntu:24.04` runtime with `libcurl`/`ca-certificates` and a
-non-root `fn` user). Build for the architecture that matches the application shape —
+`swift:6.2` builder → `swift:6.2-slim` runtime, plus the non-root `fn` user OCI
+Functions require). Build for the architecture that matches the application shape —
 `GENERIC_ARM` → `linux/arm64` here.
 
 ```sh
@@ -143,13 +146,20 @@ Resource Principal auth and returns it.
 ## Troubleshooting
 
 - **`502 Container failed to initialize`** — run the image locally to see the startup
-  error: `docker run --rm -e FN_LISTENER=unix:/tmp/lsnr.sock -e FN_FORMAT=http-stream
-  --entrypoint /function/relay-function "$IMAGE"`. A missing
-  `libcurl.so.4: cannot open shared object file` means the runtime image lacks
-  `libcurl4`/`ca-certificates` (the `Dockerfile` here installs them). A healthy start
-  logs `OCIKitFunctions serving on …` and creates `lsnr.sock -> phonylsnr.sock`.
-- **`groupadd: GID '1000' already in use`** when building — `ubuntu:24.04` ships a
-  default user at uid/gid 1000; the `Dockerfile` deletes it before creating `fn`.
+  error:
+  ```sh
+  docker run --rm -e FN_LISTENER=unix:/tmp/lsnr.sock -e FN_FORMAT=http-stream "$IMAGE"
+  ```
+  A healthy start logs `OCIKitFunctions serving on …` and creates the socket pair
+  `lsnr.sock -> phonylsnr.sock`. A missing shared library here (e.g.
+  `libcurl.so.4: cannot open shared object file`) means the runtime image lacks a
+  library Foundation needs — the `swift:*-slim` base includes them, but a hand-rolled
+  runtime base would have to install `libcurl4`, `libxml2`, and `ca-certificates`.
+- **`groupadd: GID '1000' already in use`** when building — the Ubuntu-based slim
+  image ships a default user at uid/gid 1000; the `Dockerfile` deletes it before
+  creating `fn`.
+- **Swift runtime/symbol errors at startup** — the builder and the `-slim` runtime
+  tag must be the *same* Swift version.
 - **Enable function logs** (Console → the application → Logs) to see the function's
   own `logger` output for deeper debugging.
 

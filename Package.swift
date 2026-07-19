@@ -50,7 +50,8 @@ let package = Package(
         .product(name: "NIOPosix", package: "swift-nio"),
         .product(name: "NIOHTTP1", package: "swift-nio"),
         .product(name: "Logging", package: "swift-log"),
-      ]
+      ],
+      exclude: ["README.md"]
     ),
     .testTarget(
       name: "Tests on Linux",
@@ -75,7 +76,7 @@ let package = Package(
         .product(name: "NIOPosix", package: "swift-nio"),
         .product(name: "NIOHTTP1", package: "swift-nio"),
       ],
-      path: "Tests/Functions"
+      path: "Tests/OCIKitFunctions"
     ),
   ]
 )
