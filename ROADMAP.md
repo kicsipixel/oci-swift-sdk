@@ -246,8 +246,11 @@ audit findings so they can be picked up without re-research.
    Streaming → Kafka compatibility + swift-kafka-client; Queue → STOMP + stomp-nio. In both
    cases the deliverable is a documented, validated recipe (and caveats: static auth-token
    credentials, no principals) rather than a ported REST client.
-5. **WebSockets remain blocked on Linux** (AI Speech realtime STT) — same class of platform
-   blocker as OKE Workload Identity; revisit only with a platform-specific carve-out.
+5. **WebSockets remain blocked on Linux** (AI Speech realtime STT) — the same class of
+   platform gap that blocked OKE Workload Identity, which has since been resolved by a
+   platform-specific carve-out: the opt-in, NIO-backed `OCIKitWorkloadIdentity` product,
+   which keeps that dependency off every consumer who doesn't ask for it. Realtime STT
+   would need the same shape; revisit only if the carve-out is worth the cost.
 6. **Raw-bytes request/response paths** (generic artifacts, speech audio, raw email MIME)
    should reuse the ObjectStorage `Data`-in/`Data`-out pattern rather than forcing JSON
    models — as the shipped `FunctionsInvokeClient` already does.
