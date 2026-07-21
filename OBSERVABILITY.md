@@ -1,6 +1,14 @@
 # OCIKit Observability Plan — logs, metrics, traces (OpenTelemetry)
 
-Research and plan of action for [issue #85](https://github.com/iliasaz/oci-swift-sdk/issues/85).
+Research and plan of action for epic [#85](https://github.com/iliasaz/oci-swift-sdk/issues/85),
+which tracks the full work breakdown:
+[#88](https://github.com/iliasaz/oci-swift-sdk/issues/88) `LoggingIngestClient`,
+[#89](https://github.com/iliasaz/oci-swift-sdk/issues/89) `OCILogHandler`,
+[#90](https://github.com/iliasaz/oci-swift-sdk/issues/90) `MonitoringClient`,
+[#91](https://github.com/iliasaz/oci-swift-sdk/issues/91) `OCIMetricsFactory`,
+[#86](https://github.com/iliasaz/oci-swift-sdk/issues/86) Functions tracing context,
+[#92](https://github.com/iliasaz/oci-swift-sdk/issues/92) deployment guide + tracing example,
+[#87](https://github.com/iliasaz/oci-swift-sdk/issues/87) swift-log 1.14 follow-up.
 Status: **reviewed — §6 decisions resolved** (2026-07-21). Everything below is grounded in primary
 sources (docs.oracle.com, official GitHub repos, the Python SDK) and — where documentation was
 silent — **live probes run against a dev tenancy on 2026-07-21** (us-phoenix-1; temporary
@@ -178,7 +186,7 @@ embeds an OTel SDK inside the OCI SDK. The plan below mirrors these shapes exact
 
 ## 5. The plan
 
-### Phase 1 — Logs (roadmap Tier 1 #1, unchanged scope, now fully de-risked)
+### Phase 1 — Logs (roadmap Tier 1 #1, unchanged scope, now fully de-risked) — [#88](https://github.com/iliasaz/oci-swift-sdk/issues/88), [#89](https://github.com/iliasaz/oci-swift-sdk/issues/89)
 
 **Core OCIKit, zero new dependencies.**
 
@@ -218,7 +226,7 @@ embeds an OTel SDK inside the OCI SDK. The plan below mirrors these shapes exact
    (batching, truncation-split, recursion guard, drop policy) — all credential-free, added to
    `UNIT_TEST_FILTER`; env-guarded live test.
 
-### Phase 2 — Metrics (promote `postMetricData` out of backlog)
+### Phase 2 — Metrics (promote `postMetricData` out of backlog) — [#90](https://github.com/iliasaz/oci-swift-sdk/issues/90), [#91](https://github.com/iliasaz/oci-swift-sdk/issues/91)
 
 **Deviation from the roadmap, made explicit:** ROADMAP files Monitoring under "Backlog —
 deferred until demand appears". This initiative *is* the demand, and the promoted slice is
@@ -273,7 +281,7 @@ injects endpoint or key). The alternative — an `apm-control-plane` data-key cl
 ListDataKeys returns the actual key **values** (live-verified), so any policy granting it is
 as sensitive as the keys themselves.
 
-### Phase 3 — Docs + examples
+### Phase 3 — Docs + examples — [#92](https://github.com/iliasaz/oci-swift-sdk/issues/92)
 
 1. A per-runtime deployment guide (the §4 matrix + IAM recipes + which signer to construct),
    including the Always Free guidance (A1: agent or SDK; E2.1.Micro: SDK only).
