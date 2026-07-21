@@ -22,6 +22,54 @@ Support for OCI services is being added incrementally, starting with those curre
 - [x] Secrets (secret bundles)
 - [x] AI Language (health entity detection)
 - [x] Functions — run Swift as a function (FDK) + invoke a function
+- [x] Logging Ingestion (`PutLogs`) + a batching swift-log backend
+
+## Logging backend
+
+`OCILogHandler` is a [swift-log](https://github.com/apple/swift-log) backend that ships your
+application's log records to an OCI [custom log](https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/custom_logs.htm).
+Bootstrap it once and the rest of the code keeps using plain `Logger` values.
+
+```swift
+import Logging
+import OCIKit
+
+let signer = try APIKeySigner(configFilePath: "~/.oci/config")
+let batcher = try OCILogBatcher(
+  configuration: OCILogHandlerConfiguration(
+    logId: "ocid1.log.oc1.phx.EXAMPLE",   // an existing custom log
+    type: "com.example.orders"
+  ),
+  region: .phx,
+  signer: signer
+)
+
+LoggingSystem.bootstrap { label in
+  MultiplexLogHandler([
+    StreamLogHandler.standardOutput(label: label),
+    OCILogHandler(label: label, batcher: batcher),
+  ])
+}
+
+Logger(label: "com.example.orders").info("order placed", metadata: ["orderId": "1234"])
+
+// Before the process exits, so buffered records are not lost:
+await batcher.shutdown()
+```
+
+`log(...)` never blocks and never performs I/O: it renders the record and hands it to a bounded
+buffer. An `OCILogBatcher` actor drains that buffer and uploads batches with `PutLogs` — on a size
+threshold (1 MiB), on an interval (5 s), or when you call `flush()`/`shutdown()` — keeping at most
+one request in flight. Messages longer than the service's 10,000-character truncation point are
+split across entries, and records the SDK itself emits are excluded so a flush can never generate
+more logs to flush. When the buffer overflows, the newest record is dropped and counted in
+`batcher.statistics`, which also surfaces flush failures (a log backend cannot report its own
+errors through the logging system it implements).
+
+The log group and the log are control-plane resources: create them with Terraform, the OCI
+Console, or the CLI, and pass the log's OCID. Your principal needs
+`allow ... to use log-content in compartment ...`. To call `PutLogs` directly, use
+`LoggingIngestClient`.
 
 ## OCI Functions
 
