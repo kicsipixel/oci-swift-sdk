@@ -47,6 +47,16 @@ public struct InvocationContext: Sendable {
   /// stripped), for HTTP-triggered invocations. Empty for plain invocations.
   public let httpHeaders: FunctionHeaders
 
+  /// Every header the platform sent with this invocation, exactly as received —
+  /// the `Fn-*` contract headers included, and, for HTTP-triggered invocations, the
+  /// still-prefixed `Fn-Http-H-*` originals rather than the ``httpHeaders`` view.
+  ///
+  /// This is where per-invocation headers that are neither part of the Fn contract
+  /// nor part of a tunnelled client request surface — most importantly the Zipkin
+  /// `X-B3-*` tracing headers, which the platform injects on **plain** invocations
+  /// too. Prefer ``tracing`` for a typed view of those.
+  public let invocationHeaders: FunctionHeaders
+
   public init(
     runtime: RuntimeContext,
     callID: String?,
@@ -54,7 +64,8 @@ public struct InvocationContext: Sendable {
     isHTTPRequest: Bool,
     httpMethod: String? = nil,
     requestURL: String? = nil,
-    httpHeaders: FunctionHeaders = FunctionHeaders()
+    httpHeaders: FunctionHeaders = FunctionHeaders(),
+    invocationHeaders: FunctionHeaders = FunctionHeaders()
   ) {
     self.runtime = runtime
     self.callID = callID
@@ -63,10 +74,21 @@ public struct InvocationContext: Sendable {
     self.httpMethod = httpMethod
     self.requestURL = requestURL
     self.httpHeaders = httpHeaders
+    self.invocationHeaders = invocationHeaders
   }
 
   /// The time remaining until the invocation ``deadline`` (negative if already past).
   public var remaining: TimeInterval {
     deadline.timeIntervalSinceNow
+  }
+
+  /// The distributed-tracing context of this invocation: the container's
+  /// `OCI_TRACING_ENABLED` / `OCI_TRACE_COLLECTOR_URL` configuration combined with
+  /// the invocation's Zipkin `X-B3-*` headers.
+  ///
+  /// Derived on each access from ``runtime`` and ``invocationHeaders``; bind it to a
+  /// local when a handler reads several of its properties.
+  public var tracing: TracingContext {
+    TracingContext(runtime: runtime, headers: invocationHeaders)
   }
 }
