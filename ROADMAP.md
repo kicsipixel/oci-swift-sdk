@@ -68,6 +68,12 @@ principal, resource principal v2.2, OKE workload identity, security token signer
      flushing must be actor-isolated (no GCD).
 - **Cost/quirks:** dedicated host `ingestion.logging.{region}` — needs its own entry in
   `Region+Service.swift`. The `logging` (log-group CRUD) module stays out of scope.
+- **Expanded 2026-07 by the observability initiative ([OBSERVABILITY.md](OBSERVABILITY.md),
+  #85):** ships together with the promoted Monitoring `postMetricData` slice + an
+  `OCIMetricsFactory` swift-metrics backend (decisions recorded there, incl. the approved
+  `swift-metrics` core dependency). Tracing needs no client — OCI APM ingests OTLP/HTTP with
+  data-key auth; the deliverable is a documented swift-otel recipe plus `OCIKitFunctions`
+  tracing-context fixes (#86).
 
 ### 2. Email Delivery — Data Plane (`email_data_plane`)
 
@@ -173,6 +179,14 @@ audit findings so they can be picked up without re-research.
 
 - **Monitoring (`monitoring`)** — `postMetricData` / `summarizeMetricsData` / `listMetrics`
   (3 of 18 ops; ingestion host differs: `telemetry-ingestion.*` vs `telemetry.*`).
+  **`postMetricData` promoted to Tier 1 (2026-07, observability initiative — see
+  [OBSERVABILITY.md](OBSERVABILITY.md))**; `summarizeMetricsData`/`listMetrics` and the
+  `telemetry.*` query host remain backlog.
+- **APM OTLP ingest (traces/metrics)** — needs no OCIKit client: the APM collector accepts
+  OTLP/HTTP with `Authorization: dataKey` auth (not OCI-signed), so the deliverable is a
+  documented swift-otel recipe (see [OBSERVABILITY.md](OBSERVABILITY.md)). The original audit
+  could not surface this endpoint because it is not a module in any language SDK. APM trace
+  *query* remains excluded (see Excluded section).
 - **Logging Search (`loggingsearch`)** — one op, `searchLogs`; trivial companion to Logging
   Ingestion when an ops-tooling story materializes.
 - **Log Analytics (`log_analytics`)** — only the curated slice (~9 of ~180 ops: three upload
@@ -260,7 +274,7 @@ audit findings so they can be picked up without re-research.
 | Phase | Work | Rationale |
 |---|---|---|
 | 1 | Spike: stomp-nio ↔ OCI Queue recipe | Small surface, high leverage; validates the Queue-without-REST bet early |
-| 2 | Logging Ingestion + `OCILogHandler`, Email Data Plane | Production server-app table stakes: logs and transactional email |
+| 2 | Observability ([OBSERVABILITY.md](OBSERVABILITY.md)): Logging Ingestion + `OCILogHandler`, Monitoring `postMetricData` + `OCIMetricsFactory`; Email Data Plane | Production server-app table stakes: logs, metrics, transactional email |
 | 3 | Identity Data Plane (+ `SecurityTokenSigner` self-refresh integration) | Fixes a real limitation in shipped auth |
 | 4 | KMS Crypto, Certificates | Security round-out (small, Secrets-shaped) |
 | 5 | Backlog by demand (incl. swift-kafka-client ↔ Streaming recipe) | Audience-gated work |

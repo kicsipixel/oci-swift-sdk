@@ -1,7 +1,7 @@
 # OCIKit Observability Plan — logs, metrics, traces (OpenTelemetry)
 
 Research and plan of action for [issue #85](https://github.com/iliasaz/oci-swift-sdk/issues/85).
-Status: **draft for maintainer review** (2026-07-21). Everything below is grounded in primary
+Status: **reviewed — §6 decisions resolved** (2026-07-21). Everything below is grounded in primary
 sources (docs.oracle.com, official GitHub repos, the Python SDK) and — where documentation was
 silent — **live probes run against a dev tenancy on 2026-07-21** (us-phoenix-1; temporary
 resources created and deleted; marked "live-verified" throughout). Full research notes with
@@ -128,7 +128,8 @@ shape ever changes) and any OTLP/HTTP exporter.
 Found along the way — an FDK gap in this repo: for plain (non-HTTP-gateway) invokes,
 `FunctionServer` drops all raw invocation headers
 (`Sources/OCIKitFunctions/FunctionServer.swift:155`), so the X-B3 headers are invisible to
-handlers today. Fix required regardless of the rest of this plan.
+handlers today. Fix required regardless of the rest of this plan — tracked in
+[#86](https://github.com/iliasaz/oci-swift-sdk/issues/86).
 
 ## 3. The Swift package landscape (what to build against)
 
@@ -149,13 +150,18 @@ mixing trivial.
 
 ## 4. Per-runtime reality: who collects what
 
+Cell vocabulary — **Platform**: collected automatically, nothing to configure; **Agent**: a
+platform agent the operator installs/configures; **App**: the process exports in-process via
+SDK or OTLP — the paths this plan enables. Column headers link to the receiving service;
+parentheses name the wire API.
+
 | Runtime | Logs → [OCI Logging](https://docs.oracle.com/en-us/iaas/Content/Logging/home.htm) | App metrics → [OCI Monitoring](https://docs.oracle.com/en-us/iaas/Content/Monitoring/home.htm) | Traces → [OCI APM](https://docs.oracle.com/en-us/iaas/application-performance-monitoring/home.htm) | Injected principal (OCIKit signer) |
 |---|---|---|---|---|
-| Compute VM (incl. Always Free **A1.Flex** — agent live-verified RUNNING; the "not supported on A1" docs note is a stale pre-2022 doc bug) | Agent tails files (Custom Logs plugin) — **or** app `PutLogs` | **App: PostMetricData** | **App: OTLP → APM** | Instance principal (`InstancePrincipalSigner`) |
-| Compute VM **E2.1.Micro** (Always Free x86) | **App PutLogs is the only safe path** — Console shape-gates the agent plugin ("Not supported plugin is disabled for Shape VM.Standard.E2.1.Micro", 2022, unrefuted; 1 GB RAM argues against fluentd anyway) | App | App | Instance principal |
-| OKE | Node agent can tail `/var/log/containers/*` (managed nodes); no logging/OTel add-on exists — **or** app `PutLogs` | **App** | **App / own OTel collector → APM** | Workload identity, enhanced clusters (`OKEWorkloadIdentitySigner`); or node instance principal |
-| **Container Instances** | **App: PutLogs — no agent, no sidecar mechanism; platform offers view-only `RetrieveLogs`** | **App** | **App** | **Resource principal v2.2** — exactly what `ResourcePrincipalSigner` implements (per-container opt-out flag `isResourcePrincipalDisabled`) |
-| Functions | Platform (invocation logs → OCI Logging) | **App: PostMetricData** | Platform default span; **custom spans: app via parsed `OCI_TRACE_COLLECTOR_URL` → OTLP** | Resource principal v2.2, env vars are file paths — refresh-safe with `ResourcePrincipalSigner` |
+| Compute VM (incl. Always Free **A1.Flex** — agent live-verified RUNNING; the "not supported on A1" docs note is a stale pre-2022 doc bug) | Agent (Custom Logs file tailing) **or** App (`PutLogs`) | App (`PostMetricData`) | App (OTLP) | Instance principal (`InstancePrincipalSigner`) |
+| Compute VM **E2.1.Micro** (Always Free x86) | App (`PutLogs`) — agent is shape-gated ("Not supported plugin is disabled for Shape VM.Standard.E2.1.Micro", 2022, unrefuted; 1 GB RAM argues against fluentd anyway) | App (`PostMetricData`) | App (OTLP) | Instance principal |
+| OKE | Agent (Custom Logs on managed nodes, tailing `/var/log/containers/*`) **or** App (`PutLogs`) — no logging/OTel add-on exists | App (`PostMetricData`) | App (OTLP) — directly or via a self-managed OTel Collector | Workload identity, enhanced clusters (`OKEWorkloadIdentitySigner`); or node instance principal |
+| **Container Instances** | App (`PutLogs`) — no agent or sidecar mechanism; platform is view-only (`RetrieveLogs`) | App (`PostMetricData`) | App (OTLP) | Resource principal v2.2 — exactly what `ResourcePrincipalSigner` implements (per-container opt-out flag `isResourcePrincipalDisabled`) |
+| Functions | Platform (invocation logs, captures stdout/stderr) | App (`PostMetricData`) | Platform (default invocation span) **plus** App (OTLP, via parsed `OCI_TRACE_COLLECTOR_URL`) | Resource principal v2.2, env vars are file paths — refresh-safe with `ResourcePrincipalSigner` |
 
 Supporting facts: no OTel Collector exporter for any OCI service exists upstream (the
 `ocilogginganalyticsexporter` proposal was closed "not planned"); Oracle ships no collector
@@ -176,7 +182,7 @@ embeds an OTel SDK inside the OCI SDK. The plan below mirrors these shapes exact
 
 **Core OCIKit, zero new dependencies.**
 
-1. `Sources/OCIKit/services/LoggingIngestion/` — `LoggingIngestionClient` (file
+1. `Sources/OCIKit/services/LoggingIngestion/` — `LoggingIngestClient` (file
    `LoggingIngestion.swift`), `LoggingIngestionRouter.swift` (`enum LoggingIngestionAPI: API`,
    version `/20200831`, one case `putLogs(logId:)`), `Models/`: `PutLogsDetails`,
    `LogEntryBatch`, `LogEntry`, `LoggingIngestionError`. Client shape mirrors `SecretsClient`
@@ -184,9 +190,19 @@ embeds an OTel SDK inside the OCI SDK. The plan below mirrors these shapes exact
 2. `Region+Service`: `case loggingingestion` →
    `"ingestion.logging.\(region.urlPart).oci.oraclecloud.com"`.
 3. **`OCILogHandler`** — swift-log backend + `OCILogBatcher` actor:
-   - sync `log(...)` appends under `Mutex`/hand-off to the actor; interval + size-threshold
-     flush via `Task.sleep` loop; explicit `flush()`/`shutdown()` drain. No GCD (house style =
-     the `OKEWorkloadIdentitySigner` idiom).
+   - **Hand-off**: the sync `log(...)` hot path never blocks and never spawns per-record
+     `Task`s (unbounded unstructured tasks, per-record allocation, lost ordering). It yields
+     into a bounded `AsyncStream` — `continuation.yield` is synchronous and `Sendable`-safe,
+     the buffering policy (`.bufferingOldest(capacity)`) provides the bounded buffer and
+     overflow-drop semantics for free, and `yield`'s result reports drops so the handler can
+     keep a dropped-record counter.
+   - **Consumer**: the `OCILogBatcher` actor is the stream's single consumer. One long-lived
+     drain task — owned by the batcher and cancelled deterministically in `shutdown()` —
+     accumulates records and flushes on size threshold or interval tick
+     (cancellation-cooperative `Task.sleep`); in-flight flushes are coalesced (the
+     `OKEWorkloadIdentitySigner` idiom). Explicit `func flush() async` and
+     `func shutdown() async` drain the buffer. No GCD, no semaphores, no `Task.detached`;
+     all public types `Sendable` under strict concurrency.
    - **Recursion guard** (roadmap calls this out; now concretely mapped): core's global
      `logger` and `HTTPClient.send`'s debug logging would route through the bootstrapped
      LoggingSystem during a flush. The batcher's internal client gets a no-op/stderr logger;
@@ -217,79 +233,76 @@ minimal: **`postMetricData` only** (1 of 18 ops; `summarizeMetricsData`/`listMet
 2. `Region+Service`: `case monitoringingestion` →
    `"telemetry-ingestion.\(region.urlPart).oraclecloud.com"` (no `.oci.` — precedent for
    suffix divergence already exists: `objectstorage`).
-3. **`OCIMetricsFactory`** — swift-metrics backend: actor-owned registry, 60 s default step
-   (Micronaut/Helidon precedent), chunk flushes to ≤ 50 streams, synthesize a default
-   dimension for label-less metrics (server rejects empty dims), sanitize keys/values,
-   drop-and-count datapoints older than 2 h, parse `failedMetrics` inside 200s. Config:
-   `namespace` (required), `compartmentId` (required; from resource principal env where
-   available), `resourceGroup?`, extra common dimensions.
-   - Placement decision needed (§6): core (adds zero-dep `swift-metrics`) vs. opt-in
-     `OCIKitObservability` product.
+3. **`OCIMetricsFactory`** — swift-metrics backend, in **core OCIKit** (§6 decision 2):
+   - **Hot path**: the handler classes (`CounterHandler`/`RecorderHandler`/`TimerHandler`)
+     record synchronously into `Mutex`-guarded storage (`Synchronization` — already the house
+     idiom), non-blocking and `Sendable`-clean; only counter/recorder/timer are required
+     (meter and FP-counter have protocol-provided defaults).
+   - **Exporter**: an actor snapshots the registry on a 60 s default step
+     (Micronaut/Helidon precedent) from a single cancellation-cooperative `Task.sleep` loop
+     owned by the actor and cancelled in `shutdown()`; flushes chunk to ≤ 50 streams,
+     synthesize a default dimension for label-less metrics (server rejects empty dims),
+     sanitize keys/values, drop-and-count datapoints older than 2 h, and parse
+     `failedMetrics` inside 200s.
+   - Config: `namespace` (required), `compartmentId` (required; from resource principal env
+     where available), `resourceGroup?`, extra common dimensions.
 4. Tests: same split as Phase 1.
 
-### Phase 3 — Traces (recipe + FDK support, no new OCIKit client)
+### Traces — nothing to build (fixes tracked in [#86](https://github.com/iliasaz/oci-swift-sdk/issues/86))
 
-There is **no OCI-signed trace sink**, and swift-otel already does the OTLP job perfectly —
-so OCIKit ships no tracer and takes no swift-otel dependency. Deliverables:
+There is **no OCI-signed trace sink**, APM ingestion is data-key-authenticated (§2.3), and
+Functions already injects the collector URL + trace context at runtime (§2.4) — so OCIKit
+ships no tracer, no trace client, and takes no swift-otel dependency. The only SDK work is
+repairing omissions in `OCIKitFunctions`, tracked separately in
+[#86](https://github.com/iliasaz/oci-swift-sdk/issues/86): the raw-header drop
+(`FunctionServer.swift:155`), a `TracingContext` on `InvocationContext`, and a defensive
+collector-URL parser. Beyond that, span upload is any OTLP/HTTP exporter's job (swift-otel),
+covered by the Phase 3 recipe.
 
-1. **FDK tracing support in `OCIKitFunctions`** (the only place OCIKit code is needed):
-   - Fix the raw-header drop (`FunctionServer.swift:155`) so X-B3 headers reach handlers.
-   - `TracingContext` on `InvocationContext` (mirrors fdk-java): `isEnabled`,
-     `traceCollectorURL`, `traceId`, `spanId`, `parentSpanId`, `isSampled` (default true when
-     absent), `serviceName` (`app::fn` lowercased).
-   - A defensive collector-URL parser → `(otlpTracesURL, dataKeyHeader)`, handling
-     `public-span`/`private-span` and falling back to explicit config (the composition is
-     observed-stable, documented-format, but not contractually promised).
-2. **A documented recipe + example** (docs/example app, swift-otel as an *example* dep only,
-   like `Tests/functions-live-test` is standalone): swift-otel `OTLPHTTP` →
+**Data-key distribution — no new SDK surface needed.** APM domain creation and data-key
+generation/rotation are one-time **control-plane** operations (`apm-control-plane` 20200630,
+via Console/CLI/Terraform — out of scope per the data-plane charter). At runtime, the
+recommended pattern is: the operator stores the data key (and the domain's
+`dataUploadEndpoint`) in a **Vault secret**, and the workload reads it at startup with the
+existing `SecretsClient.getSecretBundle` under its injected principal — works today on every
+runtime with zero new OCIKit code. On Functions, traces don't even need Vault: the platform
+injects the public key via `OCI_TRACE_COLLECTOR_URL`; Vault matters there only for OTLP
+*metrics* (private key, never injected) and on VM/OKE/Container Instances (where nothing
+injects endpoint or key). The alternative — an `apm-control-plane` data-key client
+(GetApmDomain/ListDataKeys) — stays backlog, and Vault remains the better default:
+ListDataKeys returns the actual key **values** (live-verified), so any policy granting it is
+as sensitive as the keys themselves.
+
+### Phase 3 — Docs + examples
+
+1. A per-runtime deployment guide (the §4 matrix + IAM recipes + which signer to construct),
+   including the Always Free guidance (A1: agent or SDK; E2.1.Micro: SDK only).
+2. **The traces recipe + example** (swift-otel as an *example-only* dep, standalone like
+   `Tests/functions-live-test`): swift-otel `OTLPHTTP` →
    `<dataUploadEndpoint>/20200101/opentelemetry/{public|private}/v1/traces` with
    `headers: [("authorization", "dataKey <key>")]`; caveats: span links dropped, no OTLP
    logs, 1,000 events/hr on Always Free, B3 64-bit trace ids left-pad to 128-bit W3C.
-3. **Data-key distribution — no new SDK surface needed.** APM domain creation and data-key
-   generation/rotation are one-time **control-plane** operations (`apm-control-plane`
-   20200630, via Console/CLI/Terraform — out of scope per the data-plane charter). At
-   runtime, the recommended pattern is: the operator stores the data key (and the domain's
-   `dataUploadEndpoint`) in a **Vault secret**, and the workload reads it at startup with the
-   existing `SecretsClient.getSecretBundle` under its injected principal — works today on
-   every runtime with zero new OCIKit code. On Functions, traces don't even need Vault: the
-   platform injects the public key via `OCI_TRACE_COLLECTOR_URL`; Vault matters there only
-   for OTLP *metrics* (private key, never injected) and on VM/OKE/Container Instances (where
-   nothing injects endpoint or key).
-4. Optional backlog: `apm-control-plane` data-key client (GetApmDomain/ListDataKeys — lets a
-   workload bootstrap endpoint+keys itself with only an IAM policy, as an alternative to the
-   Vault pattern). Caveat making Vault the better default: ListDataKeys returns the actual
-   key **values** (live-verified), so any policy granting it is as sensitive as the keys
-   themselves — Vault gives finer-grained, per-secret control.
 
-### Phase 4 — Docs tying it together
+## 6. Decisions (resolved by maintainer, 2026-07-21)
 
-A per-runtime deployment guide (the §4 matrix + IAM recipes + which signer to construct),
-including the Always Free guidance (A1: agent or SDK; E2.1.Micro: SDK only).
-
-## 6. Decisions needed before implementation
-
-1. **Promote metrics (Phase 2) into the observability effort?** Recommended: yes,
-   ingestion-slice only, with an explicit ROADMAP edit. Alternatives: APM-OTLP-metrics-only
-   (forces APM domain + swift-otel + no principals — poor), or logs-only (ships 1 of 3
-   signals).
-2. **New dependency `swift-metrics` — and where does `OCIMetricsFactory` live?**
-   (CLAUDE.md: deps need sign-off.) Options: (a) core OCIKit — it's an Apple, zero-dep,
-   NIO-free API package; range-compatible with swift-configuration's optional-trait use;
-   (b) new opt-in product `OCIKitObservability` (SE-0226 keeps it off non-consumers) — the
-   raw `MonitoringClient` stays core either way. My recommendation: **(a) core** — the
-   package is lighter than what core already carries, and a product boundary between the
-   client and its factory buys nothing.
-3. **Naming picks**: `LoggingIngestionClient` vs `LoggingIngestClient`; `Service` cases
-   `loggingingestion`/`monitoringingestion`; product name if (b) above.
-4. **swift-log floor**: implement the classic `LogHandler` signature (works across 1.x,
-   current floor `from: 1.0.0`) or adopt the new `LogEvent` path (requires raising the floor
-   to ≥ 1.13; `Package.resolved` currently pins a stale 1.6.4)? Recommended: classic
-   signature now — zero floor change; revisit when the ecosystem settles on `LogEvent`.
-5. **ROADMAP reconciliation** (edits to make when this plan is accepted): move the promoted
-   Monitoring slice out of backlog; add a note that APM OTLP ingest (traces/metrics,
-   data-key auth) is covered by a recipe, not a client — the audit couldn't see it because
-   the APM upload endpoint is not a module in any language SDK (the roadmap's exclusion of
-   APM trace *query* stands untouched).
+1. **Metrics promoted into the observability effort** — yes; the `postMetricData` ingestion
+   slice only (`summarizeMetricsData`/`listMetrics` and the `telemetry.*` query host stay
+   backlog). ROADMAP updated accordingly.
+2. **`swift-metrics` dependency approved; `OCIMetricsFactory` lives in core OCIKit** — it is
+   an Apple, zero-dep, NIO-free API package (lighter than anything core already carries), and
+   a product boundary between `MonitoringClient` and its factory buys nothing.
+3. **Client type name: `LoggingIngestClient`** (file `LoggingIngestion.swift`, directory
+   `services/LoggingIngestion/`); `Service` cases `loggingingestion` / `monitoringingestion`.
+4. **Classic `LogHandler` signature for now** — works across the whole swift-log 1.x line
+   with no floor change. Updating the dependency to 1.14 and evaluating the `LogEvent` path
+   is tracked in [#87](https://github.com/iliasaz/oci-swift-sdk/issues/87).
+5. **ROADMAP reconciled** (same-day edit): promoted Monitoring slice noted in Tier 1 and in
+   the backlog entry; APM-OTLP-recipe note added (the audit couldn't see the APM upload
+   endpoint because it is not a module in any language SDK — the exclusion of APM trace
+   *query* stands untouched); ROADMAP now references this document.
+6. **Traces need no plan phase** — `OCIKitFunctions` fixes are tracked in
+   [#86](https://github.com/iliasaz/oci-swift-sdk/issues/86); everything else is the Phase 3
+   recipe.
 
 ## 7. Explicit non-goals
 
