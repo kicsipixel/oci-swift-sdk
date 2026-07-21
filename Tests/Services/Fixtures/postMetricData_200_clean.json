@@ -1,0 +1,16 @@
+{
+  "bodyBase64": "eyJmYWlsZWRNZXRyaWNzIjogW10sICJmYWlsZWRNZXRyaWNzQ291bnQiOiAwfQ==",
+  "headers": {
+    "Connection": "keep-alive",
+    "Content-Encoding": "gzip",
+    "Content-Type": "application/json",
+    "Date": "Tue, 21 Jul 2026 22:56:41 GMT",
+    "Transfer-Encoding": "chunked",
+    "opc-request-id": "EXAMPLE"
+  },
+  "request": {
+    "method": "POST",
+    "url": "https://telemetry-ingestion.us-phoenix-1.oraclecloud.com/20180401/metrics"
+  },
+  "statusCode": 200
+}
