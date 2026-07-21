@@ -105,6 +105,10 @@ postgres/oracle_fdw/**
 # Oracle wallet files
 oracle/*.pem
 
+# Local OKE kubeconfig / service-account token (secret — never commit)
+oke-kubeconfig-sa-token.yaml
+*-sa-token.yaml
+
 # Claude
 # (an earlier `.CL*` rule matches `.claude` case-insensitively on macOS, so we
 #  must re-include the directory before tracking just `.claude/skills/`.)
