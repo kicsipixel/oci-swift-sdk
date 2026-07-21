@@ -24,6 +24,10 @@ import Testing
 
 @testable import OCIKit
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 // MARK: - Router
 
 struct MonitoringRouterTests {

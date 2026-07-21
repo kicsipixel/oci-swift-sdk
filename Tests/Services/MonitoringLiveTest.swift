@@ -34,8 +34,18 @@ struct MonitoringLiveTest {
     let profile = env["OCI_PROFILE"] ?? "DEFAULT"
     let namespace = env["MONITORING_NAMESPACE"] ?? "ocikit_probe"
 
+    // Post to the region the credentials belong to, otherwise the datapoint
+    // lands in a region the maintainer never looks at. OCI_REGION wins, then
+    // the profile's own region, then us-phoenix-1.
+    let profileRegionId = try extractUserRegion(from: configFilePath, profile: profile)
+    let regionId = env["OCI_REGION"] ?? profileRegionId ?? "us-phoenix-1"
+    guard let region = Region.from(regionId: regionId) else {
+      Issue.record("MonitoringLiveTest: unknown region id '\(regionId)'")
+      return
+    }
+
     let signer = try APIKeySigner(configFilePath: configFilePath, configName: profile)
-    let client = try MonitoringClient(region: .phx, signer: signer)
+    let client = try MonitoringClient(region: region, signer: signer)
 
     let details = PostMetricDataDetails(
       metricData: [
