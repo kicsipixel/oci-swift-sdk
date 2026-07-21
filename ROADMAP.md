@@ -36,35 +36,24 @@ Two recurring OCI nuances shaped this audit:
 
 | Verdict | Count |
 |---|---|
-| Tier 1 — high priority | 4 |
+| Tier 1 — high priority | 3 |
 | Tier 2 — medium priority | 2 |
 | Backlog — low priority | 16 |
-| Already implemented | 6 services + auth signers |
+| Already implemented | 7 services + auth signers |
 | Control-plane only (excluded) | 109 modules |
 | Low value (excluded, reasons below) | 29 modules |
 | Not a service (helpers) | 3 modules |
 
 **Already implemented:** ObjectStorage, Secrets (bundle retrieval), AI Language,
-Generative AI Inference, IAM/Identity (partial), Container Instances — plus the auth core:
-API key signer, instance principal, resource principal v2.2, OKE workload identity,
-security token signer.
+Generative AI Inference, IAM/Identity (partial), Container Instances, Functions (invoke
+client + the `OCIKitFunctions` FDK) — plus the auth core: API key signer, instance
+principal, resource principal v2.2, OKE workload identity, security token signer.
 
 ---
 
 ## Tier 1 — High priority
 
-### 1. Functions — Invoke (`functions`, invoke client only)
-
-- **Ops (1):** `invokeFunction` — raw `Data` in / `Data` out, `fn-invoke-type: sync|detached`.
-- **Why:** textbook data-plane verb; lets a Swift service fan out isolated or differently
-  scaled work (PDF generation, moderation pass, sandboxed third-party code) with the signers
-  already in the SDK. Best cost-to-value ratio in the whole audit.
-- **Cost/quirks:** the client is a thin passthrough — expose raw `Data` + headers, don't force
-  JSON decode. Invocations target the function's dedicated `invokeEndpoint` host — accept it
-  as a caller-supplied parameter rather than implementing the management client (16
-  control-plane ops, skip).
-
-### 2. Logging Ingestion (`loggingingestion`) + swift-log backend
+### 1. Logging Ingestion (`loggingingestion`) + swift-log backend
 
 - **Ops (1):** `putLogs` — push batched `LogEntry` records to a Custom Log OCID.
 - **Why:** today a Swift service on OCI has no first-party way to get structured logs into
@@ -80,7 +69,7 @@ security token signer.
 - **Cost/quirks:** dedicated host `ingestion.logging.{region}` — needs its own entry in
   `Region+Service.swift`. The `logging` (log-group CRUD) module stays out of scope.
 
-### 3. Email Delivery — Data Plane (`email_data_plane`)
+### 2. Email Delivery — Data Plane (`email_data_plane`)
 
 - **Ops (2):** `submitEmail` (JSON: sender, to/cc/bcc, subject, HTML+text bodies, returns
   suppressed recipients) and `submitRawEmail` (pre-built RFC 5322 MIME bytes).
@@ -92,7 +81,7 @@ security token signer.
   metadata via headers (recipients comma-joined into one header). ~6 flat Codable models —
   Secrets-sized effort.
 
-### 4. Identity Data Plane (`identity_data_plane`)
+### 3. Identity Data Plane (`identity_data_plane`)
 
 - **Ops (2):** `generateUserSecurityToken` (mint/refresh a UPST with an ephemeral RSA
   keypair) and `generateScopedAccessToken`.
@@ -259,15 +248,15 @@ audit findings so they can be picked up without re-research.
    credentials, no principals) rather than a ported REST client.
 5. **WebSockets remain blocked on Linux** (AI Speech realtime STT) — same class of platform
    blocker as OKE Workload Identity; revisit only with a platform-specific carve-out.
-6. **Raw-bytes request/response paths** (Functions invoke, generic artifacts, speech audio,
-   raw email MIME) should reuse the ObjectStorage `Data`-in/`Data`-out pattern rather than
-   forcing JSON models.
+6. **Raw-bytes request/response paths** (generic artifacts, speech audio, raw email MIME)
+   should reuse the ObjectStorage `Data`-in/`Data`-out pattern rather than forcing JSON
+   models — as the shipped `FunctionsInvokeClient` already does.
 
 ## Suggested sequencing
 
 | Phase | Work | Rationale |
 |---|---|---|
-| 1 | Functions Invoke; spike: stomp-nio ↔ OCI Queue recipe | Smallest surfaces, highest leverage; validates the Queue-without-REST bet early |
+| 1 | Spike: stomp-nio ↔ OCI Queue recipe | Small surface, high leverage; validates the Queue-without-REST bet early |
 | 2 | Logging Ingestion + `OCILogHandler`, Email Data Plane | Production server-app table stakes: logs and transactional email |
 | 3 | Identity Data Plane (+ `SecurityTokenSigner` self-refresh integration) | Fixes a real limitation in shipped auth |
 | 4 | KMS Crypto, Certificates | Security round-out (small, Secrets-shaped) |
