@@ -21,6 +21,16 @@ Support for OCI services is being added incrementally, starting with those curre
 - [x] Identity & Access Management (compartments)
 - [x] Secrets (secret bundles)
 - [x] AI Language (health entity detection)
+- [x] Functions — run Swift as a function (FDK) + invoke a function
+
+## OCI Functions
+
+`OCIKitFunctions` is an opt-in [Function Development Kit](Sources/OCIKitFunctions/README.md)
+that lets a Swift program run as an OCI Function (it serves the Fn `http-stream`
+contract over a Unix socket). To call a deployed function from a Swift service,
+`OCIKit` ships `FunctionsInvokeClient` (no extra dependencies). See the
+[OCIKitFunctions guide](Sources/OCIKitFunctions/README.md) for writing, deploying,
+and invoking functions.
 
 ## License
 
