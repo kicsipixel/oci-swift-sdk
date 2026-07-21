@@ -1,0 +1,16 @@
+{
+  "bodyBase64": "eyJjb2RlIjogIjQwNCIsICJtZXNzYWdlIjogIm9jaWQxLmxvZy5vYzEucGh4LkVYQU1QTEVCQUQgbG9nSWQgbm90IGZvdW5kIn0=",
+  "headers": {
+    "Connection": "keep-alive",
+    "Content-Encoding": "gzip",
+    "Content-Type": "application/json",
+    "Date": "Tue, 21 Jul 2026 22:54:28 GMT",
+    "Transfer-Encoding": "Identity",
+    "opc-request-id": "EXAMPLE"
+  },
+  "request": {
+    "method": "POST",
+    "url": "https://ingestion.logging.us-phoenix-1.oci.oraclecloud.com/20200831/logs/ocid1.log.oc1.phx.EXAMPLEBAD/actions/push"
+  },
+  "statusCode": 404
+}

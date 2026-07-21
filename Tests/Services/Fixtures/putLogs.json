@@ -1,0 +1,16 @@
+{
+  "bodyBase64": "",
+  "headers": {
+    "Connection": "keep-alive",
+    "Content-Encoding": "gzip",
+    "Content-Type": "application/json",
+    "Date": "Tue, 21 Jul 2026 22:54:17 GMT",
+    "Transfer-Encoding": "Identity",
+    "opc-request-id": "EXAMPLE"
+  },
+  "request": {
+    "method": "POST",
+    "url": "https://ingestion.logging.us-phoenix-1.oci.oraclecloud.com/20200831/logs/ocid1.log.oc1.phx.EXAMPLE/actions/push"
+  },
+  "statusCode": 200
+}
