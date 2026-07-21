@@ -149,7 +149,7 @@ mixing trivial.
 
 ## 4. Per-runtime reality: who collects what
 
-| Runtime | Logs | App metrics | Traces | Injected principal (OCIKit signer) |
+| Runtime | Logs → [OCI Logging](https://docs.oracle.com/en-us/iaas/Content/Logging/home.htm) | App metrics → [OCI Monitoring](https://docs.oracle.com/en-us/iaas/Content/Monitoring/home.htm) | Traces → [OCI APM](https://docs.oracle.com/en-us/iaas/application-performance-monitoring/home.htm) | Injected principal (OCIKit signer) |
 |---|---|---|---|---|
 | Compute VM (incl. Always Free **A1.Flex** — agent live-verified RUNNING; the "not supported on A1" docs note is a stale pre-2022 doc bug) | Agent tails files (Custom Logs plugin) — **or** app `PutLogs` | **App: PostMetricData** | **App: OTLP → APM** | Instance principal (`InstancePrincipalSigner`) |
 | Compute VM **E2.1.Micro** (Always Free x86) | **App PutLogs is the only safe path** — Console shape-gates the agent plugin ("Not supported plugin is disabled for Shape VM.Standard.E2.1.Micro", 2022, unrefuted; 1 GB RAM argues against fluentd anyway) | App | App | Instance principal |
@@ -245,9 +245,21 @@ so OCIKit ships no tracer and takes no swift-otel dependency. Deliverables:
    `<dataUploadEndpoint>/20200101/opentelemetry/{public|private}/v1/traces` with
    `headers: [("authorization", "dataKey <key>")]`; caveats: span links dropped, no OTLP
    logs, 1,000 events/hr on Always Free, B3 64-bit trace ids left-pad to 128-bit W3C.
-3. Optional backlog: `apm-control-plane` data-key client (GetApmDomain/ListDataKeys — lets a
-   resource-principal workload bootstrap endpoint+keys itself; needed for OTLP *metrics* from
-   Functions since the private key is not in the collector URL).
+3. **Data-key distribution — no new SDK surface needed.** APM domain creation and data-key
+   generation/rotation are one-time **control-plane** operations (`apm-control-plane`
+   20200630, via Console/CLI/Terraform — out of scope per the data-plane charter). At
+   runtime, the recommended pattern is: the operator stores the data key (and the domain's
+   `dataUploadEndpoint`) in a **Vault secret**, and the workload reads it at startup with the
+   existing `SecretsClient.getSecretBundle` under its injected principal — works today on
+   every runtime with zero new OCIKit code. On Functions, traces don't even need Vault: the
+   platform injects the public key via `OCI_TRACE_COLLECTOR_URL`; Vault matters there only
+   for OTLP *metrics* (private key, never injected) and on VM/OKE/Container Instances (where
+   nothing injects endpoint or key).
+4. Optional backlog: `apm-control-plane` data-key client (GetApmDomain/ListDataKeys — lets a
+   workload bootstrap endpoint+keys itself with only an IAM policy, as an alternative to the
+   Vault pattern). Caveat making Vault the better default: ListDataKeys returns the actual
+   key **values** (live-verified), so any policy granting it is as sensitive as the keys
+   themselves — Vault gives finer-grained, per-secret control.
 
 ### Phase 4 — Docs tying it together
 
