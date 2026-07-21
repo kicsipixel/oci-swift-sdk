@@ -128,8 +128,20 @@ uploads with that data key alone: no request signing, no signer, no IAM policy.
 
 Parsing is defensive — the injected URL's composition is observed-stable but not
 contractually promised, so `collectorEndpoint` is `nil` (rather than wrong) whenever
-the URL doesn't match the documented shape, and a function that must trace should fall
-back to explicitly configured values.
+the URL doesn't match the documented shape. It is also `nil` whenever `isEnabled` is
+`false`, so gating an export on it alone never uploads spans with tracing switched off.
+A function that must trace regardless falls back to explicitly configured values,
+which yield the same type:
+
+```swift
+let endpoint = context.tracing.collectorEndpoint
+  ?? APMCollectorEndpoint(dataUploadEndpoint: apmDataUploadEndpoint, dataKey: dataKeyFromVault)
+```
+
+`dataUploadEndpoint` is the APM domain's own upload endpoint
+(`https://<domain>.apm-agt.<region>.oci.oraclecloud.com`); the initializer composes
+`/20200101/opentelemetry/public/v1/traces` onto it. Pass `visibility: .privateSpan`
+with a private data key to post private spans.
 
 ### Deadlines and errors
 

@@ -163,6 +163,48 @@ struct APMCollectorEndpointTests {
     #expect(endpoint.otlpTracesURL.fragment == nil)
   }
 
+  // MARK: - explicit configuration (the documented fallback)
+
+  @Test("the explicit initializer composes the OTLP traces path onto an APM dataUploadEndpoint")
+  func explicitDataUploadEndpoint() throws {
+    let base = try #require(URL(string: "https://\(host)"))
+    let endpoint = APMCollectorEndpoint(dataUploadEndpoint: base, dataKey: "explicitKey")
+    #expect(endpoint.visibility == .publicSpan)
+    #expect(endpoint.dataKey == "explicitKey")
+    #expect(endpoint.dataKeyHeaderValue == "dataKey explicitKey")
+    #expect(endpoint.otlpTracesURL.absoluteString == "https://\(host)/20200101/opentelemetry/public/v1/traces")
+  }
+
+  @Test("the explicit initializer honours a trailing slash, a private visibility, and a custom API version")
+  func explicitDataUploadEndpointVariants() throws {
+    let base = try #require(URL(string: "https://\(host)/"))
+    let endpoint = APMCollectorEndpoint(
+      dataUploadEndpoint: base,
+      dataKey: "explicitPrivateKey",
+      visibility: .privateSpan,
+      apiVersion: "20250601"
+    )
+    #expect(endpoint.visibility == .privateSpan)
+    #expect(endpoint.otlpTracesURL.absoluteString == "https://\(host)/20250601/opentelemetry/private/v1/traces")
+  }
+
+  @Test("the explicit initializer reproduces exactly what parsing the injected collector URL yields")
+  func explicitInitializerMatchesParsedEndpoint() throws {
+    let parsed = try #require(
+      APMCollectorEndpoint(collectorURL: "https://\(host)/20200101/observations/public-span?dataKey=k")
+    )
+    let base = try #require(URL(string: "https://\(host)"))
+    #expect(APMCollectorEndpoint(dataUploadEndpoint: base, dataKey: "k") == parsed)
+  }
+
+  @Test("an already-composed OTLP URL can be wrapped directly")
+  func explicitOTLPTracesURL() throws {
+    let url = try #require(URL(string: "https://\(host)/20200101/opentelemetry/public/v1/traces"))
+    let endpoint = APMCollectorEndpoint(otlpTracesURL: url, dataKey: "k", visibility: .publicSpan)
+    #expect(endpoint.otlpTracesURL == url)
+    #expect(endpoint.dataKeyHeaderValue == "dataKey k")
+  }
+
   // MARK: - init?(collectorURL: URL) parity
 
   @Test("the URL-typed initializer agrees with the String-typed initializer")

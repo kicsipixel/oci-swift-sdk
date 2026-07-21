@@ -100,9 +100,16 @@ public struct TracingContext: Sendable, Equatable {
 
   /// The APM OTLP/HTTP traces endpoint and data key parsed out of
   /// ``traceCollectorURL``, or `nil` when tracing is off or the URL does not match
-  /// the documented shape — in which case fall back to explicit configuration.
+  /// the documented shape — in which case fall back to explicit configuration
+  /// (see ``APMCollectorEndpoint/init(dataUploadEndpoint:dataKey:visibility:apiVersion:)``).
+  ///
+  /// Exporting spans is safe to gate on this property alone: it is `nil` whenever
+  /// ``isEnabled`` is `false`, even if a collector URL is configured anyway. To parse
+  /// a collector URL regardless of the platform's tracing switch, pass
+  /// ``traceCollectorURL`` to ``APMCollectorEndpoint``'s parsing initializer
+  /// directly.
   public var collectorEndpoint: APMCollectorEndpoint? {
-    guard let traceCollectorURL else { return nil }
+    guard isEnabled, let traceCollectorURL else { return nil }
     return APMCollectorEndpoint(collectorURL: traceCollectorURL)
   }
 

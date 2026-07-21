@@ -204,7 +204,10 @@ struct TracingContextTests {
     let url =
       "https://EXAMPLE.apm-agt.us-phoenix-1.oci.oraclecloud.com/20200101/observations/public-span"
       + "?dataFormat=zipkin&dataFormatVersion=2&dataKey=examplePublicDataKey"
-    let context = TracingContext(runtime: runtime(["OCI_TRACE_COLLECTOR_URL": url]), headers: FunctionHeaders())
+    let context = TracingContext(
+      runtime: runtime(["OCI_TRACING_ENABLED": "1", "OCI_TRACE_COLLECTOR_URL": url]),
+      headers: FunctionHeaders()
+    )
     let endpoint = try #require(context.collectorEndpoint)
     #expect(endpoint.visibility == .publicSpan)
     #expect(endpoint.dataKey == "examplePublicDataKey")
@@ -217,9 +220,35 @@ struct TracingContextTests {
   @Test("collectorEndpoint is nil when traceCollectorURL does not match the documented shape")
   func collectorEndpointNilForUnrecognizedURL() {
     let context = TracingContext(
-      runtime: runtime(["OCI_TRACE_COLLECTOR_URL": "https://example.com/totally/unrelated"]),
+      runtime: runtime([
+        "OCI_TRACING_ENABLED": "1", "OCI_TRACE_COLLECTOR_URL": "https://example.com/totally/unrelated",
+      ]),
       headers: FunctionHeaders()
     )
+    #expect(context.collectorEndpoint == nil)
+  }
+
+  @Test("collectorEndpoint is nil when tracing is disabled even though a valid collector URL is configured")
+  func collectorEndpointNilWhenDisabledWithValidURL() {
+    let url =
+      "https://EXAMPLE.apm-agt.us-phoenix-1.oci.oraclecloud.com/20200101/observations/public-span"
+      + "?dataFormat=zipkin&dataFormatVersion=2&dataKey=examplePublicDataKey"
+    let context = TracingContext(
+      runtime: runtime(["OCI_TRACING_ENABLED": "0", "OCI_TRACE_COLLECTOR_URL": url]),
+      headers: FunctionHeaders()
+    )
+    #expect(!context.isEnabled)
+    #expect(context.traceCollectorURL == url)
+    #expect(context.collectorEndpoint == nil)
+    // The raw URL stays parseable for a caller that opts out of the isEnabled gate.
+    #expect(APMCollectorEndpoint(collectorURL: url) != nil)
+  }
+
+  @Test("collectorEndpoint is nil when OCI_TRACING_ENABLED is absent but a collector URL is configured")
+  func collectorEndpointNilWhenEnabledFlagAbsent() {
+    let url =
+      "https://EXAMPLE.apm-agt.us-phoenix-1.oci.oraclecloud.com/20200101/observations/public-span?dataKey=k"
+    let context = TracingContext(runtime: runtime(["OCI_TRACE_COLLECTOR_URL": url]), headers: FunctionHeaders())
     #expect(context.collectorEndpoint == nil)
   }
 

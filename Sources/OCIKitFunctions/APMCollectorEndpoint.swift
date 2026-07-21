@@ -31,11 +31,11 @@ import Foundation
 /// key into ``dataKeyHeaderValue`` — everything a stock OTLP/HTTP exporter needs:
 ///
 /// ```swift
-/// guard let endpoint = context.tracing.collectorEndpoint else {
-///   // The URL did not match the documented shape — fall back to explicit
-///   // configuration (an APM data key read from Vault, say).
-///   return .text("tracing not configured")
-/// }
+/// // Tracing off, or the injected URL did not match the documented shape — fall
+/// // back to explicit configuration (an APM data key read from Vault, say).
+/// let endpoint =
+///   context.tracing.collectorEndpoint
+///   ?? APMCollectorEndpoint(dataUploadEndpoint: apmDataUploadEndpoint, dataKey: vaultDataKey)
 /// // endpoint.otlpTracesURL       -> https://<domain>.../20200101/opentelemetry/public/v1/traces
 /// // endpoint.dataKeyHeaderValue  -> "dataKey <data key>" (send as `Authorization`)
 /// ```
@@ -44,10 +44,11 @@ import Foundation
 /// no signer, and no IAM policy are involved on this path.
 ///
 /// Parsing is deliberately defensive. The composition of the injected URL is
-/// observed-stable but not contractually promised, so every initializer here is
-/// failable and returns `nil` rather than trapping or guessing whenever the URL
+/// observed-stable but not contractually promised, so the parsing initializers are
+/// failable and return `nil` rather than trapping or guessing whenever the URL
 /// does not carry an API version, an `observations/{public-span|private-span}`
-/// path, and a non-empty `dataKey` query item.
+/// path, and a non-empty `dataKey` query item. The non-failable initializers cover
+/// the fallback: an endpoint composed from explicitly configured values.
 public struct APMCollectorEndpoint: Sendable, Equatable {
 
   /// Which of an APM domain's two span-ingestion paths the collector URL names.
@@ -92,6 +93,55 @@ public struct APMCollectorEndpoint: Sendable, Equatable {
 
   /// The OTLP/HTTP path segments that follow the visibility segment.
   private static let otlpTracesSegments = ["v1", "traces"]
+
+  /// The APM ingestion API version used when composing an endpoint from explicit
+  /// configuration — the version the platform's collector URL carries today.
+  public static let defaultAPIVersion = "20200101"
+
+  /// Builds an endpoint from an already-composed OTLP/HTTP traces URL.
+  ///
+  /// Use this when the platform injected no usable collector URL and the full
+  /// endpoint is configured explicitly.
+  ///
+  /// - Parameters:
+  ///   - otlpTracesURL: The OTLP/HTTP traces endpoint to post spans to.
+  ///   - dataKey: The APM data key to authenticate uploads with.
+  ///   - visibility: Which span path `otlpTracesURL` names.
+  public init(otlpTracesURL: URL, dataKey: String, visibility: Visibility) {
+    self.otlpTracesURL = otlpTracesURL
+    self.dataKey = dataKey
+    self.visibility = visibility
+  }
+
+  /// Builds an endpoint from an APM domain's data-upload endpoint, composing the
+  /// OTLP/HTTP traces path onto it.
+  ///
+  /// This is the fallback ``TracingContext/collectorEndpoint`` points at: with the
+  /// domain's `dataUploadEndpoint` and a data key (read from Vault, say) in hand, a
+  /// function gets the same endpoint type without re-deriving the OTLP path or the
+  /// `Authorization` format.
+  ///
+  /// - Parameters:
+  ///   - dataUploadEndpoint: The APM domain's `dataUploadEndpoint`, e.g.
+  ///     `https://<domain>.apm-agt.<region>.oci.oraclecloud.com`.
+  ///   - dataKey: The APM data key to authenticate uploads with. It must match
+  ///     `visibility` — a public key for ``Visibility/publicSpan``, a private key
+  ///     for ``Visibility/privateSpan``.
+  ///   - visibility: Which span path to post to. Defaults to
+  ///     ``Visibility/publicSpan``, the path Functions itself is given.
+  ///   - apiVersion: The ingestion API version segment. Defaults to
+  ///     ``defaultAPIVersion``.
+  public init(
+    dataUploadEndpoint: URL,
+    dataKey: String,
+    visibility: Visibility = .publicSpan,
+    apiVersion: String = APMCollectorEndpoint.defaultAPIVersion
+  ) {
+    let segments =
+      [apiVersion, Self.openTelemetrySegment, visibility.rawValue] + Self.otlpTracesSegments
+    let otlpTracesURL = segments.reduce(dataUploadEndpoint) { $0.appending(path: $1) }
+    self.init(otlpTracesURL: otlpTracesURL, dataKey: dataKey, visibility: visibility)
+  }
 
   /// Parses a collector URL string, e.g. the value of `OCI_TRACE_COLLECTOR_URL`.
   ///
