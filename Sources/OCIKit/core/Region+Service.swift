@@ -69,7 +69,7 @@ public enum Region: String, CaseIterable, Sendable {
 }
 
 public enum Service: String {
-  case language, objectstorage, generativeai, iam, secrets, containerinstances
+  case language, objectstorage, generativeai, iam, secrets, containerinstances, monitoringingestion
 
   func getHost(in region: Region) -> String {
     switch self {
@@ -85,6 +85,10 @@ public enum Service: String {
       "secrets.vaults.\(region.urlPart).oci.oraclecloud.com"
     case .containerinstances:
       "compute-containers.\(region.urlPart).oci.oraclecloud.com"
+    case .monitoringingestion:
+      // Metric ingestion has no `.oci.` segment and a different host from the
+      // query-side `telemetry.{region}.oraclecloud.com`.
+      "telemetry-ingestion.\(region.urlPart).oraclecloud.com"
     }
   }
 }
