@@ -30,6 +30,7 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-crypto.git", from: "3.2.0"),
     .package(url: "https://github.com/iliasaz/Perfect-INIParser.git", branch: "master"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
+    .package(url: "https://github.com/apple/swift-metrics.git", from: "2.11.0"),
     .package(url: "https://github.com/apple/swift-configuration.git", from: "1.0.0"),
     // Only reached by the opt-in products' target graphs: the OCIKitFunctions
     // FDK (Unix-domain-socket HTTP/1.1 server) and the OCIKitWorkloadIdentity
@@ -46,6 +47,10 @@ let package = Package(
         .product(name: "_CryptoExtras", package: "swift-crypto"),
         .product(name: "INIParser", package: "Perfect-INIParser"),
         .product(name: "Logging", package: "swift-log"),
+        // A metrics *backend* (`OCIMetricsFactory`) builds against `CoreMetrics`,
+        // not the `Metrics` façade — the façade is the API applications record
+        // through, and depending on it from a backend would be circular.
+        .product(name: "CoreMetrics", package: "swift-metrics"),
         .product(name: "Configuration", package: "swift-configuration"),
       ]
     ),
