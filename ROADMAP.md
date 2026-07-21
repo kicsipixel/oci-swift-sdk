@@ -46,7 +46,8 @@ Two recurring OCI nuances shaped this audit:
 
 **Already implemented:** ObjectStorage, Secrets (bundle retrieval), AI Language,
 Generative AI Inference, IAM/Identity (partial), Container Instances — plus the auth core:
-API key signer, instance principal, resource principal v2.2, security token signer.
+API key signer, instance principal, resource principal v2.2, OKE workload identity,
+security token signer.
 
 ---
 

@@ -117,3 +117,8 @@ oke-kubeconfig-sa-token.yaml
 !.claude/skills/
 CLAUDE.md
 
+
+# OKE / Kubernetes service-account & kubeconfig material (never commit)
+*sa-token*.yaml
+oke-kubeconfig*.yaml
+kubeconfig*
