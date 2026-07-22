@@ -3,7 +3,9 @@
 *Audit date: July 2026. Method: a multi-agent audit of all 171 modules in the reference
 Python SDK (`oci-python-sdk`), triaged against this project's focus, with a deep dive into
 every module that survived triage (23 candidates). Priorities below reflect maintainer
-review of the audit (2026-07-16).*
+review of the audit (2026-07-16). Work that has since shipped keeps its entry in place,
+marked **shipped** with a date, and is also listed under **Already implemented** — the audit
+verdicts stay readable, the inventory stays current.*
 
 ## Guiding principle
 
@@ -36,44 +38,64 @@ Two recurring OCI nuances shaped this audit:
 
 | Verdict | Count |
 |---|---|
-| Tier 1 — high priority | 3 |
+| Tier 1 — high priority | 3 (1 shipped 2026-07) |
 | Tier 2 — medium priority | 2 |
-| Backlog — low priority | 16 |
-| Already implemented | 7 services + auth signers |
+| Backlog — low priority | 16 (1 partially shipped 2026-07) |
+| Already implemented | 9 services + auth signers |
 | Control-plane only (excluded) | 109 modules |
 | Low value (excluded, reasons below) | 29 modules |
 | Not a service (helpers) | 3 modules |
 
 **Already implemented:** ObjectStorage, Secrets (bundle retrieval), AI Language,
 Generative AI Inference, IAM/Identity (partial), Container Instances, Functions (invoke
-client + the `OCIKitFunctions` FDK) — plus the auth core: API key signer, instance
-principal, resource principal v2.2, OKE workload identity, security token signer.
+client + the `OCIKitFunctions` FDK), Logging Ingestion (`putLogs` + the `OCILogHandler`
+swift-log backend), Monitoring (ingestion only — `postMetricData` + the `OCIMetricsFactory`
+swift-metrics backend; the query ops stay in the backlog) — plus the auth core: API key
+signer, instance principal, resource principal v2.2, OKE workload identity, security token
+signer.
 
 ---
 
 ## Tier 1 — High priority
 
-### 1. Logging Ingestion (`loggingingestion`) + swift-log backend
+### 1. Logging Ingestion (`loggingingestion`) + swift-log backend — shipped 2026-07
 
+- **Status: shipped 2026-07** (observability initiative, epic #85 —
+  [OBSERVABILITY.md](OBSERVABILITY.md)), live-verified against a real tenancy and a real OKE
+  cluster. Still open from that epic: the swift-log 1.14 / `LogEvent` follow-up (#87). Not in
+  scope and still backlog: Logging Search, Log Analytics.
 - **Ops (1):** `putLogs` — push batched `LogEntry` records to a Custom Log OCID.
-- **Why:** today a Swift service on OCI has no first-party way to get structured logs into
-  OCI Logging/Log Search/Alarms except stdout-scraping by the platform agent.
-- **The deliverable is two layers, and the second is essential:**
-  1. the raw `putLogs` client (one op, three tiny models);
+- **Why:** before this landed, a Swift service on OCI had no first-party way to get
+  structured logs into OCI Logging/Log Search/Alarms except stdout-scraping by the platform
+  agent.
+- **The deliverable was two layers, and the second was the essential one — both shipped:**
+  1. the raw `putLogs` client (`LoggingIngestClient`, one op, three tiny models);
   2. an **`OCILogHandler`: a swift-log `LogHandler` backend** that batches log records
-     in-memory and flushes them to `putLogs` on a size/interval threshold (plus explicit
-     flush on shutdown). This is what makes adoption zero-friction — apps already using
-     swift-log (including this SDK itself) point their `LoggingSystem` bootstrap at OCI and
-     are done. Design attention: the handler must not log its own failures recursively, and
-     flushing must be actor-isolated (no GCD).
-- **Cost/quirks:** dedicated host `ingestion.logging.{region}` — needs its own entry in
-  `Region+Service.swift`. The `logging` (log-group CRUD) module stays out of scope.
+     in-memory (in the `OCILogBatcher` actor) and flushes them to `putLogs` on a
+     size/interval threshold, plus an explicit flush on shutdown. This is what makes adoption
+     zero-friction — apps already using swift-log (including this SDK itself) point their
+     `LoggingSystem` bootstrap at OCI and are done. Design attention, as required: the
+     handler does not log its own failures recursively, and flushing is actor-isolated
+     (no GCD).
+- **Cost/quirks:** dedicated host `ingestion.logging.{region}` — shipped as its own
+  `.loggingingestion` case in `Region+Service.swift`. The `logging` (log-group CRUD) module
+  stays out of scope.
 - **Expanded 2026-07 by the observability initiative ([OBSERVABILITY.md](OBSERVABILITY.md),
-  #85):** ships together with the promoted Monitoring `postMetricData` slice + an
+  #85):** shipped together with the promoted Monitoring `postMetricData` slice + an
   `OCIMetricsFactory` swift-metrics backend (decisions recorded there, incl. the approved
-  `swift-metrics` core dependency). Tracing needs no client — OCI APM ingests OTLP/HTTP with
-  data-key auth; the deliverable is a documented swift-otel recipe plus `OCIKitFunctions`
-  tracing-context fixes (#86).
+  `swift-metrics` core dependency, now in `Package.swift`). The rest of Monitoring stays
+  backlog.
+- **Tracing needed no client, and none was built.** OCI APM ingests OTLP/HTTP with
+  `Authorization: dataKey` auth (not OCI-signed), so the deliverable was a documented
+  swift-otel recipe rather than a service client — shipped as
+  [docs/observability-deployment.md](docs/observability-deployment.md) (per-runtime guide:
+  which signer, which IAM policy, which endpoint) plus the standalone
+  [Examples/apm-tracing](Examples/apm-tracing) package, where swift-otel is an example-only
+  dependency the SDK itself never takes. SDK-side work was limited to the `OCIKitFunctions`
+  tracing-context fixes (#86): raw invocation headers, `TracingContext`, and the
+  `APMCollectorEndpoint` collector-URL parser. The original audit could not surface the APM
+  upload endpoint at all, because it is not a module in any language SDK; APM trace *query*
+  remains excluded (see Excluded section).
 
 ### 2. Email Delivery — Data Plane (`email_data_plane`)
 
@@ -179,16 +201,14 @@ audit findings so they can be picked up without re-research.
 
 - **Monitoring (`monitoring`)** — `postMetricData` / `summarizeMetricsData` / `listMetrics`
   (3 of 18 ops; ingestion host differs: `telemetry-ingestion.*` vs `telemetry.*`).
-  **`postMetricData` promoted to Tier 1 (2026-07, observability initiative — see
-  [OBSERVABILITY.md](OBSERVABILITY.md))**; `summarizeMetricsData`/`listMetrics` and the
-  `telemetry.*` query host remain backlog.
-- **APM OTLP ingest (traces/metrics)** — needs no OCIKit client: the APM collector accepts
-  OTLP/HTTP with `Authorization: dataKey` auth (not OCI-signed), so the deliverable is a
-  documented swift-otel recipe (see [OBSERVABILITY.md](OBSERVABILITY.md)). The original audit
-  could not surface this endpoint because it is not a module in any language SDK. APM trace
-  *query* remains excluded (see Excluded section).
-- **Logging Search (`loggingsearch`)** — one op, `searchLogs`; trivial companion to Logging
-  Ingestion when an ops-tooling story materializes.
+  **`postMetricData` shipped 2026-07** with the observability initiative (Tier 1 #1 above —
+  `MonitoringClient` + `OCIMetricsFactory`, see [OBSERVABILITY.md](OBSERVABILITY.md));
+  `summarizeMetricsData`/`listMetrics` and the `telemetry.*` query host **remain backlog** —
+  a dashboard/alarm-query surface, not app runtime, so they stay demand-gated. The module
+  keeps its backlog entry for that unshipped half.
+- **Logging Search (`loggingsearch`)** — one op, `searchLogs`; trivial companion to the
+  now-shipped Logging Ingestion client when an ops-tooling story materializes. Unchanged by
+  the 2026-07 observability work.
 - **Log Analytics (`log_analytics`)** — only the curated slice (~9 of ~180 ops: three upload
   endpoints incl. an OTLP logs sink, plus query). Premium opt-in service, heavy onboarding.
 
@@ -228,7 +248,9 @@ audit findings so they can be picked up without re-research.
 - **Ops/admin/billing tooling (29 low-value modules):** audit event export, APM trace query,
   usage/cost APIs (`usage_api`, `osub_*`, `osp_gateway`), threat intelligence, announcements,
   support tickets (`cims`), vulnerability scanning, management dashboards — genuine read APIs,
-  but for dashboards/SIEM/finance, not app runtime.
+  but for dashboards/SIEM/finance, not app runtime. (Only APM trace *query* is excluded; APM
+  trace *ingest* is a separate, data-key-authenticated OTLP endpoint and shipped 2026-07 as a
+  documented recipe — see Tier 1 #1.)
 - **`oda` (Digital Assistant):** authoring/lifecycle only; no runtime chat endpoint exists in
   the Python module. Runtime chat for agents is covered by `generative_ai_agent_runtime`.
 - **`encryption`:** a client-side crypto helper library in Python, not a REST service. A
@@ -244,10 +266,12 @@ audit findings so they can be picked up without re-research.
    built — use per-resource data-plane hosts. The `SecretsClient`-style `endpoint:` override
    is the right precedent — do **not** pull in control-plane clients just to resolve
    endpoints.
-2. **New `Region+Service` entries needed** for dedicated hosts:
-   `ingestion.logging.*`, `cell0.submit.email.*`, `auth.*` (identity data plane — already
-   partially present via the federation client); later `telemetry-ingestion.*`/`telemetry.*`,
-   `generic.artifacts.*`, `query.*`.
+2. **New `Region+Service` entries needed** for dedicated hosts: `cell0.submit.email.*`,
+   `auth.*` (identity data plane — already partially present via the federation client);
+   later `telemetry.*` (Monitoring query), `generic.artifacts.*`, `query.*`. Added 2026-07:
+   `ingestion.logging.*` (case `.loggingingestion`) and `telemetry-ingestion.*` (case
+   `.monitoringingestion` — no `.oci.` segment, the same suffix divergence `objectstorage`
+   already had).
 3. **SSE response streaming: deliberately dropped.** OCI streams LLM responses as
    Server-Sent Events when `isStream: true` is set (the shipped generativeai client exposes
    the flag but buffers via `URLSession.shared.data(for:)`, so incremental delivery can't
@@ -274,7 +298,7 @@ audit findings so they can be picked up without re-research.
 | Phase | Work | Rationale |
 |---|---|---|
 | 1 | Spike: stomp-nio ↔ OCI Queue recipe | Small surface, high leverage; validates the Queue-without-REST bet early |
-| 2 | Observability ([OBSERVABILITY.md](OBSERVABILITY.md)): Logging Ingestion + `OCILogHandler`, Monitoring `postMetricData` + `OCIMetricsFactory`; Email Data Plane | Production server-app table stakes: logs, metrics, transactional email |
+| 2 | Observability ([OBSERVABILITY.md](OBSERVABILITY.md)): Logging Ingestion + `OCILogHandler`, Monitoring `postMetricData` + `OCIMetricsFactory`, APM tracing recipe — **shipped 2026-07**. Remaining in this phase: Email Data Plane | Production server-app table stakes: logs, metrics, transactional email — logs and metrics landed, email is what's left |
 | 3 | Identity Data Plane (+ `SecurityTokenSigner` self-refresh integration) | Fixes a real limitation in shipped auth |
 | 4 | KMS Crypto, Certificates | Security round-out (small, Secrets-shaped) |
 | 5 | Backlog by demand (incl. swift-kafka-client ↔ Streaming recipe) | Audience-gated work |
