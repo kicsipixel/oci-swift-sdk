@@ -204,7 +204,17 @@ curl -sS --unix-socket /tmp/ocikitfn/lsnr.sock -X POST http://localhost/call \
   -H "Fn-Call-Id: 01HZTESTCALLID000000000001" \
   -H "X-B3-TraceId: 518254acae02a405" -H "X-B3-SpanId: 56da568e23432251" \
   --data "hello from a b3-traced invoke"
+
+kill %1                               # SIGTERM: stops the serve loop, then flushes spans
 ```
+
+The server and the swift-otel exporter run in one `ServiceGroup` with
+`gracefulShutdownSignals: [.sigterm, .sigint]`, and services shut down in reverse order —
+so `TracedFunctionService` has to *return* when shutdown is signalled for the exporter
+behind it to get its shutdown-time flush. Graceful shutdown is not task cancellation and
+the FDK's serve loop ends only when its socket closes, hence the `cancelWhenGracefulShutdown`
+wrapper in `TracedFunctionService.run()`; without it `SIGTERM`/`docker stop` would hang the
+process until the platform's `SIGKILL`.
 
 Startup log (endpoint redacted) — note that the injected *Zipkin* URL has been retargeted
 onto the OTLP path, and that `service.name` is the conventional `<app>::<function>`:
@@ -303,6 +313,17 @@ Ingestion facts from `OBSERVABILITY.md` §2.3, plus what this example ran into.
 swift build --package-path .                                     # macOS
 docker run --rm -v "$PWD":/pkg -w /pkg swift:6.2 swift build     # Linux
 ```
+
+`Package.swift` resolves `oci-swift-sdk` from GitHub at `main` — deliberately, so the
+`Dockerfile` can build the function without the surrounding repo in its build context. To
+build against a local checkout instead (a branch, or edits you haven't pushed), point
+SwiftPM at this repo:
+
+```sh
+swift package edit oci-swift-sdk --path ../..     # undo with: swift package unedit oci-swift-sdk
+```
+
+That only touches `.build/` and `Packages/`, so there is nothing to commit.
 
 Verified on 2026-07-21 with Swift 6.3.3 (macOS, arm64) and Swift 6.2.4 (Linux,
 aarch64), against swift-otel 1.5.0, swift-distributed-tracing 1.4.1 and

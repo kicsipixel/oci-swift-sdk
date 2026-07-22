@@ -29,10 +29,35 @@ struct TracedFunctionService: Service {
   /// The FDK's diagnostic logger, forwarded to `FunctionRuntime.serve`.
   let logger: Logger
 
-  /// Serves invocations until cancelled.
+  /// Serves invocations until the group shuts down.
+  ///
+  /// `cancelWhenGracefulShutdown` is what makes SIGTERM/SIGINT work here. `ServiceGroup`
+  /// signals graceful shutdown to this service and then *waits* for it to return before
+  /// moving on to the next one — but graceful shutdown is not task cancellation, and the
+  /// FDK's serve loop only ends when its listener socket closes. Without this wrapper the
+  /// process would hang on shutdown and the span processor would never be flushed.
+  ///
+  /// Swallowing the resulting error is equally load-bearing: rethrowing it would trip the
+  /// group's default `.cancelGroup` failure behavior, which cancels the exporter service
+  /// and so skips the flush just the same.
   func run() async throws {
-    try await FunctionRuntime.serve(logger: logger) { context, request in
-      try await Self.handle(context, request)
+    do {
+      try await cancelWhenGracefulShutdown {
+        try await FunctionRuntime.serve(logger: logger) { context, request in
+          try await Self.handle(context, request)
+        }
+      }
+    }
+    catch is CancellationError {
+      logger.info("serve loop stopped for graceful shutdown")
+    }
+    catch let error where Task.isShuttingDownGracefully {
+      // Tearing the socket down can surface as a channel error rather than a
+      // `CancellationError`; while shutting down, that is still a normal stop.
+      logger.info(
+        "serve loop stopped for graceful shutdown",
+        metadata: ["error": .string("\(error)")]
+      )
     }
   }
 

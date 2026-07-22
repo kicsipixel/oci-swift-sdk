@@ -48,6 +48,12 @@ struct APMTraceFunction {
   /// invocation.
   private static let batchScheduleDelay = Duration.milliseconds(200)
 
+  /// How long graceful shutdown may take before it escalates to task cancellation.
+  ///
+  /// Only a backstop — `TracedFunctionService` returns as soon as shutdown is signalled —
+  /// but it guarantees the process can never hang waiting for a service to stop.
+  private static let maximumGracefulShutdownDuration = Duration.seconds(5)
+
   static func main() async throws {
     var logger = Logger(label: "apm-trace-function")
     logger.logLevel = .info
@@ -91,18 +97,23 @@ struct APMTraceFunction {
 
     let observability = try OTel.bootstrap(configuration: configuration)
 
-    // The FDK server runs until cancelled; the exporter shares its lifecycle so a
-    // container shutdown flushes whatever spans are still buffered.
-    let serviceGroup = ServiceGroup(
-      configuration: ServiceGroupConfiguration(
-        services: [
-          ServiceGroupConfiguration.ServiceConfiguration(service: observability),
-          ServiceGroupConfiguration.ServiceConfiguration(service: TracedFunctionService(logger: logger)),
-        ],
-        gracefulShutdownSignals: [.sigterm, .sigint],
-        logger: logger
-      )
+    // The exporter shares the FDK server's lifecycle so a container shutdown flushes
+    // whatever spans are still buffered. Order matters: services shut down in reverse,
+    // so the serve loop stops first (see `TracedFunctionService.run()`) and the
+    // exporter flushes afterwards.
+    var groupConfiguration = ServiceGroupConfiguration(
+      services: [
+        ServiceGroupConfiguration.ServiceConfiguration(service: observability),
+        ServiceGroupConfiguration.ServiceConfiguration(service: TracedFunctionService(logger: logger)),
+      ],
+      gracefulShutdownSignals: [.sigterm, .sigint],
+      logger: logger
     )
+    // Backstop: if a service ever fails to return on graceful shutdown, escalate to
+    // cancellation rather than hanging until the platform's SIGKILL.
+    groupConfiguration.maximumGracefulShutdownDuration = Self.maximumGracefulShutdownDuration
+
+    let serviceGroup = ServiceGroup(configuration: groupConfiguration)
     try await serviceGroup.run()
   }
 

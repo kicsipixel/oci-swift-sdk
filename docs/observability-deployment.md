@@ -56,9 +56,10 @@ Two facts drive most of the recipes below:
 | OKE, node-level fallback | `InstancePrincipalSigner` | `try InstancePrincipalSigner()` — same as a bare VM; every node is itself a Compute instance |
 | Container Instances | `ResourcePrincipalSigner` | `try ResourcePrincipalSigner.fromEnvironment()` |
 | Functions | `ResourcePrincipalSigner` | `try ResourcePrincipalSigner.fromEnvironment()` |
-| Local dev / CI | `APIKeySigner` | `try APIKeySigner(configFilePath: "~/.oci/config")` |
+| Local dev / CI | `APIKeySigner` | `try APIKeySigner(configFilePath: "\(NSHomeDirectory())/.oci/config")` — the path is **not** tilde-expanded, so `"~/.oci/config"` will not resolve |
 
 ```swift
+import Foundation   // NSHomeDirectory()
 import OCIKit
 
 // Compute VM — instance principal.
@@ -69,8 +70,11 @@ let signer = try InstancePrincipalSigner()
 // to configure.
 let signer = try ResourcePrincipalSigner.fromEnvironment()
 
-// Local dev / CI — reads ~/.oci/config.
-let signer = try APIKeySigner(configFilePath: "~/.oci/config")
+// Local dev / CI — reads ~/.oci/config. Pass an absolute path: the config path
+// is handed to the INI parser verbatim, so a literal "~/..." is NOT expanded and
+// would throw `ConfigErrors.missingConfig`. (`key_file` inside the config file
+// *is* tilde-expanded; only this argument isn't.)
+let signer = try APIKeySigner(configFilePath: "\(NSHomeDirectory())/.oci/config")
 ```
 
 ```swift
@@ -230,6 +234,33 @@ Allow dynamic-group ocikit-vm-workloads to read secret-bundles in compartment oc
 This works identically on every runtime that has a signer, needs no new OCIKit code, and rotates
 cleanly — updating the secret's content doesn't require touching the workload's environment or
 redeploying.
+
+### Simpler: inject the key as configuration
+
+If you don't want to stand up a Vault — a scratch VM, a single Container Instance, a demo —
+hand the key to the workload as an environment variable and read it at startup. This is what
+the [`apm-trace-probe`](../Examples/apm-tracing/README.md#1-apm-trace-probe--a-workload-on-vm--oke--container-instances)
+example does:
+
+```swift
+import Foundation
+
+guard let apmDataKey = ProcessInfo.processInfo.environment["APM_DATA_KEY"] else {
+  throw MyAppError.missingAPMDataKey   // your own error type
+}
+```
+
+Set it per runtime the usual way: `--env APM_DATA_KEY=...` on a Container Instance's container,
+`env:` (or a Kubernetes `Secret` mounted into `env:`) on an OKE pod spec, the function's
+configuration on Functions, cloud-init or the unit file on a VM.
+
+The trade-off is why this isn't the default: **the key then lives in the resource's own
+configuration** — readable by anyone with `inspect`/`read` on that instance, container, or
+function, printed by `oci ... get`, and captured in whatever infrastructure-as-code declares it.
+**Rotation means a redeploy** of every workload holding it, rather than one new secret version
+in the Vault. And it leaves no audit trail: a Vault read is an auditable event per workload,
+per startup; reading an environment variable is not. Use it to get going; move to the Vault
+recipe above once the workload is something you'd have to rotate a leaked key out of.
 
 ### Why not bootstrap from `ListDataKeys` instead?
 

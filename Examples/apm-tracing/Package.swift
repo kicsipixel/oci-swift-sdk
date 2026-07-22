@@ -5,16 +5,19 @@
 // This package is deliberately NOT a target of the root oci-swift-sdk package —
 // swift-otel must never enter the SDK's dependency graph (see OBSERVABILITY.md §3).
 // It lives outside `Sources/` and `Tests/`, so SwiftPM at the repo root never scans
-// it, and it depends on oci-swift-sdk from GitHub so the function container can build
-// it without the surrounding repo in its Docker context. Point it at `main` once the
-// observability work is merged.
+// it, and it depends on oci-swift-sdk from GitHub — not on the surrounding checkout —
+// so the function container can build it without the repo in its Docker context.
+//
+// It tracks `main` rather than a release tag because it needs `OCIKitFunctions`'
+// `TracingContext` / `APMCollectorEndpoint`; switch to `from: "<version>"` once a tag
+// carrying them exists.
 import PackageDescription
 
 let package = Package(
   name: "apm-tracing",
   platforms: [.macOS(.v15)],
   dependencies: [
-    .package(url: "https://github.com/iliasaz/oci-swift-sdk.git", branch: "feature/observability-85"),
+    .package(url: "https://github.com/iliasaz/oci-swift-sdk.git", branch: "main"),
     // Only the OTLP/HTTP trait is enabled: APM ingests OTLP over HTTP only, and
     // leaving OTLPGRPC off keeps grpc-swift out of the example's graph entirely.
     .package(url: "https://github.com/swift-otel/swift-otel.git", from: "1.5.0", traits: ["OTLPHTTP"]),
