@@ -1,0 +1,16 @@
+{
+  "bodyBase64": "eyJjb2RlIjogIkludmFsaWRQYXJhbWV0ZXIiLCAibWVzc2FnZSI6ICJObyB2YWxpZCBtZXRyaWNzLiBBbGwgbWV0cmljcyBmYWlsZWQgaW5wdXQgdmFsaWRhdGlvbi4gRmlyc3QgZmFpbHVyZTogZGltZW5zaW9ucyBjYW4gbm90IGJlIG51bGwgb3IgZW1wdHkifQ==",
+  "headers": {
+    "Connection": "keep-alive",
+    "Content-Encoding": "gzip",
+    "Content-Type": "application/json",
+    "Date": "Tue, 21 Jul 2026 22:56:49 GMT",
+    "Transfer-Encoding": "chunked",
+    "opc-request-id": "EXAMPLE"
+  },
+  "request": {
+    "method": "POST",
+    "url": "https://telemetry-ingestion.us-phoenix-1.oraclecloud.com/20180401/metrics"
+  },
+  "statusCode": 400
+}

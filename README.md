@@ -95,6 +95,41 @@ contract over a Unix socket). To call a deployed function from a Swift service,
 [OCIKitFunctions guide](Sources/OCIKitFunctions/README.md) for writing, deploying,
 and invoking functions.
 
+## Metrics backend
+
+`OCIMetricsFactory` is a [swift-metrics](https://github.com/apple/swift-metrics) backend that
+publishes an application's metrics to [OCI Monitoring](https://docs.oracle.com/en-us/iaas/Content/Monitoring/Tasks/publishingcustommetrics.htm)
+as custom metrics. Counters, gauges, recorders and timers are aggregated in process and posted
+with `PostMetricData` on a 60-second step; requests are split at the service's 50-stream limit,
+dimensions are sanitized, a default dimension is synthesized for metrics that have none, and data
+points that age past the service's two-hour window are dropped and counted rather than retried.
+
+```swift
+import CoreMetrics
+import OCIKit
+
+let client = try MonitoringClient(region: .phx, signer: signer)
+let factory = OCIMetricsFactory(
+  client: client,
+  configuration: try OCIMetricsConfiguration(
+    namespace: "my_app",
+    compartmentId: compartmentId,
+    commonDimensions: ["service": "checkout", "env": "prod"]
+  )
+)
+await factory.start()
+MetricsSystem.bootstrap(factory)
+
+// before the process exits, so the last step is not lost:
+await factory.shutdown()
+```
+
+The SDK never calls `MetricsSystem.bootstrap` itself — the application owns the process-global
+system and is free to multiplex this backend with another. The caller's principal needs
+`allow ... to use metrics in compartment ...`, optionally narrowed with
+`where target.metrics.namespace='<namespace>'`. Nothing on the export path throws; what was
+published and what was lost is reported by `await factory.statistics()`.
+
 ## License
 
 [MIT License](https://github.com/iliasaz/oci-swift-sdk/blob/main/LICENSE)

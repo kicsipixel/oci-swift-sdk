@@ -1,0 +1,16 @@
+{
+  "bodyBase64": "eyJmYWlsZWRNZXRyaWNzQ291bnQiOiAxLCAiZmFpbGVkTWV0cmljcyI6IFt7Im1lc3NhZ2UiOiAiVGhlIGRhdGFwb2ludCB0aW1lc3RhbXBzIG11c3QgYmUgYmV0d2VlbiAyIGhvdXJzIGFnbyBhbmQgMTAgbWludXRlcyBmcm9tIG5vdy4iLCAibWV0cmljRGF0YSI6IHsiY29tcGFydG1lbnRJZCI6ICJvY2lkMS5jb21wYXJ0bWVudC5vYzEuLkVYQU1QTEUiLCAiZGF0YXBvaW50cyI6IFt7ImNvdW50IjogbnVsbCwgInRpbWVzdGFtcCI6ICIyMDIwLTAxLTAxVDAwOjAwOjAwLjAwMFoiLCAidmFsdWUiOiAyLjB9XSwgImRpbWVuc2lvbnMiOiB7InNvdXJjZSI6ICJjbGktcHJvYmUifSwgIm1ldGFkYXRhIjogbnVsbCwgIm5hbWUiOiAicHJvYmVfYmFkIiwgIm5hbWVzcGFjZSI6ICJvY2lraXRfcHJvYmUiLCAicmVzb3VyY2VHcm91cCI6IG51bGx9fV19",
+  "headers": {
+    "Connection": "keep-alive",
+    "Content-Encoding": "gzip",
+    "Content-Type": "application/json",
+    "Date": "Tue, 21 Jul 2026 22:56:41 GMT",
+    "Transfer-Encoding": "chunked",
+    "opc-request-id": "EXAMPLE"
+  },
+  "request": {
+    "method": "POST",
+    "url": "https://telemetry-ingestion.us-phoenix-1.oraclecloud.com/20180401/metrics"
+  },
+  "statusCode": 200
+}
