@@ -22,6 +22,69 @@ Support for OCI services is being added incrementally, starting with those curre
 - [x] Secrets (secret bundles)
 - [x] AI Language (health entity detection)
 - [x] Functions — run Swift as a function (FDK) + invoke a function
+- [x] Logging Ingestion (`PutLogs`) + a batching swift-log backend
+
+## Logging backend
+
+`OCILogHandler` is a [swift-log](https://github.com/apple/swift-log) backend that ships your
+application's log records to an OCI [custom log](https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/custom_logs.htm).
+Bootstrap it once and the rest of the code keeps using plain `Logger` values.
+
+```swift
+import Logging
+import OCIKit
+
+let signer = try APIKeySigner(configFilePath: "~/.oci/config")
+let batcher = try OCILogBatcher(
+  configuration: OCILogHandlerConfiguration(
+    logId: "ocid1.log.oc1.phx.EXAMPLE",   // an existing custom log
+    type: "com.example.orders"
+  ),
+  region: .phx,
+  signer: signer
+)
+
+LoggingSystem.bootstrap { label in
+  MultiplexLogHandler([
+    StreamLogHandler.standardOutput(label: label),
+    OCILogHandler(label: label, batcher: batcher),
+  ])
+}
+
+Logger(label: "com.example.orders").info("order placed", metadata: ["orderId": "1234"])
+
+// Before the process exits, so buffered records are not lost:
+await batcher.shutdown()
+```
+
+`log(...)` never blocks and never performs I/O: it renders the record and hands it to a bounded
+buffer. An `OCILogBatcher` actor drains that buffer and uploads batches with `PutLogs` — on a size
+threshold (1 MiB), on an interval (5 s), or when you call `flush()`/`shutdown()` — keeping at most
+one request in flight. Messages longer than the service's 10,000-character truncation point are
+split across entries. Anything logged from *inside* a flush is dropped rather than shipped —
+whether it comes from the SDK's own logger or from your custom transport, signer, or retry code on
+the request path — so a flush can never generate more logs to flush.
+
+Records are lost in exactly two situations, both counted in `batcher.statistics` (a log backend
+cannot report its own errors through the logging system it implements):
+
+- **The buffer is full.** The newest record is dropped and counted in `statistics.dropped`. Raise
+  `bufferCapacity` if you see this.
+- **The backlog outgrows the buffer.** A failed flush is *not* discarded: its entries go back into
+  the buffer and the next flush retries them, so records survive an outage (the service accepts
+  entries as old as the log's retention window). Only when that backlog exceeds `bufferCapacity`
+  are the oldest entries dropped, counted in `statistics.failed`. `statistics.flushFailures` and
+  `statistics.lastFlushErrorDescription` report failures that were retried successfully too.
+
+`shutdown()` waits for the final upload, so give it room in your termination grace period: at
+worst `retryConfig.maxAttempts × requestTimeout + retryConfig.maxCumulativeDelay`, which is 40 s
+with the defaults. Shorten `requestTimeout` or `retryConfig` if that is too long. A batch whose
+*final* flush fails is lost, since nothing is left to retry it.
+
+The log group and the log are control-plane resources: create them with Terraform, the OCI
+Console, or the CLI, and pass the log's OCID. Your principal needs
+`allow ... to use log-content in compartment ...`. To call `PutLogs` directly, use
+`LoggingIngestClient`.
 
 ## OCI Functions
 
