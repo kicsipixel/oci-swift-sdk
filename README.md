@@ -130,6 +130,15 @@ system and is free to multiplex this backend with another. The caller's principa
 `where target.metrics.namespace='<namespace>'`. Nothing on the export path throws; what was
 published and what was lost is reported by `await factory.statistics()`.
 
+## Deployment guide
+
+For per-runtime guidance — which signer to construct on a VM, OKE, Container Instances, or
+Functions; copy-paste IAM policies for logs and metrics; Always Free specifics; and how to
+distribute an APM data key — see
+[`docs/observability-deployment.md`](docs/observability-deployment.md). The tracing recipe
+(swift-otel → OCI APM) is a standalone worked example in
+[`Examples/apm-tracing`](Examples/apm-tracing/README.md).
+
 ## License
 
 [MIT License](https://github.com/iliasaz/oci-swift-sdk/blob/main/LICENSE)
