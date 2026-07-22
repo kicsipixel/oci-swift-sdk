@@ -29,7 +29,7 @@ calls land in an OCI custom log. Ground truth
 // starts console-only without one and the `guard let` below composes. `init` starts the
 // drain + ticker tasks at once: live from construction, never reclaimed implicitly.
 let batcher: OCILogBatcher? = try logId.map { logId in   // logId: String?
-  try OCILogBatcher(   // throws only `.missingRequiredParameter`: no region, no endpoint
+  try OCILogBatcher(   // throws `.missingRequiredParameter` iff neither region nor endpoint
     configuration: OCILogHandlerConfiguration(
       logId: logId, source: podName,  // source: NOT hostName — see the checklist
       type: "com.example.orders", subject: "order-service"),
@@ -143,8 +143,8 @@ the record was logged after `shutdown()`**, which is expected on a clean exit; t
 buffer keeps the *oldest* records, so a drop discards the newest. `flushFailures > 0`
 with `failed == 0` — failing but recovering: a failed batch goes back to the head of the
 buffer, and with **no timestamp-skew rejection** it survives an outage for days (bounded
-by the log's retention) and still lands at its claimed time, so the drop policy is
-capacity- and never staleness-driven. `failed > 0` — the backlog outgrew
+by the log's retention) and still lands at its claimed time — the drop policy is
+capacity-driven, never staleness-driven. `failed > 0` — the backlog outgrew
 `bufferCapacity`, or `shutdown()`'s final flush failed with nothing left to retry it.
 `lastFlushErrorDescription` carries the raw response body: reduce it to the error's case
 name before serving it unauthenticated. For a probe with none of this machinery, call
