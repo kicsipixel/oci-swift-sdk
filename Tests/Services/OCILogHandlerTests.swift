@@ -19,12 +19,18 @@
 // `LoggingSystem.bootstrap` is a process-wide, call-once gate, and this test
 // binary hosts every other suite in the package — actually bootstrapping it
 // here would leak into every `Logger(label:)` constructed anywhere else in the
-// same test run. Instead, the label-exclusion behavior described in the issue
-// ("a handler-bootstrapped LoggingSystem plus a failing flush produces no
-// re-entrant records") is exercised by constructing the exact handler such a
-// bootstrap would hand out for the "OCIKit" label and calling it directly —
-// this observes the same guard the real bootstrap path relies on, without
-// mutating shared process-wide logging state.
+// same test run. Instead each test constructs the exact handler a bootstrap
+// would have handed out for the label under test and calls it directly:
+// `Logger` does nothing else on the way in, so the guard being observed is the
+// same one the real bootstrap path relies on.
+//
+// Both halves of the guard are covered:
+//   * `excludedLoggerLabelsAlwaysContainTheSDKLabel` — the label list, and the
+//     fact that a caller cannot remove the SDK's own label from it.
+//   * `loggingFromInsideAFlushDoesNotRecurse` — the task-local, exercised
+//     through a custom transport that logs each request under a label the
+//     batcher has never heard of. This is the case a label list cannot cover,
+//     and the one that self-amplifies without a re-entrancy flag.
 //
 
 import Foundation
@@ -42,6 +48,41 @@ import Testing
 private struct StubSigner: Signer {
   func sign(_ req: inout URLRequest) throws {
     req.setValue(#"Signature version="1""#, forHTTPHeaderField: "Authorization")
+  }
+}
+
+/// A "request logging" transport — the seam ``HTTPClient``'s own documentation
+/// advertises for custom proxying, retry, or wire logging — that logs each
+/// request through an ``OCILogHandler`` under a label the batcher has never
+/// heard of. It is the shape that turns a label-only recursion guard into an
+/// unbounded self-amplifying flush loop.
+///
+/// The handler is built inside the actor rather than handed in, because it has
+/// to reference the very batcher this transport belongs to.
+private actor WireLogger {
+  private var handler: OCILogHandler?
+
+  /// How many requests this transport was asked to log. Guards against a
+  /// vacuous test: if this stays at zero, nothing ever logged from a flush.
+  private(set) var attempts = 0
+
+  /// Builds the handler that logs every request, for the batcher being wrapped.
+  func attach(to batcher: OCILogBatcher, label: String) {
+    handler = OCILogHandler(label: label, batcher: batcher)
+  }
+
+  /// Logs one request the way a wire-logging transport would.
+  func logRequest(_ request: URLRequest) {
+    attempts += 1
+    handler?.log(
+      level: .info,
+      message: "POST \(request.url?.path ?? "")",
+      metadata: nil,
+      source: "http.wire",
+      file: #filePath,
+      function: #function,
+      line: #line
+    )
   }
 }
 
@@ -189,6 +230,77 @@ struct OCILogHandlerTests {
     #expect(batcher.statistics.enqueued == 1)
     let count = await transport.requests.count
     #expect(count == 1)
+  }
+
+  @Test(
+    "a caller-supplied exclusion set is added to the mandatory labels rather than replacing them, and emptying it afterwards cannot un-exclude them"
+  )
+  func excludedLoggerLabelsAlwaysContainTheSDKLabel() async throws {
+    var configuration = OCILogHandlerConfiguration(
+      logId: "ocid1.log.oc1.phx.EXAMPLE",
+      flushInterval: 0,
+      retryConfig: nil,
+      excludedLoggerLabels: ["com.example.noisy"]
+    )
+    #expect(configuration.excludedLoggerLabels == ["com.example.noisy", "OCIKit"])
+
+    // Even wiped after the fact, the mandatory labels stay excluded at use.
+    configuration.excludedLoggerLabels = []
+
+    let transport = OCILogRecordingTransport()
+    let batcher = try OCILogBatcher(
+      configuration: configuration,
+      region: .phx,
+      signer: StubSigner(),
+      httpClient: await transport.makeClient()
+    )
+    #expect(batcher.isExcluded(loggerLabel: "OCIKit"))
+
+    let handler = OCILogHandler(label: "OCIKit", batcher: batcher)
+    logLine(handler, level: .debug, message: "signingString: ...", source: "Signer")
+    await batcher.shutdown()
+
+    #expect(batcher.statistics.enqueued == 0)
+    let count = await transport.requests.count
+    #expect(count == 0)
+  }
+
+  @Test(
+    "a record logged from inside a flush — by a custom transport on the request path, under an unlisted label — is dropped instead of feeding the next flush"
+  )
+  func loggingFromInsideAFlushDoesNotRecurse() async throws {
+    let transport = OCILogRecordingTransport()
+    let recorder = await transport.makeClient()
+    let wire = WireLogger()
+
+    let batcher = try makeBatcher(
+      httpClient: HTTPClient { request in
+        await wire.logRequest(request)
+        return try await recorder.data(request)
+      }
+    )
+    await wire.attach(to: batcher, label: "http.wire")
+
+    let application = OCILogHandler(label: "com.example.app", batcher: batcher)
+    logLine(application, message: "the only application record")
+
+    // Flushed explicitly, not via shutdown(): the hand-off stream is still open,
+    // so a record the transport enqueues here really would be picked up and
+    // shipped by the next flush, which is what makes the loop self-sustaining.
+    await batcher.flush()
+
+    // The transport really did log from inside the flush...
+    #expect(await wire.attempts >= 1)
+    // ...and that log went nowhere: one record in, one record enqueued.
+    #expect(batcher.statistics.enqueued == 1)
+    let duringFlush = await transport.requests.count
+    #expect(duringFlush == 1)
+
+    // Nothing was left behind to ship on the way out either.
+    await batcher.shutdown()
+    #expect(batcher.statistics.submitted == 1)
+    let afterShutdown = await transport.requests.count
+    #expect(afterShutdown == 1)
   }
 
   @Test("a failing flush is counted in statistics but produces no additional, re-entrant flush attempts")

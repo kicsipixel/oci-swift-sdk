@@ -45,12 +45,20 @@ public struct OCILogHandlerStatistics: Sendable, Equatable {
   /// when its message is split, so this counts entries rather than records.
   public internal(set) var submitted: UInt64 = 0
 
-  /// Log entries lost because their flush failed. Failed flushes are not
-  /// re-buffered: retrying inside the flush is
-  /// ``OCILogHandlerConfiguration/retryConfig``'s job.
+  /// Log entries permanently lost.
+  ///
+  /// A failed flush does not lose its entries: they go back into the buffer for
+  /// a later flush to retry (retrying *within* one flush is
+  /// ``OCILogHandlerConfiguration/retryConfig``'s job). Entries land here only
+  /// when the re-buffered backlog outgrows
+  /// ``OCILogHandlerConfiguration/bufferCapacity`` — the oldest are then
+  /// dropped — or when the flush that failed was the final one performed by
+  /// ``OCILogBatcher/shutdown()``, after which nothing is left to retry it.
   public internal(set) var failed: UInt64 = 0
 
-  /// How many flushes ended in an error.
+  /// How many flushes ended in an error. Includes flushes whose entries were
+  /// re-buffered and later delivered, so this can be non-zero while
+  /// ``failed`` stays at zero.
   public internal(set) var flushFailures: UInt64 = 0
 
   /// A description of the most recent flush failure, or `nil` if none has occurred.

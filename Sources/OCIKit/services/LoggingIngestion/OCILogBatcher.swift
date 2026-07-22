@@ -32,10 +32,22 @@
 // on an interval tick. Concurrent flushes are coalesced so at most one `PutLogs`
 // is ever in flight (the `OKEWorkloadIdentitySigner` idiom).
 //
+// ## Why the stream carries barriers as well as records
+//
+// The buffer a flush uploads is filled by the drain task, not by `enqueue(_:)` —
+// a record yielded a moment ago may still be sitting in the stream when a caller
+// asks to flush. `flush()` therefore yields a barrier of its own and waits for
+// the drain task to reach it: the stream is FIFO, so once the barrier has been
+// consumed every record yielded before it is provably in the buffer.
+//
 
 import Foundation
 import Logging
 import Synchronization
+
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
 
 /// Batches rendered log records and ships them to OCI Logging with `PutLogs`.
 ///
@@ -46,6 +58,17 @@ import Synchronization
 /// > Important: The drain and ticker tasks keep the batcher alive, so a batcher
 /// > is never reclaimed implicitly. Call ``shutdown()`` when the application
 /// > stops; it drains the buffer, uploads what is left, and ends both tasks.
+///
+/// ## What happens when a flush fails
+///
+/// A failed batch is put back at the head of the buffer and retried by a later
+/// flush, so records survive a transient outage — the service accepts entries as
+/// old as the log's retention window. The retained buffer is bounded by
+/// ``OCILogHandlerConfiguration/bufferCapacity`` entries: past that the *oldest*
+/// entries are dropped and counted in ``OCILogHandlerStatistics/failed``, so the
+/// drop policy is capacity-driven rather than staleness-driven. The one
+/// exception is a flush that fails during ``shutdown()``, where nothing is left
+/// to retry it — those entries are lost and counted as failed.
 ///
 /// ## Example
 /// ```swift
@@ -65,6 +88,24 @@ import Synchronization
 /// ```
 public actor OCILogBatcher {
 
+  // MARK: - Recursion guard
+
+  /// Whether the current task is somewhere inside a flush.
+  ///
+  /// This is the recursion guard that does not depend on knowing every logger
+  /// label. ``submit(_:at:)`` binds it around the `PutLogs` call, and a
+  /// task-local is inherited by the entire async call tree that call drives — a
+  /// custom ``HTTPClient`` transport, a custom ``Signer``, retry logic, any
+  /// third-party code on the request path. ``OCILogHandler/log(level:message:metadata:source:file:function:line:)``
+  /// and ``enqueue(_:)`` drop records while it is set, so a log emitted from
+  /// inside a flush can never become another record to flush.
+  ///
+  /// It is process-wide rather than per-batcher: while one batcher is uploading,
+  /// records produced on that task are dropped by every batcher. That is
+  /// deliberate — the alternative is an amplification loop between two batchers.
+  @TaskLocal
+  static var isFlushing = false
+
   // MARK: - Immutable state (readable from any context)
 
   /// The configuration this batcher was built with.
@@ -72,7 +113,7 @@ public actor OCILogBatcher {
 
   /// The write end of the hand-off stream. ``OCILogHandler`` yields into it from
   /// its synchronous `log(...)` path.
-  private let continuation: AsyncStream<OCILogRecord>.Continuation
+  private let continuation: AsyncStream<HandOff>.Continuation
 
   /// Counters shared with the handler. Guarded by a `Mutex` rather than actor
   /// isolation because the handler updates them from a synchronous context.
@@ -98,6 +139,23 @@ public actor OCILogBatcher {
 
   /// Whether ``shutdown()`` has already run.
   private var isShutDown = false
+
+  /// The id handed to the next barrier yielded by ``flush()``.
+  private var nextBarrierID: UInt64 = 0
+
+  /// Callers of ``flush()`` waiting for their barrier to reach the drain task.
+  private var barrierWaiters: [UInt64: CheckedContinuation<Void, Never>] = [:]
+
+  /// Barriers the drain task consumed before their waiter had registered.
+  private var deliveredBarriers: Set<UInt64> = []
+
+  /// One item on the hand-off stream.
+  private enum HandOff: Sendable {
+    /// A rendered record on its way to the buffer.
+    case record(OCILogRecord)
+    /// A marker ``flush()`` waits on to know the records before it are buffered.
+    case barrier(id: UInt64)
+  }
 
   /// The batcher's two long-lived tasks: the single consumer of the hand-off
   /// stream, and the interval-flush ticker.
@@ -145,11 +203,11 @@ public actor OCILogBatcher {
       signer: signer,
       retryConfig: configuration.retryConfig,
       logger: Self.internalLogger,
-      httpClient: httpClient
+      httpClient: Self.bounding(httpClient, to: configuration.requestTimeout)
     )
 
     let (stream, continuation) = AsyncStream.makeStream(
-      of: OCILogRecord.self,
+      of: HandOff.self,
       // `max(1,)` guards a capacity mutated onto the configuration after `init` clamped it.
       bufferingPolicy: .bufferingOldest(max(1, configuration.bufferCapacity))
     )
@@ -162,17 +220,38 @@ public actor OCILogBatcher {
 
   /// The logger handed to the batcher's internal ``LoggingIngestClient``.
   ///
-  /// This is the recursion guard. The client — and
+  /// This is the first half of the recursion guard. The client — and
   /// ``HTTPClient/send(_:signer:retry:logger:)`` underneath it — emits debug
   /// records while flushing; routing them through the bootstrapped
   /// `LoggingSystem` would make every flush produce more records to flush. A
   /// private no-op backend keeps that traffic out of the bootstrapped system
   /// entirely, regardless of what the application bootstrapped.
   ///
-  /// The SDK's global ``logger`` (label `"OCIKit"`), which the request signer
-  /// writes to, *is* bootstrapped and cannot be redirected here; it is handled by
-  /// ``OCILogHandlerConfiguration/excludedLoggerLabels`` instead.
+  /// Code the batcher does not own — a custom transport, a custom signer, the
+  /// SDK's own global ``logger`` (label `"OCIKit"`) — writes to the bootstrapped
+  /// system instead; ``isFlushing`` and
+  /// ``OCILogHandlerConfiguration/excludedLoggerLabels`` cover those.
   private static let internalLogger = Logger(label: "OCILogBatcher") { _ in SwiftLogNoOpLogHandler() }
+
+  /// Wraps `client` so every flush request carries a bounded `timeoutInterval`.
+  ///
+  /// Without it each attempt inherits `URLSession`'s 60-second default, and a
+  /// timeout is retryable — so an unreachable endpoint could hold ``shutdown()``
+  /// for minutes. Cancellation is not a usable bound here: the Linux
+  /// `URLSession` async shim does not cancel its underlying task.
+  ///
+  /// - Parameters:
+  ///   - client: The transport to wrap.
+  ///   - timeout: Seconds allowed per attempt; non-positive leaves `client` untouched.
+  /// - Returns: A transport that stamps `timeoutInterval` onto every request.
+  private static func bounding(_ client: HTTPClient, to timeout: TimeInterval) -> HTTPClient {
+    guard timeout > 0 else { return client }
+    return HTTPClient { request in
+      var request = request
+      request.timeoutInterval = timeout
+      return try await client.data(request)
+    }
+  }
 
   // MARK: - Hand-off (callable from any context)
 
@@ -182,9 +261,15 @@ public actor OCILogBatcher {
   /// buffer is full the record is discarded — the buffer keeps the oldest
   /// records — and ``OCILogHandlerStatistics/dropped`` is incremented.
   ///
+  /// Records offered from inside a flush (see ``isFlushing``) are discarded
+  /// without being counted: shipping them is the recursion this backend exists
+  /// to avoid.
+  ///
   /// - Parameter record: The rendered record to ship.
   public nonisolated func enqueue(_ record: OCILogRecord) {
-    let result = continuation.yield(record)
+    guard !Self.isFlushing else { return }
+
+    let result = continuation.yield(.record(record))
     counters.withLock { stats in
       if case .enqueued = result {
         stats.enqueued &+= 1
@@ -203,23 +288,114 @@ public actor OCILogBatcher {
   /// Whether records from `label` are dropped rather than shipped, per
   /// ``OCILogHandlerConfiguration/excludedLoggerLabels``.
   ///
+  /// The mandatory labels in
+  /// ``OCILogHandlerConfiguration/defaultExcludedLoggerLabels`` are always
+  /// excluded, even if they were removed from a configuration after it was
+  /// created.
+  ///
   /// - Parameter label: The swift-log logger label to test.
   /// - Returns: `true` when records carrying this label must not be shipped.
   public nonisolated func isExcluded(loggerLabel label: String) -> Bool {
     configuration.excludedLoggerLabels.contains(label)
+      || OCILogHandlerConfiguration.defaultExcludedLoggerLabels.contains(label)
   }
 
   // MARK: - Flushing
 
-  /// Uploads everything currently buffered and returns once the upload has
+  /// Uploads everything logged before this call and returns once the upload has
   /// finished (successfully or not).
+  ///
+  /// Records still in transit between ``enqueue(_:)`` and the buffer are waited
+  /// for first, so a flush issued right before the process exits ships them too.
   ///
   /// Concurrent calls are coalesced: a caller that arrives while an upload is in
   /// flight waits for it before taking its own turn, so at most one `PutLogs`
   /// request is ever outstanding.
   public func flush() async {
-    // Coalesce with an upload already in progress.
-    if let existing = inFlightFlush {
+    await awaitHandOffDrain()
+    await flushBuffered()
+  }
+
+  /// Stops accepting records, drains the buffer, and ends the drain and ticker tasks.
+  ///
+  /// Idempotent. After it returns, ``enqueue(_:)`` discards records and counts
+  /// them in ``OCILogHandlerStatistics/dropped``.
+  ///
+  /// > Important: This waits for the final upload, so it is bounded by the flush
+  /// > budget rather than being instantaneous: at worst
+  /// > `retryConfig.maxAttempts × requestTimeout + retryConfig.maxCumulativeDelay`
+  /// > (40 seconds with the defaults). Shorten
+  /// > ``OCILogHandlerConfiguration/requestTimeout`` or
+  /// > ``OCILogHandlerConfiguration/retryConfig`` if the process has a tighter
+  /// > termination grace period. A batch whose final flush fails is lost —
+  /// > nothing is left to retry it — and counted in
+  /// > ``OCILogHandlerStatistics/failed``.
+  public func shutdown() async {
+    guard !isShutDown else { return }
+    isShutDown = true
+
+    let running = tasks.withLock { current -> LongLivedTasks in
+      let snapshot = current
+      current = LongLivedTasks()
+      return snapshot
+    }
+    running.ticker?.cancel()
+
+    // Ends the `for await` in `drain(_:)` once the already-buffered records have
+    // been consumed; `drain` performs the final flush before it returns.
+    continuation.finish()
+    await running.drain?.value
+
+    // The drain task's terminal flush may have coalesced with an in-flight one;
+    // make sure nothing is left behind.
+    await flushBuffered()
+  }
+
+  // MARK: - Internals
+
+  /// Waits until every record yielded before this call has reached ``buffer``.
+  ///
+  /// Only ``flush()`` uses this. The drain task must never call it: it is the
+  /// consumer that resolves the barrier, so waiting on its own barrier would
+  /// deadlock.
+  private func awaitHandOffDrain() async {
+    let id = nextBarrierID
+    nextBarrierID &+= 1
+
+    // A barrier that never entered the stream (the hand-off buffer was full, or
+    // the stream has already finished) will never come back out of it.
+    guard case .enqueued = continuation.yield(.barrier(id: id)) else { return }
+
+    await withCheckedContinuation { (waiter: CheckedContinuation<Void, Never>) in
+      if deliveredBarriers.remove(id) != nil {
+        waiter.resume()
+      }
+      else {
+        barrierWaiters[id] = waiter
+      }
+    }
+  }
+
+  /// Releases the ``flush()`` call waiting on `id`, if it has registered yet.
+  private func releaseBarrier(id: UInt64) {
+    if let waiter = barrierWaiters.removeValue(forKey: id) {
+      waiter.resume()
+    }
+    else {
+      deliveredBarriers.insert(id)
+    }
+  }
+
+  /// Uploads the current ``buffer``, coalescing with any upload already running.
+  ///
+  /// This is ``flush()`` without the hand-off barrier, for callers that are the
+  /// drain task itself or that have already ended the stream.
+  private func flushBuffered() async {
+    // Coalesce with uploads already in progress. This loops rather than testing
+    // once: a caller that waited may find that a *different* caller installed a
+    // new flush while it was suspended, and overwriting that still-running task
+    // would put two `PutLogs` on the wire and orphan the first one.
+    while let existing = inFlightFlush {
       await existing.value
       // Whoever created the task clears it; clear it here too in case this caller
       // resumed first, so the records below are not stranded behind a finished task.
@@ -239,43 +415,28 @@ public actor OCILogBatcher {
     if inFlightFlush == task { inFlightFlush = nil }
   }
 
-  /// Stops accepting records, drains the buffer, and ends the drain and ticker tasks.
-  ///
-  /// Idempotent. After it returns, ``enqueue(_:)`` discards records and counts
-  /// them in ``OCILogHandlerStatistics/dropped``.
-  public func shutdown() async {
-    guard !isShutDown else { return }
-    isShutDown = true
-
-    let running = tasks.withLock { current -> LongLivedTasks in
-      let snapshot = current
-      current = LongLivedTasks()
-      return snapshot
-    }
-    running.ticker?.cancel()
-
-    // Ends the `for await` in `drain(_:)` once the already-buffered records have
-    // been consumed; `drain` performs the final flush before it returns.
-    continuation.finish()
-    await running.drain?.value
-
-    // The drain task's terminal flush may have coalesced with an in-flight one;
-    // make sure nothing is left behind.
-    await flush()
-  }
-
-  // MARK: - Internals
-
   /// The stream's single consumer: accumulate, flush on the size threshold, and
   /// flush once more when the stream ends.
-  private func drain(_ stream: AsyncStream<OCILogRecord>) async {
-    for await record in stream {
-      append(record)
-      if bufferedByteCount >= configuration.flushSizeThreshold {
-        await flush()
+  private func drain(_ stream: AsyncStream<HandOff>) async {
+    for await element in stream {
+      switch element {
+      case .record(let record):
+        append(record)
+        if bufferedByteCount >= configuration.flushSizeThreshold {
+          await flushBuffered()
+        }
+      case .barrier(let id):
+        releaseBarrier(id: id)
       }
     }
-    await flush()
+
+    // The stream is done, so any barrier still outstanding will never arrive.
+    // `deliveredBarriers` is deliberately left alone: it is what a waiter that
+    // has not registered yet looks in, and dropping its id would strand it.
+    for waiter in barrierWaiters.values { waiter.resume() }
+    barrierWaiters.removeAll()
+
+    await flushBuffered()
   }
 
   /// Flushes on a fixed interval until cancelled. The `Task.sleep` is
@@ -292,13 +453,19 @@ public actor OCILogBatcher {
       catch {
         return  // cancelled
       }
-      await flush()
+      await flushBuffered()
     }
   }
 
   /// Turns one record into one or more entries and appends them to the buffer.
   private func append(_ record: OCILogRecord) {
-    for chunk in Self.split(record.data, maxLength: configuration.maxEntryLength) {
+    // Clamped here, not just in the configuration's initializer: the property is
+    // publicly mutable, and an over-long entry is silently truncated server-side.
+    let maxLength = min(
+      OCILogHandlerConfiguration.serviceEntryLengthLimit,
+      max(1, configuration.maxEntryLength)
+    )
+    for chunk in Self.split(record.data, maxLength: maxLength) {
       buffer.append(LogEntry(data: chunk, time: record.time))
       bufferedByteCount += chunk.utf8.count
     }
@@ -319,18 +486,49 @@ public actor OCILogBatcher {
     )
 
     do {
-      try await client.putLogs(logId: configuration.logId, details: details)
+      // Everything this call reaches — the transport, the signer, retry logic —
+      // runs with `isFlushing` bound, so whatever it logs is dropped instead of
+      // becoming the next batch to upload.
+      try await Self.$isFlushing.withValue(true) {
+        try await client.putLogs(logId: configuration.logId, details: details)
+      }
       counters.withLock { $0.submitted &+= UInt64(entries.count) }
     }
     catch {
       // Deliberately not logged: writing a failure through the bootstrapped
       // `LoggingSystem` is exactly the recursion this backend guards against.
       counters.withLock { stats in
-        stats.failed &+= UInt64(entries.count)
         stats.flushFailures &+= 1
         stats.lastFlushErrorDescription = String(describing: error)
       }
+      requeue(entries)
     }
+  }
+
+  /// Puts a failed batch back at the head of the buffer so a later flush retries it.
+  ///
+  /// Buffered entries do not go stale — the service accepts entries as old as the
+  /// log's retention window — so the only reason to give up on them is capacity:
+  /// once the buffer exceeds ``OCILogHandlerConfiguration/bufferCapacity`` the
+  /// oldest entries are dropped and counted in
+  /// ``OCILogHandlerStatistics/failed``. After ``shutdown()`` there is nothing
+  /// left to retry, so the whole batch is counted as failed instead.
+  private func requeue(_ entries: [LogEntry]) {
+    guard !isShutDown else {
+      counters.withLock { $0.failed &+= UInt64(entries.count) }
+      return
+    }
+
+    buffer.insert(contentsOf: entries, at: 0)
+    bufferedByteCount += entries.reduce(0) { $0 + $1.data.utf8.count }
+
+    let capacity = max(1, configuration.bufferCapacity)
+    guard buffer.count > capacity else { return }
+
+    let overflow = buffer.count - capacity
+    bufferedByteCount -= buffer.prefix(overflow).reduce(0) { $0 + $1.data.utf8.count }
+    buffer.removeFirst(overflow)
+    counters.withLock { $0.failed &+= UInt64(overflow) }
   }
 
   /// Splits `data` into consecutive chunks of at most `maxLength` characters.

@@ -131,9 +131,12 @@ public struct OCILogHandler: LogHandler {
     function: String,
     line: UInt
   ) {
-    // Recursion guard: records the SDK itself emits through the bootstrapped
-    // system must not become records to ship, or every flush would feed the next.
-    guard !isExcluded else { return }
+    // Recursion guard, both halves. `isExcluded` covers labels known up front
+    // (the SDK's own global logger); `isFlushing` covers everything else that
+    // logs from inside a flush — a custom transport, a custom signer, any
+    // library on the request path — whatever label it uses. Either way, a
+    // record produced by shipping records must not become a record to ship.
+    guard !isExcluded, !OCILogBatcher.isFlushing else { return }
 
     let now = Date()
     let rendered = Self.render(

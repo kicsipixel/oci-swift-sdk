@@ -190,6 +190,97 @@ struct OCILogBatcherTests {
     await batcher.shutdown()
   }
 
+  @Test("flush() ships records still in transit between enqueue() and the buffer, not just the ones already buffered")
+  func flushDrainsTheHandOffStream() async throws {
+    let transport = OCILogRecordingTransport()
+    let batcher = try makeBatcher(
+      flushSizeThreshold: 1 << 30,  // never triggers on its own
+      httpClient: await transport.makeClient()
+    )
+
+    // The "flush the last records before we exit" call: every record was handed
+    // off a moment ago and is still on the stream, not yet in the buffer.
+    let expected = (0..<5).map { "pre-exit-\($0)" }
+    for text in expected {
+      batcher.enqueue(OCILogRecord(data: text))
+    }
+    await batcher.flush()
+
+    let requests = await transport.requests
+    #expect(requests.count == 1)
+    let batch = try requireSingleBatch(requests[0])
+    #expect(batch.entries.map(\.data) == expected)
+
+    // Nothing was left over for shutdown to pick up.
+    await batcher.shutdown()
+    let afterShutdown = await transport.requests.count
+    #expect(afterShutdown == 1)
+  }
+
+  // MARK: - Failed-flush retention
+
+  @Test("a failed flush keeps its entries buffered, and a later flush delivers them")
+  func failedFlushIsRetriedByTheNextFlush() async throws {
+    let transport = OCILogRecordingTransport()
+    await transport.setResponse(status: 500, body: Data(#"{"code":"InternalError","message":"boom"}"#.utf8))
+    let batcher = try makeBatcher(
+      flushSizeThreshold: 1 << 30,
+      httpClient: await transport.makeClient()
+    )
+
+    batcher.enqueue(OCILogRecord(data: "survives the outage"))
+    await batcher.flush()
+
+    #expect(batcher.statistics.flushFailures == 1)
+    #expect(batcher.statistics.submitted == 0)
+    #expect(batcher.statistics.failed == 0)  // buffered, not lost
+
+    await transport.setResponse(status: 200)
+    await batcher.flush()
+
+    let requests = await transport.requests
+    #expect(requests.count == 2)
+    let batch = try requireSingleBatch(requests[1])
+    #expect(batch.entries.map(\.data) == ["survives the outage"])
+    #expect(batcher.statistics.submitted == 1)
+    #expect(batcher.statistics.failed == 0)
+
+    await batcher.shutdown()
+    let afterShutdown = await transport.requests.count
+    #expect(afterShutdown == 2)
+  }
+
+  @Test("a re-buffered batch is bounded by bufferCapacity: the oldest entries are dropped and counted as failed")
+  func requeueDropsTheOldestEntriesOnceCapacityIsExceeded() async throws {
+    let transport = OCILogRecordingTransport()
+    await transport.setResponse(status: 503)
+    // One record, split into four single-character entries — twice the capacity,
+    // with no dependence on how fast the drain task consumes a burst.
+    let batcher = try makeBatcher(
+      flushSizeThreshold: 1 << 30,
+      bufferCapacity: 2,
+      maxEntryLength: 1,
+      httpClient: await transport.makeClient()
+    )
+
+    batcher.enqueue(OCILogRecord(data: "abcd"))
+    await batcher.flush()
+
+    #expect(batcher.statistics.flushFailures == 1)
+    #expect(batcher.statistics.failed == 2)  // "a" and "b", the oldest two
+
+    await transport.setResponse(status: 200)
+    await batcher.flush()
+
+    let requests = await transport.requests
+    #expect(requests.count == 2)
+    let batch = try requireSingleBatch(requests[1])
+    #expect(batch.entries.map(\.data) == ["c", "d"])
+    #expect(batcher.statistics.submitted == 2)
+
+    await batcher.shutdown()
+  }
+
   // MARK: - Size-threshold flush
 
   @Test("crossing the size threshold flushes immediately, leaving the remainder for shutdown's drain")
@@ -369,6 +460,64 @@ struct OCILogBatcherTests {
     #expect(batch.entries.map(\.data).joined() == longData)
     #expect(Set(batch.entries.map(\.id)).count == batch.entries.count)  // unique ids
     #expect(batch.entries.allSatisfy { $0.time == time.toRFC3339() })
+  }
+
+  @Test("maxEntryLength raised past the service limit after init is still clamped where records are split")
+  func maxEntryLengthMutatedAfterInitIsClamped() async throws {
+    let transport = OCILogRecordingTransport()
+    var configuration = OCILogHandlerConfiguration(
+      logId: "ocid1.log.oc1.phx.EXAMPLE",
+      flushInterval: 0,
+      flushSizeThreshold: 1 << 30,
+      retryConfig: nil
+    )
+    // The property is public and mutable, and the type's own example mutates
+    // configuration after init; the clamp must not live only in the initializer.
+    configuration.maxEntryLength = 50_000
+
+    let batcher = try OCILogBatcher(
+      configuration: configuration,
+      region: .phx,
+      signer: StubSigner(),
+      httpClient: await transport.makeClient()
+    )
+
+    let data = String(repeating: "x", count: 25_000)
+    batcher.enqueue(OCILogRecord(data: data))
+    await batcher.shutdown()
+
+    let requests = await transport.requests
+    #expect(requests.count == 1)
+    let batch = try requireSingleBatch(requests[0])
+    #expect(batch.entries.count == 3)
+    #expect(batch.entries.allSatisfy { $0.data.count <= OCILogHandlerConfiguration.serviceEntryLengthLimit })
+    #expect(batch.entries.map(\.data).joined() == data)
+  }
+
+  @Test("maxEntryLength set to a non-positive value after init is clamped to 1 rather than disabling splitting")
+  func maxEntryLengthZeroedAfterInitIsClamped() async throws {
+    let transport = OCILogRecordingTransport()
+    var configuration = OCILogHandlerConfiguration(
+      logId: "ocid1.log.oc1.phx.EXAMPLE",
+      flushInterval: 0,
+      flushSizeThreshold: 1 << 30,
+      retryConfig: nil
+    )
+    configuration.maxEntryLength = 0
+
+    let batcher = try OCILogBatcher(
+      configuration: configuration,
+      region: .phx,
+      signer: StubSigner(),
+      httpClient: await transport.makeClient()
+    )
+
+    batcher.enqueue(OCILogRecord(data: "abc"))
+    await batcher.shutdown()
+
+    let requests = await transport.requests
+    let batch = try requireSingleBatch(try #require(requests.first))
+    #expect(batch.entries.map(\.data) == ["a", "b", "c"])
   }
 
   // MARK: - Wire shape

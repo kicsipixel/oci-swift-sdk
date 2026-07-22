@@ -62,21 +62,35 @@ public struct OCILogHandlerConfiguration: Sendable {
   /// truncated to exactly 10,000 characters ending in `...` (live-verified).
   public static let serviceEntryLengthLimit = 10_000
 
-  /// The default logger labels whose records are dropped instead of being shipped.
+  /// The logger labels whose records are always dropped instead of being shipped.
   ///
   /// `"OCIKit"` is the label of the SDK's own global ``logger``, which the request
   /// signer writes to on every signing pass. Shipping those records through this
   /// handler would make each flush generate more records to flush — the recursion
-  /// this handler is built to avoid. See ``excludedLoggerLabels``.
+  /// this handler is built to avoid.
+  ///
+  /// These labels are mandatory: ``init(logId:source:type:subject:flushInterval:flushSizeThreshold:bufferCapacity:maxEntryLength:requestTimeout:retryConfig:excludedLoggerLabels:)``
+  /// unions them into ``excludedLoggerLabels``, and
+  /// ``OCILogBatcher/isExcluded(loggerLabel:)`` re-checks them, so they cannot be
+  /// removed. See ``excludedLoggerLabels``.
   public static let defaultExcludedLoggerLabels: Set<String> = ["OCIKit"]
+
+  /// The default number of seconds a single `PutLogs` attempt may take: 10.
+  ///
+  /// `URLSession`'s own default is 60 seconds, and a timeout is retryable — so
+  /// without a tighter bound one unreachable endpoint could hold
+  /// ``OCILogBatcher/shutdown()`` for minutes.
+  public static let defaultRequestTimeout: TimeInterval = 10
 
   /// The default retry policy for a flush: deliberately small and bounded.
   ///
   /// A flush must fail fast rather than hold a slot for minutes — the batcher
   /// keeps at most one `PutLogs` in flight, so a long retry budget would stall
-  /// every subsequent flush and overflow the hand-off buffer. Buffered records
-  /// do not go stale (the service accepts entries as old as the log's retention
-  /// window), so dropping is driven by capacity, never by age.
+  /// every subsequent flush and overflow the hand-off buffer. A batch whose
+  /// retries are exhausted is put back in the buffer for a later flush rather
+  /// than discarded: buffered records do not go stale (the service accepts
+  /// entries as old as the log's retention window), so dropping is driven by
+  /// capacity, never by age.
   public static let defaultRetryConfig = RetryConfig(
     maxAttempts: 3,
     baseDelay: 0.5,
@@ -125,21 +139,40 @@ public struct OCILogHandlerConfiguration: Sendable {
   /// The maximum number of characters in a single ``LogEntry/data``.
   ///
   /// Longer messages are split across consecutive entries so nothing is lost to
-  /// the service's silent truncation. Clamped to ``serviceEntryLengthLimit``.
+  /// the service's silent truncation. Values outside `1...`
+  /// ``serviceEntryLengthLimit`` are clamped into that range — both here and
+  /// again where the batcher splits a record, so mutating this property after
+  /// the configuration was created cannot reopen the truncation hole.
   /// Defaults to ``defaultMaxEntryLength``.
   public var maxEntryLength: Int
 
+  /// How many seconds a single `PutLogs` attempt may take before it is treated
+  /// as a (retryable) timeout.
+  ///
+  /// Defaults to ``defaultRequestTimeout``. Zero — or any negative value, which
+  /// is clamped to zero — leaves the transport's own timeout in place, which for
+  /// `URLSession` is 60 seconds per attempt.
+  public var requestTimeout: TimeInterval
+
   /// The retry policy applied to each `PutLogs` flush. Defaults to
   /// ``defaultRetryConfig``; `nil` performs a single attempt per flush.
+  ///
+  /// Together with ``requestTimeout`` this bounds how long a flush — and so
+  /// ``OCILogBatcher/shutdown()`` — can take:
+  /// `maxAttempts × requestTimeout + maxCumulativeDelay`.
   public var retryConfig: RetryConfig?
 
   /// Logger labels whose records this handler drops instead of shipping.
   ///
-  /// This is the second half of the recursion guard: the batcher's internal
-  /// client already bypasses the bootstrapped `LoggingSystem`, and this set
-  /// stops records that other parts of the SDK emit through the *bootstrapped*
-  /// logger from feeding back into the batcher. Defaults to
-  /// ``defaultExcludedLoggerLabels``.
+  /// This is the label-based half of the recursion guard, for code that logs
+  /// through the *bootstrapped* system outside a flush — the SDK's own global
+  /// ``logger``, for instance. (Logging from inside a flush is caught by
+  /// ``OCILogBatcher/isFlushing`` regardless of label, and the batcher's own
+  /// client bypasses the bootstrapped system entirely.)
+  ///
+  /// A caller-supplied set is *added* to ``defaultExcludedLoggerLabels`` rather
+  /// than replacing it, so silencing one noisy label cannot accidentally
+  /// un-silence the SDK's own.
   public var excludedLoggerLabels: Set<String>
 
   /// Creates a configuration.
@@ -156,8 +189,11 @@ public struct OCILogHandlerConfiguration: Sendable {
   ///   - bufferCapacity: Hand-off buffer depth in records. Values below 1 are clamped to 1.
   ///   - maxEntryLength: Maximum characters per entry. Clamped to at least 1 and
   ///     at most ``serviceEntryLengthLimit``.
+  ///   - requestTimeout: Seconds allowed per `PutLogs` attempt. Negative values are
+  ///     clamped to zero, which leaves the transport's own timeout in place.
   ///   - retryConfig: Retry policy for a flush; `nil` disables retries.
-  ///   - excludedLoggerLabels: Logger labels to drop, see ``excludedLoggerLabels``.
+  ///   - excludedLoggerLabels: Logger labels to drop, unioned with
+  ///     ``defaultExcludedLoggerLabels``. See ``excludedLoggerLabels``.
   public init(
     logId: String,
     source: String = OCILogHandlerConfiguration.defaultSource,
@@ -167,6 +203,7 @@ public struct OCILogHandlerConfiguration: Sendable {
     flushSizeThreshold: Int = OCILogHandlerConfiguration.defaultFlushSizeThreshold,
     bufferCapacity: Int = OCILogHandlerConfiguration.defaultBufferCapacity,
     maxEntryLength: Int = OCILogHandlerConfiguration.defaultMaxEntryLength,
+    requestTimeout: TimeInterval = OCILogHandlerConfiguration.defaultRequestTimeout,
     retryConfig: RetryConfig? = OCILogHandlerConfiguration.defaultRetryConfig,
     excludedLoggerLabels: Set<String> = OCILogHandlerConfiguration.defaultExcludedLoggerLabels
   ) {
@@ -178,7 +215,8 @@ public struct OCILogHandlerConfiguration: Sendable {
     self.flushSizeThreshold = max(1, flushSizeThreshold)
     self.bufferCapacity = max(1, bufferCapacity)
     self.maxEntryLength = min(Self.serviceEntryLengthLimit, max(1, maxEntryLength))
+    self.requestTimeout = max(0, requestTimeout)
     self.retryConfig = retryConfig
-    self.excludedLoggerLabels = excludedLoggerLabels
+    self.excludedLoggerLabels = excludedLoggerLabels.union(Self.defaultExcludedLoggerLabels)
   }
 }
