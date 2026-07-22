@@ -47,19 +47,20 @@ struct InvocationHeadersTests {
         #expect(context.tracing.parentSpanId == nil)
         #expect(context.tracing.isSampled)  // absent on a direct invoke -> sampled
         return FunctionResponse.text("ok")
+      },
+      body: { socketPath in
+        let result = try await sendInvocation(
+          to: socketPath,
+          headers: [
+            ("Fn-Call-Id", "call-plain"),
+            ("X-B3-TraceId", "463ac35c9f6413ad48485a3953bb6124"),
+            ("X-B3-SpanId", "a2fb4a1d1a96d312"),
+          ],
+          body: Data()
+        )
+        #expect(result.status == 200)
       }
-    ) { socketPath in
-      let result = try await sendInvocation(
-        to: socketPath,
-        headers: [
-          ("Fn-Call-Id", "call-plain"),
-          ("X-B3-TraceId", "463ac35c9f6413ad48485a3953bb6124"),
-          ("X-B3-SpanId", "a2fb4a1d1a96d312"),
-        ],
-        body: Data()
-      )
-      #expect(result.status == 200)
-    }
+    )
   }
 
   @Test(
@@ -79,22 +80,23 @@ struct InvocationHeadersTests {
         #expect(context.invocationHeaders.first("X-B3-TraceId") == "1a2b3c4d5e6f7081")
         #expect(context.tracing.traceId == "1a2b3c4d5e6f7081")
         return FunctionResponse.text("ok")
+      },
+      body: { socketPath in
+        let result = try await sendInvocation(
+          to: socketPath,
+          headers: [
+            ("Fn-Call-Id", "call-http"),
+            ("Fn-Intent", "httprequest"),
+            ("Fn-Http-Method", "GET"),
+            ("Fn-Http-Request-Url", "/orders/1"),
+            ("Fn-Http-H-X-Client", "abc"),
+            ("X-B3-TraceId", "1a2b3c4d5e6f7081"),
+          ],
+          body: Data()
+        )
+        #expect(result.status == 200)
       }
-    ) { socketPath in
-      let result = try await sendInvocation(
-        to: socketPath,
-        headers: [
-          ("Fn-Call-Id", "call-http"),
-          ("Fn-Intent", "httprequest"),
-          ("Fn-Http-Method", "GET"),
-          ("Fn-Http-Request-Url", "/orders/1"),
-          ("Fn-Http-H-X-Client", "abc"),
-          ("X-B3-TraceId", "1a2b3c4d5e6f7081"),
-        ],
-        body: Data()
-      )
-      #expect(result.status == 200)
-    }
+    )
   }
 
   @Test("OCI_TRACING_ENABLED / OCI_TRACE_COLLECTOR_URL configured on the runtime surface through context.tracing")
@@ -120,11 +122,12 @@ struct InvocationHeadersTests {
         #expect(endpoint.visibility == .publicSpan)
         #expect(endpoint.dataKey == "exampleDataKey")
         return FunctionResponse.text("ok")
+      },
+      body: { socketPath in
+        let result = try await sendInvocation(to: socketPath, headers: [("Fn-Call-Id", "call-cfg")], body: Data())
+        #expect(result.status == 200)
       }
-    ) { socketPath in
-      let result = try await sendInvocation(to: socketPath, headers: [("Fn-Call-Id", "call-cfg")], body: Data())
-      #expect(result.status == 200)
-    }
+    )
   }
 
   // MARK: - Harness (mirrors FunctionServerTests' private harness)
@@ -132,7 +135,7 @@ struct InvocationHeadersTests {
   private func withRunningServer(
     config: [String: String] = ["FN_APP_ID": "ocid1.app.oc1..aaaa", "FN_FN_ID": "ocid1.fnfunc.oc1..bbbb"],
     handler: @escaping FunctionHandler,
-    _ body: @Sendable (_ socketPath: String) async throws -> Void
+    body: @Sendable (_ socketPath: String) async throws -> Void
   ) async throws {
     let shortID = String(UUID().uuidString.prefix(8))
     let dir = URL(fileURLWithPath: "/tmp/fdk-\(shortID)", isDirectory: true)

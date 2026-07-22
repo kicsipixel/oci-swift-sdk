@@ -49,14 +49,4 @@ struct OCIMetricsStreamSnapshot: Sendable {
   /// The values observed during the step. Never empty — a handler with nothing to report is
   /// skipped rather than snapshotted.
   let samples: [Sample]
-
-  /// Creates a snapshot.
-  ///
-  /// - Parameters:
-  ///   - id: The stream the samples belong to.
-  ///   - samples: The values observed during the step.
-  init(id: OCIMetricsStreamID, samples: [Sample]) {
-    self.id = id
-    self.samples = samples
-  }
 }
