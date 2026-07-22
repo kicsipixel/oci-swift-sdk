@@ -152,7 +152,11 @@ struct FunctionServer: Sendable {
       isHTTPRequest: isHTTP,
       httpMethod: isHTTP ? head.headers.first(name: FnHeader.httpMethod) : nil,
       requestURL: isHTTP ? head.headers.first(name: FnHeader.httpRequestURL) : nil,
-      httpHeaders: isHTTP ? FnContract.decapsulateRequestHeaders(pairs) : FunctionHeaders()
+      httpHeaders: isHTTP ? FnContract.decapsulateRequestHeaders(pairs) : FunctionHeaders(),
+      // The decapsulated view above is HTTP-gateway-only by contract; the raw pairs
+      // always ride along, so headers outside the Fn contract (the X-B3-* tracing
+      // headers in particular) stay reachable on a plain invoke too.
+      invocationHeaders: FunctionHeaders(pairs)
     )
     let request = FunctionRequest(body: body, contentType: head.headers.first(name: FnHeader.contentType))
 
