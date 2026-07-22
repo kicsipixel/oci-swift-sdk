@@ -316,7 +316,8 @@ await batcher.shutdown()
 ```
 
 Full behavior — batching, truncation-splitting, the recursion guard, and what counts as a
-dropped vs. a retried record — is documented in the [README](../README.md#logging-backend).
+dropped vs. a retried record — is documented in [`logging-backend.md`](logging-backend.md)
+§3–§5.
 
 ### 5.2 Metrics — `OCIMetricsFactory`
 
@@ -341,7 +342,7 @@ await factory.shutdown()
 ```
 
 Full behavior — 50-stream chunking, dimension sanitization, the two-hour staleness drop — is
-documented in the [README](../README.md#metrics-backend).
+documented in [`metrics-backend.md`](metrics-backend.md) §3–§4.
 
 ### 5.3 Traces — swift-otel → APM
 
