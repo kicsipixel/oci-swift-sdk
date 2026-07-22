@@ -140,8 +140,9 @@ public struct MonitoringClient: Sendable {
   /// - **1–20 dimensions per metric, never empty** (`400` `"dimensions can not be null or
   ///   empty"`). Dimension keys contain no whitespace and are ≤ 256 characters; values are
   ///   non-empty and ≤ 512 characters.
-  /// - **Namespace** matches `^[A-Za-z][A-Za-z0-9_]*$` and must not start with `oci_` or
-  ///   `oracle_`.
+  /// - **Namespace** matches `^[a-z][a-z0-9_]*[a-z0-9]$` — lower case only — and must not start
+  ///   with `oci_` or `oracle_`.
+  /// - **Metric name** matches `^[a-zA-Z][a-zA-Z0-9_.$-]*[a-zA-Z0-9]$` and is ≤ 255 characters.
   /// - **50 TPS per tenancy** for this operation.
   ///
   /// - Parameters:

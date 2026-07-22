@@ -23,9 +23,9 @@ import Foundation
 public struct MetricDataDetails: Codable, Sendable {
   /// The source service or application emitting the metric.
   ///
-  /// Must start with an alphabetical character, may contain only alphanumeric characters and
-  /// underscores (`^[A-Za-z][A-Za-z0-9_]*$`), and must not start with the reserved `oci_` or
-  /// `oracle_` prefixes. Maximum 256 characters. Example: `ocikit_probe`.
+  /// Must match `^[a-z][a-z0-9_]*[a-z0-9]$` — **lower case only**, live-verified: `MyApp` is
+  /// rejected — and must not start with the reserved `oci_` or `oracle_` prefixes. Maximum 256
+  /// characters. Example: `ocikit_probe`.
   public let namespace: String
   /// The resource group to which the metric belongs.
   ///
@@ -40,7 +40,8 @@ public struct MetricDataDetails: Codable, Sendable {
   public let compartmentId: String
   /// The name of the metric.
   ///
-  /// Maximum 255 characters. Example: `latency_ms`.
+  /// Must match `^[a-zA-Z][a-zA-Z0-9_.$-]*[a-zA-Z0-9]$` (live-verified: a name containing a space
+  /// or ending in `_` is rejected). Maximum 255 characters. Example: `latency_ms`.
   public let name: String
   /// Qualifiers provided in the metric definition, as a map of key/value pairs.
   ///

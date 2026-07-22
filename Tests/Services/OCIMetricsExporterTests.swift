@@ -221,10 +221,81 @@ private actor ScriptedTransport {
   }
 }
 
+/// A transport that holds its **first** request open until the test releases it, so a second flush
+/// can be issued while the first is provably still on the wire. No sleeping, no polling.
+private actor GatedTransport {
+  private(set) var requestBodies: [Data] = []
+  private var hasArrived = false
+  private var isReleased = false
+  private var arrival: CheckedContinuation<Void, Never>?
+  private var release: CheckedContinuation<Void, Never>?
+
+  func handle(_ request: URLRequest) async throws -> (Data, URLResponse) {
+    let isFirst = requestBodies.isEmpty
+    requestBodies.append(request.httpBody ?? Data())
+    if isFirst {
+      hasArrived = true
+      arrival?.resume()
+      arrival = nil
+      if !isReleased {
+        await withCheckedContinuation { self.release = $0 }
+      }
+    }
+    let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: [:])!
+    return (Data(#"{"failedMetricsCount":0}"#.utf8), response)
+  }
+
+  /// Returns once the first request has reached the transport — i.e. once the first flush has
+  /// definitely drained the registry.
+  func waitForFirstRequest() async {
+    guard !hasArrived else { return }
+    await withCheckedContinuation { self.arrival = $0 }
+  }
+
+  /// Lets the held first request complete.
+  func releaseFirstRequest() {
+    isReleased = true
+    release?.resume()
+    release = nil
+  }
+}
+
 private struct TransportFailure: Error, Sendable {}
 
 private struct NoopSigner: Signer {
   func sign(_ req: inout URLRequest) throws {}
+}
+
+// MARK: - Retry classification
+
+struct OCIMetricsExporterRetryClassificationTests {
+  @Test("a transport error is retryable — the identical payload may well succeed on the next step")
+  func transportErrorIsRetryable() {
+    #expect(OCIMetricsExporter.isRetryable(TransportFailure()))
+    #expect(OCIMetricsExporter.isRetryable(URLError(.timedOut)))
+  }
+
+  @Test(
+    "a 4xx other than 408/429 is permanent, a 408/429/5xx is not",
+    arguments: [
+      (400, false),  // every metric object failed input validation — re-posting it cannot help
+      (401, false),
+      (403, false),  // missing `use metrics` policy
+      (404, false),
+      (408, true),
+      (429, true),  // throttling: the tenancy's 50 TPS budget, retry next step
+      (500, true),
+      (503, true),
+    ]
+  )
+  func statusCodeClassification(status: Int, expected: Bool) {
+    #expect(OCIMetricsExporter.isRetryable(MonitoringError.unexpectedStatusCode(status, "")) == expected)
+  }
+
+  @Test("a client-side encoding failure is permanent — the payload itself is unrepresentable")
+  func encodingFailureIsPermanent() {
+    #expect(OCIMetricsExporter.isRetryable(MonitoringError.jsonEncodingError("Unable to encode Double.nan")) == false)
+  }
 }
 
 struct OCIMetricsExporterFlushTests {
@@ -233,14 +304,16 @@ struct OCIMetricsExporterFlushTests {
   private func makeConfiguration(
     commonDimensions: [String: String] = [:],
     defaultDimensionName: String = OCIMetricsConfiguration.fallbackDimensionName,
-    defaultDimensionValue: String = "test-host"
+    defaultDimensionValue: String = "test-host",
+    maximumBufferedStreams: Int = 500
   ) throws -> OCIMetricsConfiguration {
     try OCIMetricsConfiguration(
       namespace: "ocikit_probe",
       compartmentId: Self.compartmentId,
       commonDimensions: commonDimensions,
       defaultDimensionName: defaultDimensionName,
-      defaultDimensionValue: defaultDimensionValue
+      defaultDimensionValue: defaultDimensionValue,
+      maximumBufferedStreams: maximumBufferedStreams
     )
   }
 
@@ -248,6 +321,16 @@ struct OCIMetricsExporterFlushTests {
     configuration: OCIMetricsConfiguration,
     registry: OCIMetricsRegistry,
     transport: ScriptedTransport
+  ) throws -> OCIMetricsExporter {
+    let http = HTTPClient { request in try await transport.handle(request) }
+    let client = try MonitoringClient(region: .phx, signer: NoopSigner(), httpClient: http)
+    return OCIMetricsExporter(client: client, configuration: configuration, registry: registry, logger: logger)
+  }
+
+  private func makeExporter(
+    configuration: OCIMetricsConfiguration,
+    registry: OCIMetricsRegistry,
+    transport: GatedTransport
   ) throws -> OCIMetricsExporter {
     let http = HTTPClient { request in try await transport.handle(request) }
     let client = try MonitoringClient(region: .phx, signer: NoopSigner(), httpClient: http)
@@ -400,6 +483,127 @@ struct OCIMetricsExporterFlushTests {
     let metricData = try #require(json["metricData"] as? [[String: Any]])
     let metric = try #require(metricData.first)
     #expect(metric["metadata"] as? [String: String] == ["unit": "ns"])
+  }
+
+  @Test("a healthy flush with more live streams than maximumBufferedStreams drops nothing: the bound is on the retry buffer")
+  func flushDoesNotApplyRetryBoundToFreshStreams() async throws {
+    // The registry holds 6 live streams and the bound is 3. Nothing has failed, so nothing belongs
+    // in the retry buffer and nothing may be dropped — otherwise the same lexicographically-first
+    // streams would be discarded on every single step, forever.
+    let configuration = try makeConfiguration(maximumBufferedStreams: 3)
+    let registry = OCIMetricsRegistry(configuration: configuration)
+    for i in 0..<6 {
+      registry.counter(id: OCIMetricsStreamID(kind: .counter, label: "metric_\(i)", dimensions: [:])).increment(by: 1)
+    }
+    let transport = ScriptedTransport(steps: [.success(status: 200, body: Data(#"{"failedMetricsCount":0}"#.utf8))])
+    let exporter = try makeExporter(configuration: configuration, registry: registry, transport: transport)
+
+    await exporter.flush()
+
+    let statistics = await exporter.statistics()
+    #expect(statistics.droppedBufferedStreams == 0)
+    #expect(statistics.postedStreams == 6)
+    let body = try #require(await transport.requestBodies.first)
+    #expect(try requestStreamCount(body) == 6)
+  }
+
+  @Test("maximumBufferedStreams bounds the retry buffer after a transport failure, dropping the oldest")
+  func retryBufferIsBoundedAfterTransportFailure() async throws {
+    let configuration = try makeConfiguration(maximumBufferedStreams: 3)
+    let registry = OCIMetricsRegistry(configuration: configuration)
+    for i in 0..<6 {
+      registry.counter(id: OCIMetricsStreamID(kind: .counter, label: "metric_\(i)", dimensions: [:])).increment(by: 1)
+    }
+    let transport = ScriptedTransport(steps: [
+      .failure(TransportFailure()),
+      .success(status: 200, body: Data(#"{"failedMetricsCount":0}"#.utf8)),
+    ])
+    let exporter = try makeExporter(configuration: configuration, registry: registry, transport: transport)
+
+    await exporter.flush()
+    #expect(await exporter.statistics().droppedBufferedStreams == 3)
+
+    // Only the 3 that fit in the buffer are retried, and the registry drained ascending by stream
+    // sort key, so it is the 3 most recent that survive.
+    await exporter.flush()
+    let bodies = await transport.requestBodies
+    #expect(bodies.count == 2)
+    #expect(try requestStreamCount(bodies[1]) == 3)
+    #expect(await exporter.statistics().postedStreams == 3)
+  }
+
+  @Test("a 400 rejecting the whole batch is dropped, not re-posted forever")
+  func flushDropsPermanentlyRejectedChunk() async throws {
+    let configuration = try makeConfiguration()
+    let registry = OCIMetricsRegistry(configuration: configuration)
+    registry.counter(id: OCIMetricsStreamID(kind: .counter, label: "requests", dimensions: [:])).increment(by: 1)
+
+    let errorBody = Data(#"{"code":"InvalidParameter","message":"namespace must match pattern"}"#.utf8)
+    let transport = ScriptedTransport(steps: [.success(status: 400, body: errorBody)])
+    let exporter = try makeExporter(configuration: configuration, registry: registry, transport: transport)
+
+    await exporter.flush()
+    var statistics = await exporter.statistics()
+    #expect(statistics.failedRequests == 1)
+    #expect(statistics.failedMetrics == 1)
+    #expect(statistics.postedStreams == 0)
+
+    // Nothing was buffered: the identical payload would be rejected identically.
+    await exporter.flush()
+    #expect(await transport.requestBodies.count == 1)
+    statistics = await exporter.statistics()
+    #expect(statistics.failedRequests == 1)
+    #expect(statistics.failedMetrics == 1)
+  }
+
+  @Test("a 429 is transient: the chunk is buffered and re-posted on the next flush")
+  func flushRetriesThrottledChunk() async throws {
+    let configuration = try makeConfiguration()
+    let registry = OCIMetricsRegistry(configuration: configuration)
+    registry.counter(id: OCIMetricsStreamID(kind: .counter, label: "requests", dimensions: [:])).increment(by: 1)
+
+    let transport = ScriptedTransport(steps: [
+      .success(status: 429, body: Data(#"{"code":"TooManyRequests","message":"throttled"}"#.utf8)),
+      .success(status: 200, body: Data(#"{"failedMetricsCount":0}"#.utf8)),
+    ])
+    let exporter = try makeExporter(configuration: configuration, registry: registry, transport: transport)
+
+    await exporter.flush()
+    #expect(await exporter.statistics().failedRequests == 1)
+
+    await exporter.flush()
+    #expect(await transport.requestBodies.count == 2)
+    let statistics = await exporter.statistics()
+    #expect(statistics.postedStreams == 1)
+    #expect(statistics.failedMetrics == 0)
+  }
+
+  @Test("flush() that races an in-flight flush publishes what was recorded after that flush drained")
+  func flushRacingAnInFlightFlushStillPublishesRecentData() async throws {
+    let configuration = try makeConfiguration()
+    let registry = OCIMetricsRegistry(configuration: configuration)
+    registry.counter(id: OCIMetricsStreamID(kind: .counter, label: "first", dimensions: [:])).increment(by: 1)
+
+    let transport = GatedTransport()
+    let exporter = try makeExporter(configuration: configuration, registry: registry, transport: transport)
+
+    let first = Task { await exporter.flush() }
+    await transport.waitForFirstRequest()  // the first flush has drained and is on the wire
+
+    // Recorded strictly after that drain, so only a *second* snapshot can carry it.
+    registry.counter(id: OCIMetricsStreamID(kind: .counter, label: "second", dimensions: [:])).increment(by: 5)
+    let second = Task { await exporter.flush() }
+
+    await transport.releaseFirstRequest()
+    await first.value
+    await second.value
+
+    let bodies = await transport.requestBodies
+    #expect(bodies.count == 2)
+    let json = try #require(try JSONSerialization.jsonObject(with: bodies[1]) as? [String: Any])
+    let metricData = try #require(json["metricData"] as? [[String: Any]])
+    #expect(metricData.map { $0["name"] as? String } == ["second"])
+    #expect(await exporter.statistics().postedStreams == 2)
   }
 
   @Test("statistics() starts at all zeros before any flush has run")

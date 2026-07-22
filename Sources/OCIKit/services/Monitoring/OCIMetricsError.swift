@@ -24,9 +24,9 @@ import Foundation
 public enum OCIMetricsError: Error, Sendable, Equatable {
   /// The metric namespace does not satisfy the service's rules.
   ///
-  /// A namespace starts with an alphabetical character, contains only alphanumeric characters and
-  /// underscores, is at most 256 characters long, and must not use the reserved `oci_` or
-  /// `oracle_` prefixes.
+  /// A namespace starts with a lower-case letter, contains only lower-case letters, digits and
+  /// underscores, ends with a lower-case letter or digit, is at most 256 characters long, and must
+  /// not use the reserved `oci_` or `oracle_` prefixes.
   case invalidNamespace(String)
 
   /// The compartment OCID was empty. Metric data is billed and queried per compartment, so the
@@ -48,7 +48,7 @@ extension OCIMetricsError: LocalizedError {
     switch self {
     case .invalidNamespace(let namespace):
       return
-        "Invalid metric namespace \"\(namespace)\": it must match ^[A-Za-z][A-Za-z0-9_]{0,255}$ and must not start with \"oci_\" or \"oracle_\"."
+        "Invalid metric namespace \"\(namespace)\": it must match ^[a-z][a-z0-9_]*[a-z0-9]$ (lower case only), be at most 256 characters, and must not start with \"oci_\" or \"oracle_\"."
     case .missingCompartmentId:
       return "Missing required parameter: compartmentId must be a non-empty compartment OCID."
     case .invalidStep(let step):

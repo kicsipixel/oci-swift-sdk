@@ -44,8 +44,8 @@ public struct OCIMetricsConfiguration: Sendable {
 
   /// The metric namespace every metric object is posted under.
   ///
-  /// Validated against the service's rules — `^[A-Za-z][A-Za-z0-9_]*$`, at most 256 characters, no
-  /// `oci_` or `oracle_` prefix — when the configuration is created.
+  /// Validated against the service's rules — `^[a-z][a-z0-9_]*[a-z0-9]$` (lower case only), at most
+  /// 256 characters, no `oci_` or `oracle_` prefix — when the configuration is created.
   public let namespace: String
   /// The OCID of the compartment metric data is posted to, billed against, and queried in.
   public let compartmentId: String
@@ -79,9 +79,13 @@ public struct OCIMetricsConfiguration: Sendable {
   public let step: Swift.Duration
   /// The maximum number of metric streams held in the exporter's retry buffer.
   ///
-  /// Streams whose request failed are re-posted on the next step. Once the buffer is full the
-  /// oldest are dropped and counted in ``OCIMetricsStatistics/droppedBufferedStreams`` — the
-  /// backend bounds its own memory rather than growing without limit behind an outage.
+  /// Streams whose request failed *transiently* are re-posted on the next step. Once the buffer is
+  /// full the oldest are dropped and counted in ``OCIMetricsStatistics/droppedBufferedStreams`` —
+  /// the backend bounds its own memory rather than growing without limit behind an outage.
+  ///
+  /// - Important: This bounds the **retry buffer only**. A step's fresh streams are always posted,
+  ///   however many of them there are, so an application with more live instruments than this bound
+  ///   loses nothing while the network is healthy.
   public let maximumBufferedStreams: Int
   /// The maximum number of distinct values a recorder or timer retains per step.
   ///
@@ -92,8 +96,9 @@ public struct OCIMetricsConfiguration: Sendable {
   /// Creates and validates a configuration.
   ///
   /// - Parameters:
-  ///   - namespace: The metric namespace. Must match `^[A-Za-z][A-Za-z0-9_]*$`, be at most 256
-  ///     characters, and must not start with `oci_` or `oracle_`.
+  ///   - namespace: The metric namespace. Must match `^[a-z][a-z0-9_]*[a-z0-9]$` — the service
+  ///     accepts lower case only — be at most 256 characters, and must not start with `oci_` or
+  ///     `oracle_`.
   ///   - compartmentId: The OCID of the compartment to post metric data to. Must be non-empty.
   ///   - resourceGroup: The optional resource group to post every metric object under.
   ///   - commonDimensions: Dimensions merged into every metric object. Sanitized here, once.

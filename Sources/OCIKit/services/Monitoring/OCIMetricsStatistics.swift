@@ -28,17 +28,21 @@ public struct OCIMetricsStatistics: Sendable, Equatable {
   public var postedStreams: Int
   /// Data points the service accepted.
   public var postedDatapoints: Int
-  /// Metric streams the service rejected inside a `200` response.
+  /// Metric streams the service rejected permanently.
   ///
   /// Under the service's default non-atomic batching, a partially invalid request still succeeds:
   /// the valid metric objects are ingested and the rejected ones come back in
   /// ``PostMetricDataResponseDetails/failedMetrics``. Rejections are permanent — the metric object
-  /// was malformed — so they are counted, logged, and dropped rather than retried.
+  /// was malformed — so they are counted, logged, and dropped rather than retried. The streams of a
+  /// request that failed permanently (a `400` rejecting the whole batch, a `401`/`403` for a
+  /// missing `use metrics` policy, or a payload that could not be encoded) are counted here too,
+  /// for the same reason.
   public var failedMetrics: Int
   /// Requests that failed outright — transport error, throttling, or a non-`200` status.
   ///
-  /// The streams of a failed request go back into the retry buffer and are re-posted on the next
-  /// step.
+  /// The streams of a *transiently* failed request go back into the retry buffer and are re-posted
+  /// on the next step; the streams of a permanently failed one are dropped and counted in
+  /// ``failedMetrics``.
   public var failedRequests: Int
   /// Data points dropped because their timestamp had aged past the service's two-hour window.
   ///
@@ -50,9 +54,12 @@ public struct OCIMetricsStatistics: Sendable, Equatable {
   ///
   /// See ``OCIMetricsConfiguration/maximumBufferedStreams``.
   public var droppedBufferedStreams: Int
-  /// Observations dropped because a recorder or timer exceeded its per-step distinct-value bound.
+  /// Observations dropped because a recorder or timer exceeded its per-step distinct-value bound,
+  /// or because the observation was not a finite number.
   ///
-  /// See ``OCIMetricsConfiguration/maximumSamplesPerStream``.
+  /// See ``OCIMetricsConfiguration/maximumSamplesPerStream``. `NaN` and `±Infinity` have no JSON
+  /// representation, so they are refused at the recording boundary rather than failing the request
+  /// that would carry them.
   public var droppedSamples: Int
 
   /// Creates a statistics tally.
@@ -60,11 +67,12 @@ public struct OCIMetricsStatistics: Sendable, Equatable {
   /// - Parameters:
   ///   - postedStreams: Metric streams the service accepted.
   ///   - postedDatapoints: Data points the service accepted.
-  ///   - failedMetrics: Metric streams the service rejected inside a `200`.
+  ///   - failedMetrics: Metric streams the service rejected permanently.
   ///   - failedRequests: Requests that failed outright.
   ///   - droppedStaleDatapoints: Data points dropped for being older than two hours.
   ///   - droppedBufferedStreams: Metric streams dropped because the retry buffer was full.
-  ///   - droppedSamples: Observations dropped by a recorder or timer at its per-step bound.
+  ///   - droppedSamples: Observations dropped by a recorder or timer at its per-step bound, or for
+  ///     not being a finite number.
   public init(
     postedStreams: Int = 0,
     postedDatapoints: Int = 0,

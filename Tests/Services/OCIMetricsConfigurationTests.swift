@@ -103,19 +103,69 @@ struct OCIMetricsSanitizerTests {
   }
 
   @Test(
-    "isValidNamespace accepts letters/digits/underscore starting with a letter, rejects reserved prefixes and malformed strings",
+    "metricName coerces a swift-metrics label to the service's ^[a-zA-Z][a-zA-Z0-9_.$-]*[a-zA-Z0-9]$ pattern",
+    arguments: [
+      // Already legal — left alone (all live-verified as accepted).
+      ("http.server.requests", "http.server.requests"),
+      ("requests-total", "requests-total"),
+      ("dollar$sign", "dollar$sign"),
+      ("MixedCase", "MixedCase"),
+      ("a", "a"),
+      // Illegal interior characters become underscores.
+      ("swift metrics label", "swift_metrics_label"),
+      ("http/server/duration", "http_server_duration"),
+      ("login attempts", "login_attempts"),
+      // Illegal trailing characters are trimmed (live-verified rejections).
+      ("trailing_", "trailing"),
+      ("trailing.", "trailing"),
+      ("trailing-", "trailing"),
+      ("trailing$", "trailing"),
+      // Leading characters are dropped until the name starts with a letter.
+      ("1app", "app"),
+      ("_app", "app"),
+      (".app", "app"),
+    ]
+  )
+  func metricNameCoercion(raw: String, expected: String) {
+    #expect(OCIMetricsSanitizer.metricName(raw) == expected)
+  }
+
+  @Test("metricName repairs a truncation that lands on a character the service will not accept last")
+  func metricNameRepairsTruncationOntoIllegalTrailingCharacter() {
+    // 254 legal characters, then an underscore at position 255, then more: naive truncation would
+    // produce a name ending in "_", which the service rejects.
+    let raw = "a" + String(repeating: "b", count: 253) + "_" + String(repeating: "c", count: 50)
+    let name = OCIMetricsSanitizer.metricName(raw)
+    #expect(name.count == 254)
+    #expect(name.last == "b")
+  }
+
+  @Test("metricName falls back to a documented placeholder when the label has nothing usable")
+  func metricNameFallsBackWhenNothingSurvives() {
+    #expect(OCIMetricsSanitizer.metricName("") == OCIMetricsSanitizer.fallbackMetricName)
+    #expect(OCIMetricsSanitizer.metricName("123") == OCIMetricsSanitizer.fallbackMetricName)
+    #expect(OCIMetricsSanitizer.metricName("   ") == OCIMetricsSanitizer.fallbackMetricName)
+  }
+
+  @Test(
+    "isValidNamespace enforces the service's lower-case-only ^[a-z][a-z0-9_]*[a-z0-9]$ pattern and the reserved prefixes",
     arguments: [
       ("my_app", true),
       ("my_app_2", true),
-      ("A", true),
+      ("a", true),  // live-verified: a single lower-case letter is accepted
+      ("ocikit_probe", true),
       ("", false),
+      ("A", false),  // live-verified: the service accepts lower case only
+      ("MyApp", false),
+      ("ocikit_Probe", false),
+      ("my_app_", false),  // live-verified: a namespace may not end in "_"
       ("1app", false),
       ("_app", false),
       ("my-app", false),
       ("my app", false),
       ("oci_app", false),
       ("oracle_app", false),
-      ("OCI_app", false),  // case-insensitive prefix check
+      ("OCI_app", false),
     ]
   )
   func namespaceValidation(namespace: String, expected: Bool) {
@@ -147,6 +197,19 @@ struct OCIMetricsConfigurationTests {
     }
     catch {
       Issue.record("expected invalidNamespace, got \(error)")
+    }
+  }
+
+  @Test("init throws invalidNamespace for an upper-case or trailing-underscore namespace the service rejects")
+  func initThrowsInvalidNamespaceForCasingAndTrailingUnderscore() {
+    // Both are live-verified service rejections ("namespace must match pattern
+    // ^[a-z][a-z0-9_]*[a-z0-9]$"), and the namespace is process-wide: accepting one here would
+    // make every metric object of every request fail forever.
+    #expect(throws: OCIMetricsError.invalidNamespace("MyApp")) {
+      _ = try OCIMetricsConfiguration(namespace: "MyApp", compartmentId: Self.compartmentId)
+    }
+    #expect(throws: OCIMetricsError.invalidNamespace("my_app_")) {
+      _ = try OCIMetricsConfiguration(namespace: "my_app_", compartmentId: Self.compartmentId)
     }
   }
 
@@ -315,6 +378,16 @@ struct OCIMetricsConfigurationTests {
     #expect(metric.datapoints.allSatisfy { $0.timestamp == now })
     #expect(metric.datapoints.map(\.value) == [10, 20])
     #expect(metric.datapoints.map(\.count) == [2, 1])
+  }
+
+  @Test("metricData(for:at:) coerces a label the service would reject into a legal metric name")
+  func metricDataCoercesIllegalLabel() throws {
+    let configuration = try OCIMetricsConfiguration(namespace: "my_app", compartmentId: Self.compartmentId)
+    let snapshot = OCIMetricsStreamSnapshot(
+      id: OCIMetricsStreamID(kind: .counter, label: "login attempts", dimensions: [:]),
+      samples: [.init(value: 1)]
+    )
+    #expect(configuration.metricData(for: snapshot, at: Date()).name == "login_attempts")
   }
 
   @Test("metricData(for:at:) truncates an over-length label to the metric name limit")

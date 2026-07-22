@@ -163,6 +163,28 @@ struct OCIMetricsRecorderHandlerTests {
     #expect(recorder.takeDroppedSamples() == 1)
   }
 
+  @Test("an aggregating recorder drops NaN and ±Infinity instead of letting them reach JSONEncoder")
+  func aggregatingRecorderDropsNonFiniteValues() {
+    let recorder = makeRecorder()
+    recorder.record(Double.nan)
+    recorder.record(Double.infinity)
+    recorder.record(-Double.infinity)
+    recorder.record(1.0)
+
+    #expect(recorder.drain().map(\.value) == [1])
+    #expect(recorder.takeDroppedSamples() == 3)
+  }
+
+  @Test("repeated NaN observations do not exhaust an aggregating recorder's distinct-value budget")
+  func aggregatingRecorderNaNDoesNotExhaustSampleBudget() {
+    // NaN never compares equal to itself, so an unguarded recorder inserts a *new* dictionary
+    // entry per observation and spends its whole budget on a value that cannot be encoded.
+    let recorder = makeRecorder(maximumSamples: 2)
+    for _ in 0..<100 { recorder.record(Double.nan) }
+    recorder.record(7.0)
+    #expect(recorder.drain().map(\.value) == [7])
+  }
+
   @Test("takeDroppedSamples() resets to zero after being read")
   func takeDroppedSamplesResets() {
     let recorder = makeRecorder(maximumSamples: 1)
@@ -188,6 +210,18 @@ struct OCIMetricsRecorderHandlerTests {
     gauge.record(5.0)
     #expect(gauge.drain().map(\.value) == [5])
     #expect(gauge.drain().map(\.value) == [5])  // still 5, not empty
+  }
+
+  @Test("a gauge refuses a non-finite value and keeps reporting its last finite one")
+  func gaugeRefusesNonFiniteValue() {
+    // `gauge.record(Double(errors) / Double(total))` with `total == 0` is the canonical way to get
+    // a NaN into a gauge; without the guard the gauge would repeat it on every step forever, and
+    // every request carrying it would fail to encode.
+    let gauge = makeGauge()
+    gauge.record(5.0)
+    gauge.record(Double.nan)
+    #expect(gauge.drain().map(\.value) == [5])
+    #expect(gauge.takeDroppedSamples() == 1)
   }
 
   @Test("a gauge that was never set reports nothing")

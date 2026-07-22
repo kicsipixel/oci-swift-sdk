@@ -61,9 +61,12 @@ import Logging
 ///   network. The step task retains the exporter, so ``shutdown()`` — not deallocation — is what
 ///   stops it.
 /// - **The wire rules are enforced here, not by the caller.** Requests are split at 50 unique
-///   streams, dimension keys and values are sanitized, a default dimension is synthesized for
-///   metrics that have none (the service rejects an empty map), and data points that have aged past
-///   the service's two-hour window are dropped rather than retried forever.
+///   streams; metric names are coerced to `^[a-zA-Z][a-zA-Z0-9_.$-]*[a-zA-Z0-9]$` (a swift-metrics
+///   label is unconstrained, so `Counter("login attempts")` would otherwise be thrown away by the
+///   service); dimension keys and values are sanitized; a default dimension is synthesized for
+///   metrics that have none (the service rejects an empty map); non-finite observations are refused
+///   at the recording boundary; and data points that have aged past the service's two-hour window
+///   are dropped rather than retried forever.
 /// - **Losses are counted, never thrown.** Nothing on the export path can take the application
 ///   down; ``statistics()`` reports what was published and what was lost.
 ///
@@ -127,9 +130,11 @@ public final class OCIMetricsFactory: MetricsFactory {
   /// Snapshots every live instrument and publishes immediately, without disturbing the step
   /// cadence.
   ///
-  /// A flush that races the step tick is coalesced onto it rather than posting the same snapshot
-  /// twice. Returns once the publish has completed — successfully or not; failures are counted in
-  /// ``statistics()``.
+  /// A flush that races the step tick waits for that tick to finish and then takes its own
+  /// snapshot, so everything recorded before the call is published — the in-flight flush drained
+  /// before the call and cannot have carried it. The drain is destructive, so no snapshot is ever
+  /// posted twice. Returns once the publish has completed — successfully or not; failures are
+  /// counted in ``statistics()``.
   public func flush() async {
     await exporter.flush()
   }

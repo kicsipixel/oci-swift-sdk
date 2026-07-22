@@ -39,6 +39,13 @@ enum OCIMetricsSanitizer {
   /// Namespace prefixes reserved for Oracle's own metrics.
   static let reservedNamespacePrefixes = ["oci_", "oracle_"]
 
+  /// The name published for a metric whose label contains nothing the service will accept.
+  ///
+  /// A swift-metrics label is unconstrained, so `Counter("λ")` is legal in the application and
+  /// unusable on the wire. Publishing under a documented placeholder keeps the observation rather
+  /// than losing it silently.
+  static let fallbackMetricName = "unnamed_metric"
+
   /// Sanitizes a dimension key: runs of whitespace collapse to a single underscore and the result
   /// is truncated to ``maximumDimensionKeyLength``.
   ///
@@ -89,26 +96,75 @@ enum OCIMetricsSanitizer {
     return Dictionary(uniqueKeysWithValues: kept.map { ($0.key, $0.value) })
   }
 
-  /// Sanitizes a metric name by truncating it to ``maximumMetricNameLength``.
+  /// Coerces a swift-metrics label into a metric name the service accepts.
+  ///
+  /// The service enforces `^[a-zA-Z][a-zA-Z0-9_.$-]*[a-zA-Z0-9]$` (live-verified: a name
+  /// violating it comes back as a `failedMetrics` entry, which the exporter treats as a permanent
+  /// rejection). swift-metrics constrains labels not at all, so `Counter("login attempts")` and
+  /// `Timer("http/server/duration")` are both legal in the application and both unpostable —
+  /// coercing them is the only way the observation survives.
+  ///
+  /// Illegal characters become `_`, leading characters are dropped until the name starts with a
+  /// letter, the result is truncated to ``maximumMetricNameLength``, and trailing characters are
+  /// dropped until the name ends with a letter or digit — which also repairs a truncation that
+  /// happened to land on a `_`, `.`, `-` or `$`.
   ///
   /// - Parameter raw: The swift-metrics label.
-  /// - Returns: A name the service accepts.
+  /// - Returns: A name the service accepts, or ``fallbackMetricName`` if nothing usable remains.
   static func metricName(_ raw: String) -> String {
-    String(raw.prefix(maximumMetricNameLength))
+    var name = String(raw.map { isMetricNameBodyCharacter($0) ? $0 : "_" })
+    while let first = name.first, !isMetricNameStartCharacter(first) { name.removeFirst() }
+    name = String(name.prefix(maximumMetricNameLength))
+    while let last = name.last, !isMetricNameEndCharacter(last) { name.removeLast() }
+    return name.isEmpty ? fallbackMetricName : name
+  }
+
+  /// Whether `character` may start a metric name: `[a-zA-Z]`.
+  private static func isMetricNameStartCharacter(_ character: Character) -> Bool {
+    character.isASCII && character.isLetter
+  }
+
+  /// Whether `character` may end a metric name: `[a-zA-Z0-9]`.
+  private static func isMetricNameEndCharacter(_ character: Character) -> Bool {
+    character.isASCII && (character.isLetter || character.isNumber)
+  }
+
+  /// Whether `character` may appear in the interior of a metric name: `[a-zA-Z0-9_.$-]`.
+  private static func isMetricNameBodyCharacter(_ character: Character) -> Bool {
+    isMetricNameEndCharacter(character) || (character.isASCII && "_.$-".contains(character))
   }
 
   /// Whether `namespace` satisfies the service's namespace rules.
   ///
-  /// A namespace must match `^[A-Za-z][A-Za-z0-9_]*$`, be at most
-  /// ``maximumNamespaceLength`` characters long, and must not use a reserved prefix.
+  /// A namespace must match `^[a-z][a-z0-9_]*[a-z0-9]$` — **lower case only** (live-verified:
+  /// `MyApp`, `ocikit_Probe` and `ocikit_probe_` are each rejected with
+  /// `"namespace must match pattern ^[a-z][a-z0-9_]*[a-z0-9]$"`), be at most
+  /// ``maximumNamespaceLength`` characters long, and must not use a reserved prefix. A single
+  /// lowercase letter is accepted despite the pattern's two-character shape (live-verified).
   ///
   /// - Parameter namespace: The candidate namespace.
   /// - Returns: `true` when the service will accept it.
   static func isValidNamespace(_ namespace: String) -> Bool {
     guard !namespace.isEmpty, namespace.count <= maximumNamespaceLength else { return false }
-    guard let first = namespace.first, first.isASCII, first.isLetter else { return false }
-    guard namespace.allSatisfy({ $0 == "_" || ($0.isASCII && ($0.isLetter || $0.isNumber)) }) else { return false }
-    let lowercased = namespace.lowercased()
-    return !reservedNamespacePrefixes.contains { lowercased.hasPrefix($0) }
+    guard let first = namespace.first, isNamespaceStartCharacter(first) else { return false }
+    guard let last = namespace.last, isNamespaceEndCharacter(last) else { return false }
+    guard namespace.allSatisfy(isNamespaceBodyCharacter) else { return false }
+    return !reservedNamespacePrefixes.contains { namespace.hasPrefix($0) }
+  }
+
+  /// Whether `character` may start a namespace: `[a-z]`.
+  private static func isNamespaceStartCharacter(_ character: Character) -> Bool {
+    character.isASCII && character.isLetter && character.isLowercase
+  }
+
+  /// Whether `character` may end a namespace: `[a-z0-9]`.
+  private static func isNamespaceEndCharacter(_ character: Character) -> Bool {
+    guard character.isASCII else { return false }
+    return character.isNumber || (character.isLetter && character.isLowercase)
+  }
+
+  /// Whether `character` may appear in the interior of a namespace: `[a-z0-9_]`.
+  private static func isNamespaceBodyCharacter(_ character: Character) -> Bool {
+    character == "_" || isNamespaceEndCharacter(character)
   }
 }

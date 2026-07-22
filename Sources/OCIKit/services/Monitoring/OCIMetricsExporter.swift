@@ -25,23 +25,32 @@ import Logging
 /// ## Lifecycle
 ///
 /// ``start()`` launches one long-lived task that alternates a cancellation-cooperative
-/// `Task.sleep(for:)` with a flush; ``shutdown()`` cancels it and drains what is left. The task
-/// retains the exporter, so a factory that is started must eventually be shut down — dropping the
-/// last reference is not enough to stop it.
+/// `Task.sleep(for:)` with a flush; ``shutdown()`` cancels it, **awaits it**, and drains what is
+/// left, so no request is ever issued after ``shutdown()`` has returned. The task retains the
+/// exporter, so a factory that is started must eventually be shut down — dropping the last
+/// reference is not enough to stop it.
 ///
-/// Concurrent ``flush()`` calls are coalesced onto a single in-flight flush (the
-/// ``OKEWorkloadIdentitySigner`` idiom), so an explicit flush that races the step tick cannot
-/// double-post a snapshot.
+/// A *step tick* that lands while a flush is still running is skipped — that flush is already doing
+/// the tick's work, and piling ticks up behind a slow network would only deepen the queue. An
+/// *explicit* ``flush()`` instead waits for the in-flight flush and then takes its own snapshot: a
+/// caller who records a value and flushes must see that value published, which coalescing onto a
+/// flush that drained *before* the value was recorded would not deliver. Neither path can post the
+/// same snapshot twice, because ``OCIMetricsRegistry/drain()`` is destructive.
 ///
 /// ## What a flush does
 ///
 /// 1. Drains the registry and turns each stream into a ``MetricDataDetails``, timestamped at the
 ///    instant of the snapshot.
-/// 2. Appends anything the previous flush could not deliver, bounding the buffer.
+/// 2. Appends anything the previous flush could not deliver. Only that carried-over set is bounded
+///    by ``OCIMetricsConfiguration/maximumBufferedStreams``; a step's fresh streams are always
+///    posted, however many there are, since they cost requests rather than memory.
 /// 3. Drops data points older than ``maximumDatapointAge`` — the service refuses them, so carrying
 ///    them further would poison every retry.
 /// 4. Splits the result into requests of at most ``maximumStreamsPerRequest`` streams and posts
 ///    them, reading ``PostMetricDataResponseDetails/failedMetrics`` out of each `200`.
+/// 5. Buffers the chunks whose request failed *transiently*; a permanent failure — a client-side
+///    encoding error, or a `4xx` other than `408`/`429` — is counted and dropped, because re-posting
+///    an identical payload would be rejected identically forever.
 ///
 /// Nothing on this path throws: a metrics backend that can take its application down is worse than
 /// one that loses a step. Every loss is counted in ``OCIMetricsStatistics``.
@@ -99,31 +108,43 @@ actor OCIMetricsExporter {
       while !Task.isCancelled {
         do { try await Task.sleep(for: step) }
         catch { return }  // cancelled — shutdown() takes it from here
-        await self.flush()
+        await self.flushIfIdle()
       }
     }
   }
 
   /// Stops the step loop and posts everything still held.
   ///
-  /// Waits for a flush that is already running before draining, so no step is lost and no snapshot
-  /// is posted twice.
+  /// The step task is cancelled **and awaited** before the final drain: cancellation has no effect
+  /// on a tick that has already woken and is waiting to hop onto the actor, so dropping the handle
+  /// would let a request escape after this method returned — and in a process that is exiting, that
+  /// request is torn down mid-flight and its step is lost.
   func shutdown() async {
-    stepTask?.cancel()
+    let task = stepTask
     stepTask = nil
-    if let inFlightFlush { await inFlightFlush.value }
+    task?.cancel()
+    await task?.value
     await flush()
   }
 
-  /// Snapshots the registry and posts, coalescing with a flush that is already in progress.
+  /// Snapshots the registry and posts everything recorded up to this call.
+  ///
+  /// A flush that is already running drained *before* this call, so it cannot have carried the
+  /// caller's most recent observations: this waits for it and then takes its own snapshot rather
+  /// than coalescing onto it. The drain is destructive, so no snapshot is posted twice.
   func flush() async {
-    if let inFlightFlush {
-      await inFlightFlush.value
-      return
-    }
+    while let inFlightFlush { await inFlightFlush.value }
     let flush = Task { await self.performFlush() }
     inFlightFlush = flush
     await flush.value
+  }
+
+  /// The step loop's flush: a tick that lands while a flush is still running is skipped, because
+  /// that flush is already publishing this tick's data and stacking ticks behind a slow network
+  /// would only deepen the queue.
+  private func flushIfIdle() async {
+    guard inFlightFlush == nil else { return }
+    await flush()
   }
 
   /// The running tally of what has been published and what has been lost.
@@ -138,16 +159,13 @@ actor OCIMetricsExporter {
     let drained = registry.drain()
     tally.droppedSamples += drained.droppedSamples
 
+    // The retry buffer is bounded where it is written back, at the end of this method. It is
+    // deliberately *not* bounded here, together with the step's fresh snapshots: an application
+    // with more live streams than `maximumBufferedStreams` is not in an outage, and dropping the
+    // overflow here would silently discard the same lexicographically-first streams every step.
     var queue = buffered
     buffered = []
     queue.append(contentsOf: drained.snapshots.map { configuration.metricData(for: $0, at: now) })
-
-    if queue.count > configuration.maximumBufferedStreams {
-      let overflow = queue.count - configuration.maximumBufferedStreams
-      queue.removeFirst(overflow)
-      tally.droppedBufferedStreams += overflow
-      logger.warning("[OCIMetricsExporter] dropped \(overflow) buffered metric stream(s): buffer is full")
-    }
 
     let pruned = Self.pruningStaleDatapoints(queue, now: now)
     if pruned.droppedDatapoints > 0 {
@@ -166,11 +184,49 @@ actor OCIMetricsExporter {
       }
       catch {
         tally.failedRequests += 1
+        guard Self.isRetryable(error) else {
+          tally.failedMetrics += chunk.count
+          logger.error(
+            "[OCIMetricsExporter] postMetricData permanently rejected \(chunk.count) stream(s), dropping them: \(error)"
+          )
+          continue
+        }
         retry.append(contentsOf: chunk)
-        logger.warning("[OCIMetricsExporter] postMetricData failed for \(chunk.count) stream(s): \(error)")
+        logger.warning("[OCIMetricsExporter] postMetricData failed for \(chunk.count) stream(s), will retry: \(error)")
       }
     }
+
+    if retry.count > configuration.maximumBufferedStreams {
+      let overflow = retry.count - configuration.maximumBufferedStreams
+      retry.removeFirst(overflow)
+      tally.droppedBufferedStreams += overflow
+      logger.warning("[OCIMetricsExporter] dropped \(overflow) buffered metric stream(s): the retry buffer is full")
+    }
     buffered = retry
+  }
+
+  /// Whether re-posting the identical payload could ever succeed.
+  ///
+  /// A client-side encoding failure never can — the payload is what is wrong. Neither can a `4xx`
+  /// other than `408` and `429`: `400` means every metric object in the batch failed input
+  /// validation, and `401`/`403` mean the principal lacks `use metrics`. Buffering those would
+  /// re-post an identically doomed request on every step until the two-hour window expired, burning
+  /// the tenancy's 50 TPS budget and never publishing anything. This mirrors ``account(_:for:)``,
+  /// which already drops the `failedMetrics` of a `200` rather than retrying them.
+  ///
+  /// - Parameter error: The error `postMetricData` threw.
+  /// - Returns: `true` when the chunk should go back into the retry buffer.
+  static func isRetryable(_ error: any Error) -> Bool {
+    guard let error = error as? MonitoringError else { return true }
+    switch error {
+    case .jsonEncodingError:
+      return false
+    case .unexpectedStatusCode(let status, _):
+      guard (400..<500).contains(status) else { return true }
+      return status == 408 || status == 429
+    default:
+      return true
+    }
   }
 
   /// Folds one `200` response into the tally, logging whatever the service rejected.

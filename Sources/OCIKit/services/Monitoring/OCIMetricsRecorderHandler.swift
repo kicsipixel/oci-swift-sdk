@@ -50,7 +50,8 @@ final class OCIMetricsRecorderHandler: RecorderHandler, OCIMetricsDrainable {
     var occurrences: [Double: Int] = [:]
     /// The most recent value, for the gauge case. Deliberately survives a drain.
     var last: Double?
-    /// Distinct values dropped because ``maximumSamples`` was reached.
+    /// Distinct values dropped because ``maximumSamples`` was reached, plus observations dropped
+    /// for not being finite.
     var dropped: Int = 0
   }
 
@@ -79,8 +80,20 @@ final class OCIMetricsRecorderHandler: RecorderHandler, OCIMetricsDrainable {
 
   /// Records a floating-point value. Non-blocking; safe from any task or thread.
   ///
+  /// `NaN` and `±Infinity` are dropped and counted in
+  /// ``OCIMetricsStatistics/droppedSamples``: JSON has no representation for them, so `JSONEncoder`
+  /// refuses the request body they would appear in — which would fail the whole 50-stream chunk
+  /// carrying them, not just this metric. A gauge would then repeat the poison value on every step
+  /// for the life of the process (`gauge.record(Double(errors) / Double(total))` with `total == 0`
+  /// is the canonical way to get one), and an aggregating recorder would spend its whole
+  /// distinct-value budget on it, since `NaN` never compares equal to itself.
+  ///
   /// - Parameter value: The value to record.
   func record(_ value: Double) {
+    guard value.isFinite else {
+      state.withLock { $0.dropped += 1 }
+      return
+    }
     state.withLock { state in
       state.last = value
       guard aggregate else { return }
@@ -119,9 +132,10 @@ final class OCIMetricsRecorderHandler: RecorderHandler, OCIMetricsDrainable {
     }
   }
 
-  /// Takes and clears the tally of distinct values dropped because ``maximumSamples`` was reached.
+  /// Takes and clears the tally of observations dropped — because ``maximumSamples`` was reached,
+  /// or because the value was not finite.
   ///
-  /// - Returns: The number of distinct values dropped since the previous call.
+  /// - Returns: The number of observations dropped since the previous call.
   func takeDroppedSamples() -> Int {
     state.withLock { state in
       let dropped = state.dropped

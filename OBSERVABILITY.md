@@ -87,7 +87,12 @@ Limits — documented and live-verified:
 - **`dimensions` must be non-empty** — `{}` or omitted → 400 `"dimensions can not be null or
   empty"` (live-verified). A swift-metrics backend **must synthesize a default dimension** for
   label-less metrics. Keys: no whitespace, ≤ 256 chars; values: non-empty, ≤ 512 chars.
-- Namespace: starts alphabetical, `[A-Za-z0-9_]`, must not start with `oci_`/`oracle_`.
+- Namespace: `^[a-z][a-z0-9_]*[a-z0-9]$` — **lower case only** (live-verified: `MyApp` and
+  `ocikit_probe_` are both rejected with that exact pattern in the message), must not start with
+  `oci_`/`oracle_`, ≤ 256 chars.
+- Metric name: `^[a-zA-Z][a-zA-Z0-9_.$-]*[a-zA-Z0-9]$` (live-verified), ≤ 255 chars. A
+  swift-metrics label is unconstrained, so a backend **must coerce** it (spaces, slashes and
+  trailing `_`/`.` are all rejected).
 
 OCI Monitoring accepts **no OTLP and no Prometheus remote-write** (as of mid-2026). The only
 write path is PostMetricData.
