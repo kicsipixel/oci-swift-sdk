@@ -95,6 +95,54 @@ For a **plain** invocation (e.g. `fn invoke`, or `FunctionsInvokeClient`) the ha
 just sees the raw body, and only the response body is returned — `status`/`headers`
 are ignored because there is no HTTP response channel.
 
+`context.invocationHeaders` carries every header the platform sent, raw, on **both**
+kinds of invocation — the `Fn-*` contract headers and anything outside the contract
+(such as the tracing headers below). `context.httpHeaders` stays the decapsulated
+client-request view, HTTP-triggered invocations only.
+
+### Distributed tracing
+
+Enable tracing on the application and the function and the platform injects
+`OCI_TRACING_ENABLED` / `OCI_TRACE_COLLECTOR_URL` into the container plus Zipkin
+`X-B3-*` headers into every invocation. `context.tracing` surfaces both:
+
+```swift
+try await FunctionRuntime.serve { context, request in
+  let tracing = context.tracing
+  if tracing.isEnabled, tracing.isSampled, let endpoint = tracing.collectorEndpoint {
+    // tracing.traceId / tracing.spanId  — 64-bit hex, left-pad the trace id for W3C
+    // tracing.serviceName               — "<app name>::<function name>", lowercased
+    // endpoint.otlpTracesURL            — .../20200101/opentelemetry/public/v1/traces
+    // endpoint.dataKeyHeaderValue       — "dataKey <key>", send as `Authorization`
+  }
+  return .text("ok")
+}
+```
+
+The FDK ships no tracer and takes no OpenTelemetry dependency. `OCI_TRACE_COLLECTOR_URL`
+points at APM's legacy Zipkin endpoint, which Swift has no client for, so
+`collectorEndpoint` retargets it to the same domain's OTLP/HTTP traces path and lifts
+out the data key — everything a stock OTLP/HTTP exporter (e.g.
+[swift-otel](https://github.com/swift-otel/swift-otel)) needs. APM authenticates span
+uploads with that data key alone: no request signing, no signer, no IAM policy.
+
+Parsing is defensive — the injected URL's composition is observed-stable but not
+contractually promised, so `collectorEndpoint` is `nil` (rather than wrong) whenever
+the URL doesn't match the documented shape. It is also `nil` whenever `isEnabled` is
+`false`, so gating an export on it alone never uploads spans with tracing switched off.
+A function that must trace regardless falls back to explicitly configured values,
+which yield the same type:
+
+```swift
+let endpoint = context.tracing.collectorEndpoint
+  ?? APMCollectorEndpoint(dataUploadEndpoint: apmDataUploadEndpoint, dataKey: dataKeyFromVault)
+```
+
+`dataUploadEndpoint` is the APM domain's own upload endpoint
+(`https://<domain>.apm-agt.<region>.oci.oraclecloud.com`); the initializer composes
+`/20200101/opentelemetry/public/v1/traces` onto it. Pass `visibility: .privateSpan`
+with a private data key to post private spans.
+
 ### Deadlines and errors
 
 - Each invocation carries a deadline (`context.deadline`, from `Fn-Deadline`, default

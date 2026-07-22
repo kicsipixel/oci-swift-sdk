@@ -143,4 +143,77 @@ struct OCICaptureTests {
     _ = try? await client.getSecretBundle(secretId: badSecretId)
     logger.info("OCICaptureTests: captured getSecretBundle 404 fixture under \(out)")
   }
+
+  // MARK: - Logging Ingestion captures
+
+  /// Builds a live, recording `LoggingIngestClient` for the configured profile, or
+  /// returns `nil` (with a logged reason) when the required env vars are absent
+  /// so the capture self-skips in CI.
+  private func makeRecordingLoggingIngestClient(
+    _ env: [String: String]
+  ) throws -> (client: LoggingIngestClient, out: String)? {
+    guard let out = env["OCI_FIXTURE_OUT"], let configFile = env["OCI_CONFIG_FILE"] else {
+      logger.info("Logging Ingestion capture skipped — set OCI_FIXTURE_OUT and OCI_CONFIG_FILE to record.")
+      return nil
+    }
+    let profile = env["OCI_PROFILE"] ?? "DEFAULT"
+    let signer = try APIKeySigner(configFilePath: configFile, configName: profile)
+    let region = Region.from(regionId: try extractUserRegion(from: configFile, profile: profile) ?? "") ?? .iad
+    let client = try LoggingIngestClient(
+      region: region,
+      signer: signer,
+      httpClient: .recording(into: URL(filePath: out))
+    )
+    return (client, out)
+  }
+
+  @Test("captures putLogs from live OCI into a fixture")
+  func captureLoggingIngestionPutLogs() async throws {
+    let env = ProcessInfo.processInfo.environment
+    guard let logId = env["OCI_LOG_ID"] else {
+      logger.info("captureLoggingIngestionPutLogs skipped — set OCI_LOG_ID.")
+      return
+    }
+    guard let (client, out) = try makeRecordingLoggingIngestClient(env) else { return }
+
+    let details = PutLogsDetails(
+      logEntryBatches: [
+        LogEntryBatch(
+          entries: [LogEntry(data: "oci-swift-sdk capture probe")],
+          source: "oci-swift-sdk-capture",
+          type: "com.oraclecloud.oci-swift-sdk.capture",
+          defaultlogentrytime: Date()
+        )
+      ]
+    )
+    try await client.putLogs(logId: logId, details: details)
+    logger.info("OCICaptureTests: captured putLogs success fixture under \(out)")
+  }
+
+  /// Captures a real 404 error body/headers from a nonexistent log OCID. The
+  /// recording transport writes the fixture before the client parses the
+  /// non-2xx status and throws, so the thrown `LoggingIngestionError` is
+  /// expected and ignored here.
+  @Test("captures a real 404 from putLogs into a fixture")
+  func captureLoggingIngestionPutLogsNotFound() async throws {
+    let env = ProcessInfo.processInfo.environment
+    guard let badLogId = env["OCI_BAD_LOG_ID"] else {
+      logger.info("captureLoggingIngestionPutLogsNotFound skipped — set OCI_BAD_LOG_ID.")
+      return
+    }
+    guard let (client, out) = try makeRecordingLoggingIngestClient(env) else { return }
+
+    let details = PutLogsDetails(
+      logEntryBatches: [
+        LogEntryBatch(
+          entries: [LogEntry(data: "oci-swift-sdk capture probe (expected to fail)")],
+          source: "oci-swift-sdk-capture",
+          type: "com.oraclecloud.oci-swift-sdk.capture",
+          defaultlogentrytime: Date()
+        )
+      ]
+    )
+    _ = try? await client.putLogs(logId: badLogId, details: details)
+    logger.info("OCICaptureTests: captured putLogs 404 fixture under \(out)")
+  }
 }
