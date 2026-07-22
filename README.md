@@ -62,14 +62,28 @@ See [`docs/metrics-backend.md`](docs/metrics-backend.md) for prerequisites and I
 bootstrap composition, the configuration surface, what each instrument becomes on the wire,
 shutdown, and how to confirm the metrics arrived.
 
+## Tracing
+
+Traces are the one signal with **no OCIKit client, deliberately**. OCI
+[APM](https://docs.oracle.com/en-us/iaas/application-performance-monitoring/home.htm) ingests
+OpenTelemetry natively: its collector accepts OTLP/HTTP authenticated with
+`Authorization: dataKey <key>` rather than an OCI request signature, so any stock OTLP exporter
+— [swift-otel](https://github.com/swift-otel/swift-otel), typically — can post spans to an APM
+domain unmodified. There is nothing for this SDK to sign, and so nothing for it to wrap.
+
+[`Examples/apm-tracing`](Examples/apm-tracing/README.md) is a standalone, runnable worked
+example of that recipe (a plain service and an OCI Functions variant), with the endpoint layout,
+data-key handling, and the caveats that bite — span links are dropped, there is no OTLP logs
+endpoint, and Always Free is capped at 1,000 tracing events per hour. On Functions the platform
+injects the collector URL and B3 trace context at runtime; `OCIKitFunctions` surfaces both
+through `TracingContext` and `APMCollectorEndpoint`.
+
 ## Deployment guide
 
 For per-runtime guidance — which signer to construct on a VM, OKE, Container Instances, or
 Functions; copy-paste IAM policies for logs and metrics; Always Free specifics; and how to
 distribute an APM data key — see
-[`docs/observability-deployment.md`](docs/observability-deployment.md). The tracing recipe
-(swift-otel → OCI APM) is a standalone worked example in
-[`Examples/apm-tracing`](Examples/apm-tracing/README.md).
+[`docs/observability-deployment.md`](docs/observability-deployment.md).
 
 ## Skills
 
