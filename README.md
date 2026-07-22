@@ -71,12 +71,13 @@ OpenTelemetry natively: its collector accepts OTLP/HTTP authenticated with
 — [swift-otel](https://github.com/swift-otel/swift-otel), typically — can post spans to an APM
 domain unmodified. There is nothing for this SDK to sign, and so nothing for it to wrap.
 
-[`Examples/apm-tracing`](Examples/apm-tracing/README.md) is a standalone, runnable worked
-example of that recipe (a plain service and an OCI Functions variant), with the endpoint layout,
-data-key handling, and the caveats that bite — span links are dropped, there is no OTLP logs
-endpoint, and Always Free is capped at 1,000 tracing events per hour. On Functions the platform
-injects the collector URL and B3 trace context at runtime; `OCIKitFunctions` surfaces both
-through `TracingContext` and `APMCollectorEndpoint`.
+[`apm-tracing`](https://github.com/kicsipixel/oci-swift-sdk-examples/blob/main/apm-tracing/README.md),
+in the [examples repo](https://github.com/kicsipixel/oci-swift-sdk-examples), is a standalone,
+runnable worked example of that recipe (a plain service and an OCI Functions variant), with the
+endpoint layout, data-key handling, and the caveats that bite — span links are dropped, there is
+no OTLP logs endpoint, and Always Free is capped at 1,000 tracing events per hour. On Functions
+the platform injects the collector URL and B3 trace context at runtime; `OCIKitFunctions`
+surfaces both through `TracingContext` and `APMCollectorEndpoint`.
 
 ## Deployment guide
 
@@ -84,6 +85,35 @@ For per-runtime guidance — which signer to construct on a VM, OKE, Container I
 Functions; copy-paste IAM policies for logs and metrics; Always Free specifics; and how to
 distribute an APM data key — see
 [`docs/observability-deployment.md`](docs/observability-deployment.md).
+
+## Examples
+
+Complete, runnable projects live in a companion repository,
+[`kicsipixel/oci-swift-sdk-examples`](https://github.com/kicsipixel/oci-swift-sdk-examples) —
+whole apps you can build, deploy and read end to end, rather than the fragments this README and
+the `docs/` guides can show. Each one is self-contained and carries its own setup instructions:
+
+- [`FileLift`](https://github.com/kicsipixel/oci-swift-sdk-examples/tree/main/FileLift) — a macOS
+  drag-and-drop client that resolves the Object Storage namespace, lists buckets in a compartment,
+  and uploads files into the one you pick.
+- [`BucketView`](https://github.com/kicsipixel/oci-swift-sdk-examples/tree/main/BucketView) — a
+  macOS browser for Object Storage: buckets in a compartment, and the objects inside a bucket.
+- [`BucketRelay`](https://github.com/kicsipixel/oci-swift-sdk-examples/tree/main/BucketRelay) — a
+  [Hummingbird](https://github.com/hummingbird-project/hummingbird) REST service that uploads,
+  downloads, lists and deletes objects, deployed as an **OCI Container Instance** and
+  authenticated with `ResourcePrincipalSigner` — no API key or config file in the image. Ships
+  the networking, bucket, dynamic-group and policy scripts too.
+- [`swift-oke`](https://github.com/kicsipixel/oci-swift-sdk-examples/tree/main/swift-oke) — a
+  Hummingbird REST service that serves an object's text, running as a pod in an **OKE
+  (Kubernetes) cluster** and authenticated with `OKEWorkloadIdentitySigner` via the pod's service
+  account. Uses the opt-in `OCIKitWorkloadIdentity` product to pin the in-cluster CA in-process,
+  so there is no `update-ca-certificates` step. Includes a Dockerfile and a deployment manifest.
+- [`apm-tracing`](https://github.com/kicsipixel/oci-swift-sdk-examples/tree/main/apm-tracing) —
+  the tracing recipe described above, worked out in full: OpenTelemetry spans exported to an
+  **APM** domain over OTLP/HTTP with swift-otel, in two flavours (a long-running workload and an
+  OCI Function) sharing one small `APMTracing` library, plus a record of what a real run against
+  a live domain returned. Needs an APM domain and one of its data keys; nothing here runs
+  without one.
 
 ## Skills
 

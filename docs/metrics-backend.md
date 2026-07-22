@@ -422,5 +422,6 @@ because checking only for a thrown error silently loses the partial failures.
   long before it costs money.
 - **Not a substitute.** OTLP metrics sent to an APM domain surface in Monitoring under the
   `oracle_apm_monitoring` namespace, but that path needs an APM domain plus its private data key
-  and cannot use OCI principals. For traces — which OCI *does* ingest over OTLP — see
-  [`../Examples/apm-tracing/README.md`](../Examples/apm-tracing/README.md).
+  and cannot use OCI principals. For traces — which OCI *does* ingest over OTLP — see the
+  [`apm-tracing`](https://github.com/kicsipixel/oci-swift-sdk-examples/blob/main/apm-tracing/README.md)
+  example.

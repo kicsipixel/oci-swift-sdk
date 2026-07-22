@@ -31,8 +31,9 @@ Two facts drive most of the recipes below:
   work anywhere in this plan — just the right constructor call, below.
 - **Traces need no IAM policy on any runtime.** OCI APM authenticates OTLP/HTTP ingestion with a
   **data key** (`Authorization: dataKey <key>`), not OCI request signing. §4 covers getting that
-  key to the workload; the tracing recipe itself lives in
-  [`Examples/apm-tracing`](../Examples/apm-tracing/README.md).
+  key to the workload; the tracing recipe itself lives in the
+  [`apm-tracing`](https://github.com/kicsipixel/oci-swift-sdk-examples/blob/main/apm-tracing/README.md)
+  example.
 
 ### Always Free guidance
 
@@ -193,8 +194,9 @@ Two Functions-specific gotchas, straight from Oracle's own docs:
   effect — don't assume a policy edit is live immediately.
 
 Functions needs no IAM at all for **traces**: enabling tracing on the app + function makes the
-platform inject the OTLP collector URL and data key directly (§5.3) — see
-[`Examples/apm-tracing`](../Examples/apm-tracing/README.md).
+platform inject the OTLP collector URL and data key directly (§5.3) — see the
+[`apm-tracing`](https://github.com/kicsipixel/oci-swift-sdk-examples/blob/main/apm-tracing/README.md)
+example.
 
 ---
 
@@ -239,7 +241,7 @@ redeploying.
 
 If you don't want to stand up a Vault — a scratch VM, a single Container Instance, a demo —
 hand the key to the workload as an environment variable and read it at startup. This is what
-the [`apm-trace-probe`](../Examples/apm-tracing/README.md#1-apm-trace-probe--a-workload-on-vm--oke--container-instances)
+the [`apm-trace-probe`](https://github.com/kicsipixel/oci-swift-sdk-examples/blob/main/apm-tracing/README.md#1-apm-trace-probe--a-workload-on-vm--oke--container-instances)
 example does:
 
 ```swift
@@ -350,6 +352,6 @@ There is no OCIKit trace client to bootstrap: APM speaks OTLP/HTTP natively (§4
 a stock OTLP exporter (swift-otel) pointed at the domain's traces endpoint with the data key as a
 header — no signer, no IAM policy. The full worked recipe, for both a long-running workload
 (VM/OKE/Container Instances) and an OCI Function consuming the injected collector URL, is
-[`Examples/apm-tracing`](../Examples/apm-tracing/README.md) — a standalone package (swift-otel
-never enters the SDK's own dependency graph) with a real run against a live APM domain recorded
-in its README.
+the [`apm-tracing`](https://github.com/kicsipixel/oci-swift-sdk-examples/blob/main/apm-tracing/README.md)
+example — a standalone package (swift-otel never enters the SDK's own dependency graph) with a
+real run against a live APM domain recorded in its README.

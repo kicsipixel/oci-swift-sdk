@@ -90,7 +90,8 @@ signer.
   swift-otel recipe rather than a service client — shipped as
   [docs/observability-deployment.md](docs/observability-deployment.md) (per-runtime guide:
   which signer, which IAM policy, which endpoint) plus the standalone
-  [Examples/apm-tracing](Examples/apm-tracing) package, where swift-otel is an example-only
+  [apm-tracing](https://github.com/kicsipixel/oci-swift-sdk-examples/tree/main/apm-tracing)
+  package in the examples repo, where swift-otel is an example-only
   dependency the SDK itself never takes. SDK-side work was limited to the `OCIKitFunctions`
   tracing-context fixes (#86): raw invocation headers, `TracingContext`, and the
   `APMCollectorEndpoint` collector-URL parser. The original audit could not surface the APM
