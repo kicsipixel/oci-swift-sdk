@@ -146,4 +146,124 @@ struct ObjectStorageHermeticTests {
       _ = try await client.getNamespace()
     }
   }
+
+  // MARK: - Ranged GetObject (issue #96)
+
+  // The core regression for #96: a ranged read must (a) put the byte window on the
+  // wire as a `Range` header and (b) accept the 206 Partial Content the server
+  // answers with. The old router bound `range` to `_` and emitted only
+  // opc-client-request-id, and the client rejected any status != 200 — so a
+  // ranged get silently over-fetched (200 + whole object) or threw on 206.
+  @Test("getObject: emits the Range header and accepts a 206 partial response")
+  func getObjectRangeHeader() async throws {
+    let recorder = RequestRecorder()
+    let partial = Data("0123".utf8)  // 4 bytes -> bytes=0-3
+    let client = try makeClient(
+      status: 206,
+      body: partial,
+      responseHeaders: ["Content-Range": "bytes 0-3/1024", "Content-Length": "4"],
+      recorder: recorder
+    )
+
+    let data = try await client.getObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      objectName: "big.bin",
+      range: "bytes=0-3"
+    )
+
+    #expect(data == partial)  // 206 accepted; only the requested window is returned
+    let req = await recorder.last
+    #expect(req?.httpMethod == "GET")
+    #expect(req?.url?.path == "/n/frjfldcyl3la/b/test_bucket_by_sdk/o/big.bin")
+    #expect(req?.value(forHTTPHeaderField: "range") == "bytes=0-3")
+  }
+
+  // Regression guard the other way: an unranged read must NOT send a Range header
+  // (else the server answers 206 for a full-object fetch).
+  @Test("getObject: omits the Range header when no range is requested")
+  func getObjectNoRangeHeader() async throws {
+    let recorder = RequestRecorder()
+    let client = try makeClient(status: 200, body: Data("full-object".utf8), recorder: recorder)
+
+    _ = try await client.getObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      objectName: "big.bin"
+    )
+
+    let req = await recorder.last
+    #expect(req?.value(forHTTPHeaderField: "range") == nil)
+  }
+
+  // The same router arm also dropped the SSE-C customer headers; they must reach
+  // the wire so customer-supplied encryption keys are actually honored.
+  @Test("getObject: emits the SSE-C customer headers when provided")
+  func getObjectSSEHeaders() async throws {
+    let recorder = RequestRecorder()
+    let client = try makeClient(status: 200, body: Data("cipher".utf8), recorder: recorder)
+
+    _ = try await client.getObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      objectName: "enc.bin",
+      opcSseCustomerAlgorithm: "AES256",
+      opcSseCustomerKey: "dGVzdC1rZXk=",
+      opcSseCustomerKeySha256: "dGVzdC1zaGE="
+    )
+
+    let req = await recorder.last
+    #expect(req?.value(forHTTPHeaderField: "opc-sse-customer-algorithm") == "AES256")
+    #expect(req?.value(forHTTPHeaderField: "opc-sse-customer-key") == "dGVzdC1rZXk=")
+    #expect(req?.value(forHTTPHeaderField: "opc-sse-customer-key-sha256") == "dGVzdC1zaGE=")
+  }
+
+  // The PAR variant shares the same buggy router arm (getObjectWithPAR) and the
+  // same 200-only status check, so it needs its own coverage.
+  @Test("getObject(parURL:): emits the Range header and accepts a 206 partial response")
+  func getObjectPARRangeHeader() async throws {
+    let recorder = RequestRecorder()
+    let partial = Data("ab".utf8)
+    let client = try makeClient(
+      status: 206,
+      body: partial,
+      responseHeaders: ["Content-Range": "bytes 0-1/100", "Content-Length": "2"],
+      recorder: recorder
+    )
+    let par = URL(
+      string:
+        "https://frjfldcyl3la.objectstorage.us-ashburn-1.oraclecloud.com/p/tokenEXAMPLE/n/frjfldcyl3la/b/test_bucket_by_sdk/o/"
+    )!
+
+    let data = try await client.getObject(parURL: par, objectName: "big.bin", range: "bytes=0-1")
+
+    #expect(data == partial)
+    let req = await recorder.last
+    #expect(req?.httpMethod == "GET")
+    #expect(req?.value(forHTTPHeaderField: "range") == "bytes=0-1")
+  }
+
+  // headObject carried the same SSE-C parameters and dropped them the same way
+  // (it has no range parameter). Assert only the request shape; the response
+  // parsing is exercised elsewhere.
+  @Test("headObject: emits the SSE-C customer headers when provided")
+  func headObjectSSEHeaders() async throws {
+    let recorder = RequestRecorder()
+    let client = try makeClient(status: 200, body: Data(), recorder: recorder)
+
+    _ = try? await client.headObject(
+      namespaceName: "frjfldcyl3la",
+      bucketName: "test_bucket_by_sdk",
+      objectName: "enc.bin",
+      opcSseCustomerAlgorithm: "AES256",
+      opcSseCustomerKey: "dGVzdC1rZXk=",
+      opcSseCustomerKeySha256: "dGVzdC1zaGE="
+    )
+
+    let req = await recorder.last
+    #expect(req?.httpMethod == "HEAD")
+    #expect(req?.value(forHTTPHeaderField: "opc-sse-customer-algorithm") == "AES256")
+    #expect(req?.value(forHTTPHeaderField: "opc-sse-customer-key") == "dGVzdC1rZXk=")
+    #expect(req?.value(forHTTPHeaderField: "opc-sse-customer-key-sha256") == "dGVzdC1zaGE=")
+  }
 }

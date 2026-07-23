@@ -1,0 +1,27 @@
+{
+  "bodyBase64": "MDEyMzQ1Njc4OTAxMjM0NQ==",
+  "headers": {
+    "Accept-Ranges": "bytes",
+    "Access-Control-Allow-Origin": "*",
+    "Content-Length": "16",
+    "Content-Type": "application/octet-stream",
+    "Date": "Thu, 23 Jul 2026 18:49:32 GMT",
+    "Etag": "EXAMPLEETAG0000-0000-0000-000000000000",
+    "Last-Modified": "Thu, 23 Jul 2026 18:48:50 GMT",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "access-control-allow-credentials": "true",
+    "access-control-allow-methods": "POST,PUT,GET,HEAD,DELETE,OPTIONS",
+    "access-control-expose-headers": "accept-ranges,access-control-allow-credentials,access-control-allow-methods,access-control-allow-origin,content-length,content-range,content-type,date,etag,last-modified,opc-client-info,opc-request-id,storage-tier,strict-transport-security,version-id,x-api-id,x-content-type-options",
+    "content-range": "bytes 0-15/1024",
+    "opc-request-id": "phx-1/CAPTURE00000EXAMPLE/BLOCK00000EXAMPLE",
+    "storage-tier": "Standard",
+    "version-id": "EXAMPLE-VERSION-ID",
+    "x-api-id": "native",
+    "x-content-type-options": "nosniff"
+  },
+  "request": {
+    "method": "GET",
+    "url": "https://objectstorage.us-phoenix-1.oraclecloud.com/n/frjfldcyl3la/b/oci-swift-sdk-range-test/o/range-object.txt"
+  },
+  "statusCode": 206
+}
