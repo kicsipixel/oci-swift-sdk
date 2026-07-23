@@ -106,6 +106,10 @@ Open the captured JSON and scrub anything real:
 
 - OCIDs (tenancy, compartment, user, resource) → replace the unique suffix with
   `EXAMPLE`, e.g. `ocid1.compartment.oc1..EXAMPLE`
+- The real tenancy Object Storage **namespace** (it appears in every object
+  `request.url` and in some bodies) → replace with a placeholder namespace. Reuse
+  the same placeholder the existing committed fixtures already use, so tests stay
+  consistent — never leave the live tenancy namespace in a fixture.
 - Tenancy/company names, email addresses, real resource names
 - `opc-request-id` and any other request-id-shaped header → `EXAMPLE`
 - Pre-Authenticated Request (PAR) tokens, SAS-like tokens, or any secret body
@@ -158,6 +162,13 @@ let fixture = try HTTPFixture.load(fromFile: URL(filePath: "Tests/Services/Fixtu
   developer with a configured `~/.oci/config` profile. It must never be added to
   `.github/workflows/linux.yml`'s `UNIT_TEST_FILTER` — that list is for
   credential-free hermetic/replay suites only.
+- **Never hardcode the config profile name or the real tenancy Object Storage
+  namespace in the capture test (or any source/comment).** Both are
+  tenancy-specific identifiers that read as leaked internal references. Drive them
+  through env vars (`OCI_PROFILE`, `OCI_NAMESPACE`, ...) as the examples above do,
+  and scrub the namespace out of the committed fixture (see step 4). In test code
+  and comments, refer to "live OCI" / "see `OCICaptureTests`" rather than naming
+  the profile.
 - Once the fixture is committed, hand off to **oci-wire-tests** to write the
   hermetic replay suite (`Tests/Services/<Service>HermeticTests.swift`) that
   loads it via `HTTPClient.replaying(fromFile:)` and asserts on request shape
