@@ -829,7 +829,9 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
-    if httpResponse.statusCode != 200 {
+    // 200 = whole object; 206 = Partial Content, returned when a `range` was
+    // requested. Both carry a valid body, so accept either.
+    if httpResponse.statusCode != 200 && httpResponse.statusCode != 206 {
       let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
       self.logger.error("[getObject] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)
@@ -922,7 +924,9 @@ public struct ObjectStorageClient: Sendable {
       throw ObjectStorageError.invalidResponse("Invalid HTTP response")
     }
 
-    if httpResponse.statusCode != 200 {
+    // 200 = whole object; 206 = Partial Content, returned when a `range` was
+    // requested. Both carry a valid body, so accept either.
+    if httpResponse.statusCode != 200 && httpResponse.statusCode != 206 {
       let errorBody = try JSONDecoder().decode(DataBody.self, from: data)
       self.logger.error("[getObjectPAR] \(errorBody.code) (\(httpResponse.statusCode)): \(errorBody.message)")
       throw ObjectStorageError.unexpectedStatusCode(httpResponse.statusCode, errorBody.message)

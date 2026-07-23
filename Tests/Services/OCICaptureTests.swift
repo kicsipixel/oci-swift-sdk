@@ -68,6 +68,50 @@ struct OCICaptureTests {
     logger.info("OCICaptureTests: captured getNamespace -> \"\(namespace)\"; fixture written under \(out)")
   }
 
+  /// Captures a real ranged `getObject` — the fix for issue #96. The `range`
+  /// header makes OCI answer 206 Partial Content with only the requested window,
+  /// so the committed fixture proves both the request the SDK builds and that the
+  /// client accepts a 206 body. Requires a preexisting object; create one first,
+  /// e.g. `oci os object put --bucket-name <b> --name <o> --file <f>`.
+  @Test("captures a ranged getObject (206 Partial Content) from a live endpoint into a fixture")
+  func captureGetObjectRange() async throws {
+    let env = ProcessInfo.processInfo.environment
+    guard let base = env["OCI_CAPTURE_BASE_URL"], let out = env["OCI_FIXTURE_OUT"],
+      let namespace = env["OCI_NAMESPACE"], let bucket = env["OCI_BUCKET"], let object = env["OCI_OBJECT"]
+    else {
+      logger.info(
+        "captureGetObjectRange skipped — set OCI_CAPTURE_BASE_URL, OCI_FIXTURE_OUT, OCI_NAMESPACE, OCI_BUCKET, OCI_OBJECT."
+      )
+      return
+    }
+    let range = env["OCI_RANGE"] ?? "bytes=0-15"
+
+    // Real OCI needs a real signature; a local mock endpoint does not.
+    let signer: Signer
+    if let configFile = env["OCI_CONFIG_FILE"] {
+      signer = try APIKeySigner(configFilePath: configFile, configName: env["OCI_PROFILE"] ?? "DEFAULT")
+    }
+    else {
+      signer = CaptureStubSigner()
+    }
+
+    let client = try ObjectStorageClient(
+      endpoint: base,
+      signer: signer,
+      httpClient: .recording(into: URL(filePath: out))
+    )
+
+    let data = try await client.getObject(
+      namespaceName: namespace,
+      bucketName: bucket,
+      objectName: object,
+      range: range
+    )
+    logger.info(
+      "OCICaptureTests: captured ranged getObject (\(range)) -> \(data.count) bytes; fixture written under \(out)"
+    )
+  }
+
   // MARK: - Secrets Retrieval API captures
 
   /// Builds a live, recording `SecretsClient` for the configured profile, or

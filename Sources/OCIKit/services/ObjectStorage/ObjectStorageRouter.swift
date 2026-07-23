@@ -569,8 +569,6 @@ public enum ObjectStorageAPI: API {
       .createPreauthenticatedRequest(_, _, let opcClientRequestId),
       .deletePreauthenticatedRequest(_, _, _, let opcClientRequestId),
       .getBucket(_, _, let opcClientRequestId),
-      .getObject(_, _, _, _, let opcClientRequestId, _, _, _, _, _, _, _, _, _, _),
-      .getObjectWithPAR(_, _, _, let opcClientRequestId, _, _, _, _, _, _, _, _, _, _),
       .getNamespace(_, let opcClientRequestId),
       .getNamespaceMetadata(_, let opcClientRequestId),
       .getReplicationPolicy(_, _, _, let opcClientRequestId),
@@ -578,7 +576,6 @@ public enum ObjectStorageAPI: API {
       .getPreauthenticatedRequest(_, _, _, let opcClientRequestId),
       .getWorkRequest(_, let opcClientRequestId),
       .headBucket(_, _, let opcClientRequestId),
-      .headObject(_, _, _, _, let opcClientRequestId, _, _, _),
       .listBuckets(_, _, _, _, _, let opcClientRequestId),
       .listReplicationPolicies(_, _, _, _, let opcClientRequestId),
       .listReplicationSources(_, _, _, _, let opcClientRequestId),
@@ -601,6 +598,50 @@ public enum ObjectStorageAPI: API {
         return ["opc-client-request-id": opcClientRequestId]
       }
       return nil
+
+    // GetObject (direct and PAR) carries the byte range and the optional
+    // customer-supplied (SSE-C) encryption headers in addition to the tracing
+    // id. These must reach the wire: `range` selects the byte window (server
+    // answers 206 Partial Content), and the SSE-C trio decrypts the object.
+    // Query-string overrides (versionId, httpResponse*) are handled in
+    // `queryItems`, matching the OCI GetObject spec and the Python SDK.
+    case .getObject(
+      _, _, _, _, let opcClientRequestId, let range, let opcSseCustomerAlgorithm, let opcSseCustomerKey,
+      let opcSseCustomerKeySha256, _, _, _, _, _, _
+    ),
+      .getObjectWithPAR(
+        _, _, _, let opcClientRequestId, let range, let opcSseCustomerAlgorithm, let opcSseCustomerKey,
+        let opcSseCustomerKeySha256, _, _, _, _, _, _
+      ):
+      let keyValuePairs: [(String, String)] = [
+        ("opc-client-request-id", opcClientRequestId),
+        ("range", range),
+        ("opc-sse-customer-algorithm", opcSseCustomerAlgorithm),
+        ("opc-sse-customer-key", opcSseCustomerKey),
+        ("opc-sse-customer-key-sha256", opcSseCustomerKeySha256),
+      ].compactMap { key, value in
+        value.map { (key, $0) }
+      }
+
+      let headers = Dictionary(uniqueKeysWithValues: keyValuePairs)
+      return headers.isEmpty ? nil : headers
+
+    // HeadObject has no byte range but shares the SSE-C headers so an encrypted
+    // object's metadata can be fetched with the customer key.
+    case .headObject(
+      _, _, _, _, let opcClientRequestId, let opcSseCustomerAlgorithm, let opcSseCustomerKey, let opcSseCustomerKeySha256
+    ):
+      let keyValuePairs: [(String, String)] = [
+        ("opc-client-request-id", opcClientRequestId),
+        ("opc-sse-customer-algorithm", opcSseCustomerAlgorithm),
+        ("opc-sse-customer-key", opcSseCustomerKey),
+        ("opc-sse-customer-key-sha256", opcSseCustomerKeySha256),
+      ].compactMap { key, value in
+        value.map { (key, $0) }
+      }
+
+      let headers = Dictionary(uniqueKeysWithValues: keyValuePairs)
+      return headers.isEmpty ? nil : headers
 
     case .putObject(_, _, _, let contentLength, let contentMD5, let opcClientRequestId, let storageTier):
       let keyValuePairs: [(String, String)] = [
