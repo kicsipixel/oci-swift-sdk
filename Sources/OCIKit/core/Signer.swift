@@ -96,15 +96,7 @@ enum RequestSigner {
     }
 
     req.addValue(req.url?.host ?? "", forHTTPHeaderField: "host")
-    let currentDate = Date()
-    let timezoneOffset = TimeZone.current.secondsFromGMT()
-    let epochDate = currentDate.timeIntervalSince1970
-    let timezoneEpochOffset = (epochDate - Double(timezoneOffset))
-    let timeZoneOffsetDate = Date(timeIntervalSince1970: timezoneEpochOffset)
-    let formatter = DateFormatter()
-    formatter.timeZone = .current
-    formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss"
-    let dateString: String = formatter.string(from: timeZoneOffsetDate) + " GMT"
+    let dateString = Self.rfc1123DateString(from: Date())
     req.addValue(dateString, forHTTPHeaderField: "date")
 
     var authHeader: [String] = [#"Signature version="1""#]
@@ -148,5 +140,23 @@ enum RequestSigner {
 
     authHeader.append(#"signature="\#(signatureBase64String)""#)
     req.addValue(authHeader.joined(separator: ","), forHTTPHeaderField: "Authorization")
+  }
+
+  /// Formats `date` as the RFC 1123 `date` header used in the OCI signing string.
+  ///
+  /// The formatter is pinned to `en_US_POSIX` and GMT so the output is always the
+  /// ASCII, English, UTC wall-clock representation of the instant — independent of
+  /// the host's locale and time zone. Pinning the locale avoids the Cocoa
+  /// date-formatting trap (Apple QA1480): a non-English `Locale.current` would
+  /// otherwise render localized day/month names (e.g. "lun., 21 juil. 2026") or
+  /// non-Latin digits, malforming the signed string and yielding an HTTP 401.
+  /// Pinning the zone to GMT keeps the value correct across DST transitions. See
+  /// issue #97.
+  static func rfc1123DateString(from date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(identifier: "GMT")
+    formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+    return formatter.string(from: date)
   }
 }
